@@ -1,0 +1,17 @@
+{
+  "name": "Cosmostar.Runtime",
+  "rootNamespace": "Cosmostar.Runtime",
+  "references": [
+    "Cosmostar.Core"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}
+

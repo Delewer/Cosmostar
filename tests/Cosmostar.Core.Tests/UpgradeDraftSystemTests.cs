@@ -42,6 +42,7 @@ namespace Cosmostar.Core.Tests
             Assert.Equal(0.1f, build.ChainChance, 3);
             Assert.Single(build.Upgrades);
             Assert.Contains("chain_surge", build.GrantedAbilityIds);
+            Assert.Equal(1, system.GetStackCount(build, upgrade.Id));
         }
 
         [Fact]

@@ -60,6 +60,53 @@ namespace Cosmostar.Core.Tests
 
             Assert.True(profile.SoftCurrency >= catalog.Modules[1].UnlockCost);
         }
+
+        [Fact]
+        public void CollectedSalvage_AddsSoftCurrencyBonus()
+        {
+            var catalog = VerticalSliceBlueprints.CreateDefaultCatalog();
+            var mission = catalog.Missions[0];
+            var profile = new SaveProfile();
+            var evaluation = new MissionEvaluation { Completed = true, StarsEarned = 1 };
+            var summary = new RunSummary { MissionId = mission.Id, SalvageCollected = 17 };
+            var economy = new EconomySystem();
+
+            var reward = economy.CalculateRewards(mission, evaluation, new DailyContract(), profile, new MetaModifiers(), summary);
+
+            Assert.Equal(17, reward.SalvageBonus);
+            Assert.Equal(mission.Reward.SoftCurrency + reward.MasteryBonus + reward.SalvageBonus, reward.TotalSoftCurrency);
+        }
+
+        [Fact]
+        public void ProjectileGrazes_AddSoftCurrencyBonus()
+        {
+            var catalog = VerticalSliceBlueprints.CreateDefaultCatalog();
+            var mission = catalog.Missions[0];
+            var profile = new SaveProfile();
+            var evaluation = new MissionEvaluation { Completed = true, StarsEarned = 1 };
+            var summary = new RunSummary { MissionId = mission.Id, Grazes = 6 };
+            var economy = new EconomySystem();
+
+            var reward = economy.CalculateRewards(mission, evaluation, new DailyContract(), profile, new MetaModifiers(), summary);
+
+            Assert.Equal(12, reward.GrazeBonus);
+            Assert.Equal(mission.Reward.SoftCurrency + reward.MasteryBonus + reward.GrazeBonus, reward.TotalSoftCurrency);
+        }
+
+        [Fact]
+        public void AnomalyEvents_AddSoftCurrencyBonus()
+        {
+            var catalog = VerticalSliceBlueprints.CreateDefaultCatalog();
+            var mission = catalog.Missions[0];
+            var profile = new SaveProfile();
+            var evaluation = new MissionEvaluation { Completed = true, StarsEarned = 1 };
+            var summary = new RunSummary { MissionId = mission.Id, AnomalyEventsTriggered = 4 };
+            var economy = new EconomySystem();
+
+            var reward = economy.CalculateRewards(mission, evaluation, new DailyContract(), profile, new MetaModifiers(), summary);
+
+            Assert.Equal(12, reward.AnomalyBonus);
+            Assert.Equal(mission.Reward.SoftCurrency + reward.MasteryBonus + reward.AnomalyBonus, reward.TotalSoftCurrency);
+        }
     }
 }
-

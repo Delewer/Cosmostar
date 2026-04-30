@@ -45,12 +45,17 @@ namespace Cosmostar.Runtime.Systems
 
         public void SpawnEnemyShot(RunSession session, EnemyState enemy, Vector2 direction, float speedScale)
         {
+            SpawnEnemyShot(session, enemy.Position, enemy.Def.ContactDamage * 0.8f, enemy.Def.IsBoss, direction, speedScale);
+        }
+
+        public void SpawnEnemyShot(RunSession session, Vector2 origin, float damage, bool isBossShot, Vector2 direction, float speedScale)
+        {
             session.Projectiles.Add(new ProjectileState
             {
-                Position = enemy.Position,
+                Position = origin,
                 Velocity = direction.normalized * speedScale,
-                Damage = enemy.Def.ContactDamage * 0.8f,
-                Radius = enemy.Def.IsBoss ? 12f : 8f,
+                Damage = damage,
+                Radius = isBossShot ? 12f : 8f,
                 RemainingLife = 6f,
                 FromPlayer = false,
                 Color = new Color(1f, 0.28f, 0.52f, 0.95f)
@@ -61,7 +66,7 @@ namespace Cosmostar.Runtime.Systems
         {
             var clampedCount = Mathf.Max(1, projectileCount);
             var spread = clampedCount == 1 ? 0f : spreadDegrees;
-            var damage = session.Weapon.ProjectileDamage * session.Meta.DamageMultiplier * session.Build.DamageMultiplier;
+            var baseDamage = session.Weapon.ProjectileDamage * session.Meta.DamageMultiplier * session.Build.DamageMultiplier;
             var projectileSpeed = session.Weapon.ProjectileSpeed;
 
             for (var projectileIndex = 0; projectileIndex < clampedCount; projectileIndex++)
@@ -69,19 +74,23 @@ namespace Cosmostar.Runtime.Systems
                 var angleStep = clampedCount == 1 ? 0f : spread / (clampedCount - 1);
                 var angle = -spread * 0.5f + angleStep * projectileIndex;
                 var direction = Quaternion.Euler(0f, 0f, angle) * Vector2.up;
+                var isCritical = Random.value <= session.Weapon.CritChance;
+                var projectileColor = ResolvePlayerProjectileColor(session.Weapon.Family, isCritical);
+                var projectileRadius = session.Weapon.Family == Cosmostar.Core.Models.WeaponFamily.Lance ? 10f : 7f;
 
                 session.Projectiles.Add(new ProjectileState
                 {
                     Position = origin + Vector2.up * 0.03f,
                     Velocity = direction.normalized * projectileSpeed,
-                    Damage = damage,
-                    Radius = session.Weapon.Family == Cosmostar.Core.Models.WeaponFamily.Lance ? 10f : 7f,
+                    Damage = isCritical ? baseDamage * 1.8f : baseDamage,
+                    Radius = isCritical ? projectileRadius + 3f : projectileRadius,
                     RemainingLife = 3.2f,
                     FromPlayer = true,
+                    IsCritical = isCritical,
                     RemainingPierce = session.Build.BonusPierce,
                     AppliesSlow = session.Build.FrostChance > 0f,
                     CanChain = session.Build.ChainChance > 0f,
-                    Color = session.Weapon.Family == Cosmostar.Core.Models.WeaponFamily.Arc ? new Color(0.2f, 0.95f, 1f) : new Color(0.26f, 1f, 0.42f)
+                    Color = projectileColor
                 });
             }
         }
@@ -99,6 +108,15 @@ namespace Cosmostar.Runtime.Systems
                 Color = new Color(1f, 0.95f, 0.3f, 0.95f)
             });
         }
+
+        private static Color ResolvePlayerProjectileColor(Cosmostar.Core.Models.WeaponFamily family, bool isCritical)
+        {
+            if (isCritical)
+            {
+                return new Color(1f, 0.95f, 0.24f, 0.98f);
+            }
+
+            return family == Cosmostar.Core.Models.WeaponFamily.Arc ? new Color(0.2f, 0.95f, 1f) : new Color(0.26f, 1f, 0.42f);
+        }
     }
 }
-

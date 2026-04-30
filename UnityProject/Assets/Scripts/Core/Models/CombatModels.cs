@@ -51,6 +51,14 @@ namespace Cosmostar.Core.Models
         Completed
     }
 
+    public enum RunAnomalyKind
+    {
+        None,
+        MeteorShower,
+        SolarFlare,
+        SalvageBloom
+    }
+
     [Serializable]
     public sealed class ShipDef
     {
@@ -125,6 +133,7 @@ namespace Cosmostar.Core.Models
         public float Speed;
         public float ContactDamage;
         public float FireInterval;
+        public float TelegraphSeconds;
         public float ScoreValue;
         public bool IsBoss;
     }
@@ -138,6 +147,7 @@ namespace Cosmostar.Core.Models
         public float VolleyInterval;
         public int VolleyCount;
         public float ProjectileSpeed;
+        public float TelegraphSeconds;
         public float ArenaPulseDamage;
     }
 
@@ -221,6 +231,10 @@ namespace Cosmostar.Core.Models
         public bool Revived;
         public float EndingShieldRatio;
         public int PickupsCollected;
+        public int SalvageCollected;
+        public int Grazes;
+        public int BestComboCount;
+        public int AnomalyEventsTriggered;
     }
 
     [Serializable]
@@ -239,6 +253,13 @@ namespace Cosmostar.Core.Models
         public float StartingShieldMultiplier = 1f;
         public float BossStartTimeOverride = -1f;
         public bool AddRammerToIntroWave;
+        public RunAnomalyKind AnomalyKind;
+        public string AnomalyLabel = string.Empty;
+        public float AnomalyFirstSecond = -1f;
+        public float AnomalyIntervalSeconds;
+        public float AnomalyTelegraphSeconds;
+        public float AnomalyDamage;
+        public int AnomalyCount;
     }
 
     [Serializable]

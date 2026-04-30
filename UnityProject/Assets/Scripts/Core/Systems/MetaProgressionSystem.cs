@@ -1,3 +1,5 @@
+#nullable disable
+
 using System.Collections.Generic;
 using Cosmostar.Core.Models;
 
@@ -36,18 +38,17 @@ namespace Cosmostar.Core.Systems
                 return false;
             }
 
-            var targetCost = progress.Unlocked ? module.UpgradeCost * progress.Level : module.UnlockCost;
-            if (profile.SoftCurrency < targetCost)
-            {
-                return false;
-            }
-
             if (!progress.Unlocked)
             {
+                if (profile.SoftCurrency < module.UnlockCost)
+                {
+                    return false;
+                }
+
                 progress.Unlocked = true;
                 progress.Level = 1;
                 progress.Equipped = ProfileQueries.GetEquippedModuleCount(profile) < MaxEquippedModules;
-                profile.SoftCurrency -= targetCost;
+                profile.SoftCurrency -= module.UnlockCost;
                 return true;
             }
 
@@ -56,7 +57,13 @@ namespace Cosmostar.Core.Systems
                 return false;
             }
 
-            profile.SoftCurrency -= targetCost;
+            var upgradeCost = module.UpgradeCost * progress.Level;
+            if (profile.ModuleShards < upgradeCost)
+            {
+                return false;
+            }
+
+            profile.ModuleShards -= upgradeCost;
             progress.Level += 1;
             return true;
         }
@@ -102,7 +109,7 @@ namespace Cosmostar.Core.Systems
             return unlocked;
         }
 
-        private static ModuleDef? FindModule(List<ModuleDef> modules, string moduleId)
+        private static ModuleDef FindModule(List<ModuleDef> modules, string moduleId)
         {
             for (var index = 0; index < modules.Count; index++)
             {

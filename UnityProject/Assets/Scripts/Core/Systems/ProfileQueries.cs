@@ -1,3 +1,5 @@
+#nullable disable
+
 using System.Collections.Generic;
 using Cosmostar.Core.Models;
 
@@ -34,7 +36,7 @@ namespace Cosmostar.Core.Systems
             }
         }
 
-        public static ModuleProgress? GetModuleProgress(SaveProfile profile, string moduleId)
+        public static ModuleProgress GetModuleProgress(SaveProfile profile, string moduleId)
         {
             for (var index = 0; index < profile.Modules.Count; index++)
             {
@@ -47,7 +49,7 @@ namespace Cosmostar.Core.Systems
             return null;
         }
 
-        public static MissionProgress? GetMissionProgress(SaveProfile profile, string missionId)
+        public static MissionProgress GetMissionProgress(SaveProfile profile, string missionId)
         {
             for (var index = 0; index < profile.Missions.Count; index++)
             {

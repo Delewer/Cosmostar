@@ -1,3 +1,5 @@
+#nullable disable
+
 using System;
 using System.Collections.Generic;
 using Cosmostar.Core.Models;
@@ -26,7 +28,7 @@ namespace Cosmostar.Core.Systems
             return GenerateChoices(upgrades, buildState, null, count, random);
         }
 
-        public List<UpgradeDef> GenerateChoices(List<UpgradeDef> upgrades, RunBuildState buildState, IReadOnlyCollection<string>? unlockedAbilityIds, int count, IRandomSource random)
+        public List<UpgradeDef> GenerateChoices(List<UpgradeDef> upgrades, RunBuildState buildState, IReadOnlyCollection<string> unlockedAbilityIds, int count, IRandomSource random)
         {
             var available = new List<UpgradeDef>();
             for (var index = 0; index < upgrades.Count; index++)
@@ -104,6 +106,11 @@ namespace Cosmostar.Core.Systems
             }
         }
 
+        public int GetStackCount(RunBuildState buildState, string upgradeId)
+        {
+            return GetStacks(buildState, upgradeId);
+        }
+
         private static UpgradeDef PickWeighted(List<UpgradeDef> upgrades, IRandomSource random)
         {
             var totalWeight = 0f;
@@ -126,7 +133,7 @@ namespace Cosmostar.Core.Systems
             return upgrades[upgrades.Count - 1];
         }
 
-        private static bool IsUpgradeAvailable(UpgradeDef upgrade, RunBuildState buildState, IReadOnlyCollection<string>? unlockedAbilityIds)
+        private static bool IsUpgradeAvailable(UpgradeDef upgrade, RunBuildState buildState, IReadOnlyCollection<string> unlockedAbilityIds)
         {
             var abilityId = ResolveAbilityId(upgrade);
             if (string.IsNullOrEmpty(abilityId))
@@ -139,7 +146,25 @@ namespace Cosmostar.Core.Systems
                 return true;
             }
 
-            return unlockedAbilityIds != null && unlockedAbilityIds.Contains(abilityId);
+            return ContainsString(unlockedAbilityIds, abilityId);
+        }
+
+        private static bool ContainsString(IReadOnlyCollection<string> values, string target)
+        {
+            if (values == null)
+            {
+                return false;
+            }
+
+            foreach (var value in values)
+            {
+                if (value == target)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private static int GetStacks(RunBuildState buildState, string upgradeId)

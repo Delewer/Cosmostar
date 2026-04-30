@@ -226,6 +226,11 @@ namespace Cosmostar.Core.Systems
                     AddError(report, "enemy.contact_damage", "Enemy '" + enemy.Id + "' contact damage cannot be negative.");
                 }
 
+                if (enemy.TelegraphSeconds < 0f)
+                {
+                    AddError(report, "enemy.telegraph_seconds", "Enemy '" + enemy.Id + "' telegraph duration cannot be negative.");
+                }
+
                 hasBoss = hasBoss || enemy.IsBoss;
             }
 
@@ -331,6 +336,11 @@ namespace Cosmostar.Core.Systems
                 if (phase.VolleyInterval <= 0f || phase.VolleyCount <= 0 || phase.ProjectileSpeed <= 0f)
                 {
                     AddError(report, "boss_phase.volley", "Boss phase '" + phase.Id + "' volley values must be greater than zero.");
+                }
+
+                if (phase.TelegraphSeconds < 0f)
+                {
+                    AddError(report, "boss_phase.telegraph_seconds", "Boss phase '" + phase.Id + "' telegraph duration cannot be negative.");
                 }
             }
         }

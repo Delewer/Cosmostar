@@ -50,5 +50,20 @@ namespace Cosmostar.Core.Tests
             Assert.Contains(report.Issues, issue => issue.Code == "unlock_track.order");
             Assert.Contains(report.Issues, issue => issue.Code == "missions.daily_missing");
         }
+
+        [Fact]
+        public void Validate_ReportsNegativeTelegraphDurations()
+        {
+            var catalog = VerticalSliceBlueprints.CreateDefaultCatalog();
+            catalog.Enemies[3].TelegraphSeconds = -0.1f;
+            catalog.BossPhases[0].TelegraphSeconds = -0.1f;
+
+            var system = new CatalogValidationSystem();
+            var report = system.Validate(catalog);
+
+            Assert.False(report.IsValid);
+            Assert.Contains(report.Issues, issue => issue.Code == "enemy.telegraph_seconds");
+            Assert.Contains(report.Issues, issue => issue.Code == "boss_phase.telegraph_seconds");
+        }
     }
 }

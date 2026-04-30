@@ -101,13 +101,16 @@ namespace Cosmostar.Core.Models
         public int StreakBonus;
         public int MasteryBonus;
         public int DailyBonus;
+        public int SalvageBonus;
+        public int GrazeBonus;
+        public int AnomalyBonus;
         public bool Doubled;
 
         public int TotalSoftCurrency
         {
             get
             {
-                var total = BaseReward.SoftCurrency + StreakBonus + MasteryBonus + DailyBonus;
+                var total = BaseReward.SoftCurrency + StreakBonus + MasteryBonus + DailyBonus + SalvageBonus + AnomalyBonus + GrazeBonus;
                 return Doubled ? total * 2 : total;
             }
         }

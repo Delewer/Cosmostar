@@ -35,5 +35,23 @@ namespace Cosmostar.Core.Tests
             Assert.True(rules.AddRammerToIntroWave);
             Assert.Contains(EnemyArchetype.Rammer, modifiedWaves[0].SpawnArchetypes);
         }
+
+        [Fact]
+        public void MissionRules_AssignDistinctAnomalyEvents()
+        {
+            var catalog = VerticalSliceBlueprints.CreateDefaultCatalog();
+            var system = new MissionRuleSystem();
+
+            var survivalRules = system.Resolve(catalog.Missions[0]);
+            var harvestRules = system.Resolve(catalog.Missions[4]);
+            var bossRules = system.Resolve(catalog.Missions[2]);
+
+            Assert.Equal(RunAnomalyKind.MeteorShower, survivalRules.AnomalyKind);
+            Assert.Equal(RunAnomalyKind.SalvageBloom, harvestRules.AnomalyKind);
+            Assert.Equal(RunAnomalyKind.SolarFlare, bossRules.AnomalyKind);
+            Assert.True(survivalRules.AnomalyFirstSecond > 0f);
+            Assert.True(bossRules.AnomalyTelegraphSeconds > 0f);
+            Assert.True(harvestRules.AnomalyCount > 0);
+        }
     }
 }

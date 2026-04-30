@@ -1,3 +1,5 @@
+#nullable disable
+
 using System.Collections.Generic;
 
 namespace Cosmostar.Core.Models
@@ -38,7 +40,7 @@ namespace Cosmostar.Core.Models
 
         public bool DraftPending { get; private set; }
 
-        public WaveDef? CurrentWave
+        public WaveDef CurrentWave
         {
             get
             {

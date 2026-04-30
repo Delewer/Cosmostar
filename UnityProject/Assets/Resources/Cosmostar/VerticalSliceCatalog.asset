@@ -1,0 +1,492 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7f932388b2dbf37468cb21400655cee3, type: 3}
+  m_Name: VerticalSliceCatalog
+  m_EditorClassIdentifier: Cosmostar.Runtime::Cosmostar.Runtime.Data.VerticalSliceCatalogAsset
+  Catalog:
+    Ship:
+      Id: starling_mk1
+      DisplayName: Starling Mk-I
+      BaseHull: 90
+      BaseShield: 70
+      MoveSpeed: 0.65
+      StartingWeaponFamily: 0
+    Weapons:
+    - Id: pulse_array
+      DisplayName: Pulse Array
+      Family: 0
+      FireInterval: 0.18
+      ProjectileDamage: 16
+      ProjectileSpeed: 1.4
+      ProjectileCount: 1
+      SpreadDegrees: 8
+      CritChance: 0.08
+    - Id: arc_splitter
+      DisplayName: Arc Splitter
+      Family: 1
+      FireInterval: 0.32
+      ProjectileDamage: 22
+      ProjectileSpeed: 1.15
+      ProjectileCount: 2
+      SpreadDegrees: 22
+      CritChance: 0.04
+    - Id: lance_rail
+      DisplayName: Lance Rail
+      Family: 2
+      FireInterval: 0.55
+      ProjectileDamage: 38
+      ProjectileSpeed: 1.9
+      ProjectileCount: 1
+      SpreadDegrees: 0
+      CritChance: 0.12
+    Abilities:
+    - Id: cryo_wake
+      DisplayName: Cryo Wake
+      Family: 1
+      Description: Shots can freeze enemies and slow the lane.
+      Magnitude: 0.18
+      DurationSeconds: 1.5
+    - Id: chain_surge
+      DisplayName: Chain Surge
+      Family: 2
+      Description: Critical hits arc to nearby targets.
+      Magnitude: 0.22
+      DurationSeconds: 0
+    - Id: drone_wing
+      DisplayName: Drone Wing
+      Family: 3
+      Description: Adds autonomous flanking drones.
+      Magnitude: 1
+      DurationSeconds: 0
+    - Id: overclock_pulse
+      DisplayName: Overclock Pulse
+      Family: 4
+      Description: Periodic shockwave burst when your reactor peaks.
+      Magnitude: 26
+      DurationSeconds: 4.5
+    Upgrades:
+    - Id: plasma_focus
+      DisplayName: Plasma Focus
+      Description: Increase shot damage.
+      MaxStacks: 5
+      Weight: 1.4
+      EffectType: 0
+      Magnitude: 0.14
+      WeaponFamily: 0
+      AbilityFamily: 0
+      AbilityId: 
+    - Id: rapid_cycling
+      DisplayName: Rapid Cycling
+      Description: Increase fire rate.
+      MaxStacks: 5
+      Weight: 1.4
+      EffectType: 1
+      Magnitude: 0.12
+      WeaponFamily: 0
+      AbilityFamily: 0
+      AbilityId: 
+    - Id: split_vector
+      DisplayName: Split Vector
+      Description: Add one more projectile to each volley.
+      MaxStacks: 3
+      Weight: 1
+      EffectType: 2
+      Magnitude: 1
+      WeaponFamily: 0
+      AbilityFamily: 0
+      AbilityId: 
+    - Id: shield_weave
+      DisplayName: Shield Weave
+      Description: Increase max shield.
+      MaxStacks: 4
+      Weight: 1.1
+      EffectType: 3
+      Magnitude: 12
+      WeaponFamily: 0
+      AbilityFamily: 0
+      AbilityId: 
+    - Id: emergency_patch
+      DisplayName: Emergency Patch
+      Description: Restore shield immediately.
+      MaxStacks: 3
+      Weight: 0.8
+      EffectType: 4
+      Magnitude: 18
+      WeaponFamily: 0
+      AbilityFamily: 0
+      AbilityId: 
+    - Id: afterburner
+      DisplayName: Afterburner
+      Description: Increase move speed.
+      MaxStacks: 4
+      Weight: 1
+      EffectType: 5
+      Magnitude: 0.08
+      WeaponFamily: 0
+      AbilityFamily: 0
+      AbilityId: 
+    - Id: magnetic_sweep
+      DisplayName: Magnetic Sweep
+      Description: Extend pickup radius.
+      MaxStacks: 4
+      Weight: 0.9
+      EffectType: 6
+      Magnitude: 0.05
+      WeaponFamily: 0
+      AbilityFamily: 0
+      AbilityId: 
+    - Id: piercing_array
+      DisplayName: Piercing Array
+      Description: Shots pass through additional targets.
+      MaxStacks: 2
+      Weight: 0.7
+      EffectType: 7
+      Magnitude: 1
+      WeaponFamily: 0
+      AbilityFamily: 0
+      AbilityId: 
+    - Id: cryo_wake_upgrade
+      DisplayName: Cryo Wake
+      Description: Freeze chance on hit.
+      MaxStacks: 3
+      Weight: 0.7
+      EffectType: 8
+      Magnitude: 0.1
+      WeaponFamily: 0
+      AbilityFamily: 1
+      AbilityId: cryo_wake
+    - Id: chain_surge_upgrade
+      DisplayName: Chain Surge
+      Description: Chain chance on critical burst.
+      MaxStacks: 3
+      Weight: 0.7
+      EffectType: 9
+      Magnitude: 0.1
+      WeaponFamily: 0
+      AbilityFamily: 2
+      AbilityId: chain_surge
+    - Id: drone_wing_upgrade
+      DisplayName: Drone Wing
+      Description: Add a drone companion.
+      MaxStacks: 2
+      Weight: 0.6
+      EffectType: 10
+      Magnitude: 1
+      WeaponFamily: 0
+      AbilityFamily: 3
+      AbilityId: drone_wing
+    - Id: overclock_pulse_upgrade
+      DisplayName: Overclock Pulse
+      Description: Emit periodic reactor bursts.
+      MaxStacks: 2
+      Weight: 0.5
+      EffectType: 11
+      Magnitude: 24
+      WeaponFamily: 0
+      AbilityFamily: 4
+      AbilityId: overclock_pulse
+    Modules:
+    - Id: hull_plating
+      DisplayName: Hull Plating
+      Description: Adds hull and shield buffer.
+      EffectType: 0
+      Magnitude: 12
+      MaxLevel: 5
+      UnlockCost: 0
+      UpgradeCost: 45
+    - Id: reactor_core
+      DisplayName: Reactor Core
+      Description: Improves baseline damage.
+      EffectType: 1
+      Magnitude: 0.08
+      MaxLevel: 5
+      UnlockCost: 160
+      UpgradeCost: 65
+    - Id: thruster_mesh
+      DisplayName: Thruster Mesh
+      Description: Improves move speed.
+      EffectType: 2
+      Magnitude: 0.07
+      MaxLevel: 5
+      UnlockCost: 180
+      UpgradeCost: 70
+    - Id: capacitor_lattice
+      DisplayName: Capacitor Lattice
+      Description: Improves fire rate.
+      EffectType: 3
+      Magnitude: 0.06
+      MaxLevel: 5
+      UnlockCost: 210
+      UpgradeCost: 80
+    - Id: salvage_magnet
+      DisplayName: Salvage Magnet
+      Description: Improves pickup radius.
+      EffectType: 4
+      Magnitude: 0.05
+      MaxLevel: 5
+      UnlockCost: 190
+      UpgradeCost: 75
+    - Id: tactical_reroll
+      DisplayName: Tactical Reroll
+      Description: Adds a free reroll each run.
+      EffectType: 5
+      Magnitude: 1
+      MaxLevel: 3
+      UnlockCost: 220
+      UpgradeCost: 120
+    - Id: backup_spark
+      DisplayName: Backup Spark
+      Description: Adds a revive charge.
+      EffectType: 6
+      Magnitude: 1
+      MaxLevel: 2
+      UnlockCost: 260
+      UpgradeCost: 140
+    - Id: credit_cache
+      DisplayName: Credit Cache
+      Description: Improves payout after each run.
+      EffectType: 7
+      Magnitude: 0.08
+      MaxLevel: 5
+      UnlockCost: 200
+      UpgradeCost: 85
+    Enemies:
+    - Id: scout
+      DisplayName: Scout
+      Archetype: 0
+      Hull: 26
+      Speed: 0.14
+      ContactDamage: 9
+      FireInterval: 0
+      TelegraphSeconds: 0
+      ScoreValue: 1
+      IsBoss: 0
+    - Id: miner
+      DisplayName: Miner
+      Archetype: 1
+      Hull: 34
+      Speed: 0.11
+      ContactDamage: 11
+      FireInterval: 0
+      TelegraphSeconds: 0
+      ScoreValue: 1.3
+      IsBoss: 0
+    - Id: rammer
+      DisplayName: Rammer
+      Archetype: 2
+      Hull: 48
+      Speed: 0.19
+      ContactDamage: 16
+      FireInterval: 0
+      TelegraphSeconds: 0
+      ScoreValue: 1.6
+      IsBoss: 0
+    - Id: shard_caster
+      DisplayName: Shard Caster
+      Archetype: 3
+      Hull: 40
+      Speed: 0.09
+      ContactDamage: 10
+      FireInterval: 2.4
+      TelegraphSeconds: 0.35
+      ScoreValue: 1.8
+      IsBoss: 0
+    - Id: elite_warden
+      DisplayName: Elite Warden
+      Archetype: 4
+      Hull: 220
+      Speed: 0.1
+      ContactDamage: 20
+      FireInterval: 1.9
+      TelegraphSeconds: 0.45
+      ScoreValue: 8
+      IsBoss: 0
+    - Id: null_sovereign
+      DisplayName: Null Sovereign
+      Archetype: 5
+      Hull: 780
+      Speed: 0.05
+      ContactDamage: 26
+      FireInterval: 1.4
+      TelegraphSeconds: 0.55
+      ScoreValue: 30
+      IsBoss: 1
+    Waves:
+    - Id: intro
+      DisplayName: Breach Corridor
+      Phase: 0
+      StartSecond: 0
+      EndSecond: 65
+      SpawnArchetypes: 0000000001000000
+      SpawnRatePerSecond: 1.4
+      GrantsUpgradeDraft: 1
+    - Id: escalation
+      DisplayName: Flare Net
+      Phase: 1
+      StartSecond: 65
+      EndSecond: 145
+      SpawnArchetypes: 000000000200000003000000
+      SpawnRatePerSecond: 1.8
+      GrantsUpgradeDraft: 1
+    - Id: elite
+      DisplayName: Warden Surge
+      Phase: 2
+      StartSecond: 145
+      EndSecond: 215
+      SpawnArchetypes: 020000000300000004000000
+      SpawnRatePerSecond: 1.5
+      GrantsUpgradeDraft: 1
+    - Id: boss
+      DisplayName: Sovereign Gate
+      Phase: 3
+      StartSecond: 215
+      EndSecond: 320
+      SpawnArchetypes: 05000000
+      SpawnRatePerSecond: 0.2
+      GrantsUpgradeDraft: 0
+    BossPhases:
+    - Id: boss_phase_1
+      PhaseIndex: 1
+      TriggerHealthNormalized: 1
+      VolleyInterval: 1.3
+      VolleyCount: 3
+      ProjectileSpeed: 0.18
+      TelegraphSeconds: 0.55
+      ArenaPulseDamage: 8
+    - Id: boss_phase_2
+      PhaseIndex: 2
+      TriggerHealthNormalized: 0.67
+      VolleyInterval: 1
+      VolleyCount: 4
+      ProjectileSpeed: 0.22
+      TelegraphSeconds: 0.55
+      ArenaPulseDamage: 10
+    - Id: boss_phase_3
+      PhaseIndex: 3
+      TriggerHealthNormalized: 0.34
+      VolleyInterval: 0.75
+      VolleyCount: 6
+      ProjectileSpeed: 0.26
+      TelegraphSeconds: 0.55
+      ArenaPulseDamage: 12
+    Missions:
+    - Id: survive_four
+      DisplayName: Break the Screen
+      Description: Survive the full corridor for four minutes.
+      ObjectiveKind: 0
+      TargetValue: 0
+      TargetDurationSeconds: 240
+      RequiredShieldRatio: 0.4
+      ModifierText: Dense scout traffic
+      DifficultyRating: 1
+      DailyEligible: 1
+      Reward:
+        SoftCurrency: 55
+        ModuleShards: 8
+        UnlockTrackXp: 18
+        DoubleRewardEligible: 1
+    - Id: kill_eighty
+      DisplayName: Clean Sweep
+      Description: Destroy 80 drones before extraction.
+      ObjectiveKind: 1
+      TargetValue: 80
+      TargetDurationSeconds: 240
+      RequiredShieldRatio: 0.4
+      ModifierText: Bonus salvage on scouts
+      DifficultyRating: 1.1
+      DailyEligible: 1
+      Reward:
+        SoftCurrency: 60
+        ModuleShards: 9
+        UnlockTrackXp: 20
+        DoubleRewardEligible: 1
+    - Id: boss_clear
+      DisplayName: Open the Gate
+      Description: Reach and destroy the Null Sovereign.
+      ObjectiveKind: 2
+      TargetValue: 1
+      TargetDurationSeconds: 300
+      RequiredShieldRatio: 0.4
+      ModifierText: Boss appears earlier
+      DifficultyRating: 1.4
+      DailyEligible: 1
+      Reward:
+        SoftCurrency: 72
+        ModuleShards: 12
+        UnlockTrackXp: 28
+        DoubleRewardEligible: 1
+    - Id: shield_clear
+      DisplayName: Glass Pilot
+      Description: Beat the boss with at least 40% shield remaining.
+      ObjectiveKind: 3
+      TargetValue: 1
+      TargetDurationSeconds: 300
+      RequiredShieldRatio: 0.4
+      ModifierText: Shield pickups reduced
+      DifficultyRating: 1.55
+      DailyEligible: 1
+      Reward:
+        SoftCurrency: 82
+        ModuleShards: 14
+        UnlockTrackXp: 32
+        DoubleRewardEligible: 1
+    - Id: kill_one_twenty
+      DisplayName: Neon Harvest
+      Description: Destroy 120 targets under pressure.
+      ObjectiveKind: 1
+      TargetValue: 120
+      TargetDurationSeconds: 270
+      RequiredShieldRatio: 0.4
+      ModifierText: Faster enemy spawns
+      DifficultyRating: 1.45
+      DailyEligible: 1
+      Reward:
+        SoftCurrency: 78
+        ModuleShards: 13
+        UnlockTrackXp: 30
+        DoubleRewardEligible: 1
+    - Id: survive_hard
+      DisplayName: Hard Vacuum
+      Description: Last three minutes with no revive safety net.
+      ObjectiveKind: 0
+      TargetValue: 0
+      TargetDurationSeconds: 180
+      RequiredShieldRatio: 0.4
+      ModifierText: Rammers spawn early
+      DifficultyRating: 1.25
+      DailyEligible: 1
+      Reward:
+        SoftCurrency: 66
+        ModuleShards: 10
+        UnlockTrackXp: 24
+        DoubleRewardEligible: 1
+    UnlockTrack:
+    - Id: track_1
+      RequiredXp: 20
+      RewardLabel: Cryo Wake unlocked
+      ModuleShards: 6
+      AbilityUnlockId: cryo_wake
+    - Id: track_2
+      RequiredXp: 50
+      RewardLabel: Chain Surge unlocked
+      ModuleShards: 8
+      AbilityUnlockId: chain_surge
+    - Id: track_3
+      RequiredXp: 90
+      RewardLabel: Drone Wing unlocked
+      ModuleShards: 10
+      AbilityUnlockId: drone_wing
+    - Id: track_4
+      RequiredXp: 140
+      RewardLabel: Overclock Pulse unlocked
+      ModuleShards: 14
+      AbilityUnlockId: overclock_pulse

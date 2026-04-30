@@ -1,10 +1,12 @@
+#nullable disable
+
 using Cosmostar.Core.Models;
 
 namespace Cosmostar.Core.Systems
 {
     public sealed class EconomySystem
     {
-        public RewardBreakdown CalculateRewards(MissionDef mission, MissionEvaluation evaluation, DailyContract dailyContract, SaveProfile profile, MetaModifiers modifiers)
+        public RewardBreakdown CalculateRewards(MissionDef mission, MissionEvaluation evaluation, DailyContract dailyContract, SaveProfile profile, MetaModifiers modifiers, RunSummary summary = null)
         {
             var breakdown = new RewardBreakdown();
             breakdown.BaseReward = new RewardTable
@@ -14,6 +16,9 @@ namespace Cosmostar.Core.Systems
                 UnlockTrackXp = mission.Reward.UnlockTrackXp,
                 DoubleRewardEligible = mission.Reward.DoubleRewardEligible
             };
+            breakdown.SalvageBonus = summary == null ? 0 : summary.SalvageCollected;
+            breakdown.GrazeBonus = summary == null ? 0 : summary.Grazes * 2;
+            breakdown.AnomalyBonus = summary == null ? 0 : summary.AnomalyEventsTriggered * 3;
 
             if (!evaluation.Completed)
             {
@@ -55,4 +60,3 @@ namespace Cosmostar.Core.Systems
         }
     }
 }
-

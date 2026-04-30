@@ -13,27 +13,44 @@ namespace Cosmostar.Core.Systems
             {
                 case "survive_four":
                     rules.GlobalSpawnRateMultiplier = 1.08f;
+                    ConfigureAnomaly(rules, RunAnomalyKind.MeteorShower, "Meteor showers", 24f, 28f, 0.85f, 16f, 3);
                     break;
                 case "kill_eighty":
                     rules.GlobalSpawnRateMultiplier = 1.06f;
+                    ConfigureAnomaly(rules, RunAnomalyKind.SalvageBloom, "Salvage blooms", 20f, 30f, 0f, 0f, 6);
                     break;
                 case "boss_clear":
                     rules.BossStartTimeOverride = 185f;
+                    ConfigureAnomaly(rules, RunAnomalyKind.SolarFlare, "Solar flare lanes", 38f, 34f, 0.95f, 13f, 2);
                     break;
                 case "shield_clear":
                     rules.StartingShieldMultiplier = 0.78f;
                     rules.BossStartTimeOverride = 195f;
+                    ConfigureAnomaly(rules, RunAnomalyKind.SolarFlare, "Shield-draining flares", 32f, 32f, 1.05f, 12f, 2);
                     break;
                 case "kill_one_twenty":
                     rules.GlobalSpawnRateMultiplier = 1.22f;
+                    ConfigureAnomaly(rules, RunAnomalyKind.SalvageBloom, "Volatile salvage blooms", 18f, 24f, 0f, 0f, 5);
                     break;
                 case "survive_hard":
                     rules.GlobalSpawnRateMultiplier = 1.12f;
                     rules.AddRammerToIntroWave = true;
+                    ConfigureAnomaly(rules, RunAnomalyKind.MeteorShower, "Dense meteor showers", 18f, 24f, 0.8f, 18f, 4);
                     break;
             }
 
             return rules;
+        }
+
+        private static void ConfigureAnomaly(MissionRuleSet rules, RunAnomalyKind kind, string label, float firstSecond, float intervalSeconds, float telegraphSeconds, float damage, int count)
+        {
+            rules.AnomalyKind = kind;
+            rules.AnomalyLabel = label;
+            rules.AnomalyFirstSecond = firstSecond;
+            rules.AnomalyIntervalSeconds = intervalSeconds;
+            rules.AnomalyTelegraphSeconds = telegraphSeconds;
+            rules.AnomalyDamage = damage;
+            rules.AnomalyCount = count;
         }
 
         public List<WaveDef> CreateModifiedWaves(List<WaveDef> baseWaves, MissionRuleSet rules)

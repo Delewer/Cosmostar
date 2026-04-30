@@ -51,5 +51,82 @@ namespace Cosmostar.Core.Tests
             Assert.False(toggled);
             Assert.Equal(MetaProgressionSystem.MaxEquippedModules, ProfileQueries.GetEquippedModuleCount(profile));
         }
+
+        [Fact]
+        public void UnlockModule_SpendsCreditsAndEquipsWhenSlotAvailable()
+        {
+            var catalog = VerticalSliceBlueprints.CreateDefaultCatalog();
+            var module = catalog.Modules[1];
+            var profile = new SaveProfile
+            {
+                SoftCurrency = module.UnlockCost,
+                ModuleShards = 999
+            };
+            ProfileQueries.EnsureDefaultState(profile, catalog);
+
+            var system = new MetaProgressionSystem();
+            var unlocked = system.TryUnlockOrUpgradeModule(profile, module);
+            var progress = ProfileQueries.GetModuleProgress(profile, module.Id);
+
+            Assert.True(unlocked);
+            Assert.NotNull(progress);
+            Assert.True(progress.Unlocked);
+            Assert.True(progress.Equipped);
+            Assert.Equal(1, progress.Level);
+            Assert.Equal(0, profile.SoftCurrency);
+            Assert.Equal(999, profile.ModuleShards);
+        }
+
+        [Fact]
+        public void UpgradeModule_SpendsModuleShardsNotCredits()
+        {
+            var catalog = VerticalSliceBlueprints.CreateDefaultCatalog();
+            var module = catalog.Modules[0];
+            var profile = new SaveProfile
+            {
+                SoftCurrency = 0,
+                ModuleShards = module.UpgradeCost
+            };
+            ProfileQueries.EnsureDefaultState(profile, catalog);
+
+            var progress = ProfileQueries.GetModuleProgress(profile, module.Id);
+            Assert.NotNull(progress);
+            progress.Unlocked = true;
+            progress.Level = 1;
+
+            var system = new MetaProgressionSystem();
+            var upgraded = system.TryUnlockOrUpgradeModule(profile, module);
+
+            Assert.True(upgraded);
+            Assert.Equal(2, progress.Level);
+            Assert.Equal(0, profile.ModuleShards);
+            Assert.Equal(0, profile.SoftCurrency);
+        }
+
+        [Fact]
+        public void UpgradeModule_RejectsWhenShardsAreShort()
+        {
+            var catalog = VerticalSliceBlueprints.CreateDefaultCatalog();
+            var module = catalog.Modules[0];
+            var profile = new SaveProfile
+            {
+                SoftCurrency = 999,
+                ModuleShards = module.UpgradeCost - 1
+            };
+            ProfileQueries.EnsureDefaultState(profile, catalog);
+
+            var progress = ProfileQueries.GetModuleProgress(profile, module.Id);
+            Assert.NotNull(progress);
+            progress.Unlocked = true;
+            progress.Level = 1;
+
+            var system = new MetaProgressionSystem();
+            var upgraded = system.TryUnlockOrUpgradeModule(profile, module);
+
+            Assert.False(upgraded);
+            Assert.Equal(1, progress.Level);
+            Assert.Equal(module.UpgradeCost - 1, profile.ModuleShards);
+            Assert.Equal(999, profile.SoftCurrency);
+        }
     }
 }

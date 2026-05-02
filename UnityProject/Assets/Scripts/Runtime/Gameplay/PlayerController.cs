@@ -41,6 +41,14 @@ namespace Cosmostar.Runtime.Systems
             session.Player.InvulnerabilityTimer = Mathf.Max(session.Player.InvulnerabilityTimer, session.DashInvulnerabilitySeconds);
             session.DashCooldownRemaining = session.DashCooldownSeconds;
             AddDashEffects(session, startPosition, session.Player.Position);
+            var purged = PurgeNearbyHostileProjectiles(session, session.Player.Position);
+            if (purged > 0)
+            {
+                session.ReactorCharge = Mathf.Min(session.ReactorChargeRequired, session.ReactorCharge + purged * 6f);
+                session.RewardMessage = "Dash purge x" + purged + ". Reactor +" + Mathf.RoundToInt(purged * 6f);
+                session.RewardMessageTimer = 1.2f;
+            }
+
             return true;
         }
 
@@ -76,6 +84,18 @@ namespace Cosmostar.Runtime.Systems
                 return false;
             }
 
+            if (!session.EmergencyBarrierUsed && session.ReactorCharge >= session.ReactorChargeRequired * session.EmergencyBarrierThreshold)
+            {
+                session.EmergencyBarrierUsed = true;
+                session.ReactorCharge = Mathf.Max(0f, session.ReactorCharge - session.ReactorChargeRequired * session.EmergencyBarrierThreshold);
+                session.Player.Hull = Mathf.Max(session.Player.MaxHull * 0.2f, 1f);
+                session.Player.Shield = Mathf.Max(session.Player.Shield, session.Player.MaxShield * 0.35f);
+                session.Player.InvulnerabilityTimer = 1.1f;
+                session.RewardMessage = "Emergency barrier stabilized the hull.";
+                session.RewardMessageTimer = 2.6f;
+                return true;
+            }
+
             if (session.ReviveCharges > 0)
             {
                 session.ReviveCharges -= 1;
@@ -100,6 +120,39 @@ namespace Cosmostar.Runtime.Systems
             session.Failed = true;
             session.Player.Hull = 0f;
             return false;
+        }
+
+        private static int PurgeNearbyHostileProjectiles(RunSession session, Vector2 center)
+        {
+            const float purgeRadius = 0.14f;
+            var purged = 0;
+            for (var index = session.Projectiles.Count - 1; index >= 0; index--)
+            {
+                var projectile = session.Projectiles[index];
+                if (projectile.FromPlayer)
+                {
+                    continue;
+                }
+
+                if (Vector2.Distance(projectile.Position, center) > purgeRadius)
+                {
+                    continue;
+                }
+
+                session.Projectiles.RemoveAt(index);
+                purged += 1;
+                session.CombatEffects.Add(new CombatEffectState
+                {
+                    Position = projectile.Position,
+                    Color = new Color(0.34f, 1f, 0.92f, 0.62f),
+                    StartRadius = 8f,
+                    EndRadius = 26f,
+                    TotalDuration = 0.2f,
+                    RemainingDuration = 0.2f
+                });
+            }
+
+            return purged;
         }
 
         private static Vector2 ClampToGameplayBounds(Vector2 position)

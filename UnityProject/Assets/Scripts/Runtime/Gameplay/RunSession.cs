@@ -35,6 +35,7 @@ namespace Cosmostar.Runtime.Gameplay
         public float ReactorSurgeDamage = 72f;
         public float ReactorSurgeRadius = 0.62f;
         public float NextAnomalySecond = -1f;
+        public float BossStartSecond = -1f;
         public int AnomalyEventsTriggered;
         public int ComboCount;
         public int BestComboCount;
@@ -56,6 +57,8 @@ namespace Cosmostar.Runtime.Gameplay
         public bool RewardedReviveUsed;
         public int RerollsRemaining;
         public int ReviveCharges;
+        public bool EmergencyBarrierUsed;
+        public float EmergencyBarrierThreshold = 0.32f;
         public float RewardMessageTimer;
         public string RewardMessage = string.Empty;
     }
@@ -140,6 +143,8 @@ namespace Cosmostar.Runtime.Gameplay
         public int RemainingPierce;
         public bool AppliesSlow;
         public bool CanChain;
+        public bool Homes;
+        public float HomingStrength;
         public Color Color;
     }
 

@@ -10,7 +10,8 @@ namespace Cosmostar.Runtime.Systems
             session.WeaponCooldown -= deltaTime;
             session.DroneCooldown -= deltaTime;
 
-            var fireInterval = session.Weapon.FireInterval / (session.Meta.FireRateMultiplier * session.Build.FireRateMultiplier);
+            var comboFireRateMultiplier = 1f + Mathf.Min(0.4f, Mathf.Max(0f, session.ComboCount - 1) * 0.03f);
+            var fireInterval = session.Weapon.FireInterval / (session.Meta.FireRateMultiplier * session.Build.FireRateMultiplier * comboFireRateMultiplier);
             if (session.WeaponCooldown <= 0f)
             {
                 session.WeaponCooldown = fireInterval;
@@ -33,6 +34,11 @@ namespace Cosmostar.Runtime.Systems
             for (var index = session.Projectiles.Count - 1; index >= 0; index--)
             {
                 var projectile = session.Projectiles[index];
+                if (projectile.FromPlayer && projectile.Homes)
+                {
+                    ApplyHoming(session, projectile, deltaTime);
+                }
+
                 projectile.Position += projectile.Velocity * deltaTime;
                 projectile.RemainingLife -= deltaTime;
 
@@ -41,6 +47,49 @@ namespace Cosmostar.Runtime.Systems
                     session.Projectiles.RemoveAt(index);
                 }
             }
+        }
+
+        private static void ApplyHoming(RunSession session, ProjectileState projectile, float deltaTime)
+        {
+            EnemyState target = null;
+            var bestDistance = float.MaxValue;
+            for (var index = 0; index < session.Enemies.Count; index++)
+            {
+                var enemy = session.Enemies[index];
+                if (enemy.Hull <= 0f)
+                {
+                    continue;
+                }
+
+                var offset = enemy.Position - projectile.Position;
+                if (offset.y < -0.05f)
+                {
+                    continue;
+                }
+
+                var distance = offset.sqrMagnitude;
+                if (distance < bestDistance)
+                {
+                    bestDistance = distance;
+                    target = enemy;
+                }
+            }
+
+            if (target == null)
+            {
+                return;
+            }
+
+            var speed = projectile.Velocity.magnitude;
+            if (speed <= 0.0001f)
+            {
+                return;
+            }
+
+            var desiredDirection = (target.Position - projectile.Position).normalized;
+            var currentDirection = projectile.Velocity / speed;
+            var nextDirection = Vector2.Lerp(currentDirection, desiredDirection, Mathf.Clamp01(projectile.HomingStrength * deltaTime));
+            projectile.Velocity = nextDirection.normalized * speed;
         }
 
         public void SpawnEnemyShot(RunSession session, EnemyState enemy, Vector2 direction, float speedScale)
@@ -90,6 +139,8 @@ namespace Cosmostar.Runtime.Systems
                     RemainingPierce = session.Build.BonusPierce,
                     AppliesSlow = session.Build.FrostChance > 0f,
                     CanChain = session.Build.ChainChance > 0f,
+                    Homes = session.Weapon.Family == Cosmostar.Core.Models.WeaponFamily.Arc,
+                    HomingStrength = session.Weapon.Family == Cosmostar.Core.Models.WeaponFamily.Arc ? 6.5f : 0f,
                     Color = projectileColor
                 });
             }
@@ -105,6 +156,8 @@ namespace Cosmostar.Runtime.Systems
                 Radius = 6f,
                 RemainingLife = 2.8f,
                 FromPlayer = true,
+                Homes = true,
+                HomingStrength = 5.5f,
                 Color = new Color(1f, 0.95f, 0.3f, 0.95f)
             });
         }

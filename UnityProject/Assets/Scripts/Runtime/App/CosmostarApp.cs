@@ -49,6 +49,8 @@ namespace Cosmostar.Runtime.App
         private float _bootTimer;
         private string _metaNotice = string.Empty;
         private float _metaNoticeTimer;
+        private float _lastTapTime = -10f;
+        private Vector2 _lastTapPosition;
 
         private Texture2D _pixel;
         private Texture2D _circle;
@@ -201,13 +203,14 @@ namespace Cosmostar.Runtime.App
                 SetScreen(ScreenState.MetaHub);
             }
 
+            var missions = GetMissionSelectOrder();
             var viewRect = new Rect(area.x + 20f, area.y + 170f, area.width - 40f, area.height - 210f);
-            var contentRect = new Rect(0f, 0f, viewRect.width - 22f, 130f * _catalog.Missions.Count);
+            var contentRect = new Rect(0f, 0f, viewRect.width - 22f, 130f * missions.Count);
             _missionScroll = GUI.BeginScrollView(viewRect, _missionScroll, contentRect);
 
-            for (var index = 0; index < _catalog.Missions.Count; index++)
+            for (var index = 0; index < missions.Count; index++)
             {
-                var mission = _catalog.Missions[index];
+                var mission = missions[index];
                 var progress = ProfileQueries.GetMissionProgress(_profile, mission.Id);
                 var rules = _missionRuleSystem.Resolve(mission);
                 var modifierText = mission.ModifierText + (rules.AnomalyKind == RunAnomalyKind.None ? string.Empty : " | " + rules.AnomalyLabel);
@@ -224,6 +227,33 @@ namespace Cosmostar.Runtime.App
             }
 
             GUI.EndScrollView();
+        }
+
+        private List<MissionDef> GetMissionSelectOrder()
+        {
+            var ordered = new List<MissionDef>(_catalog.Missions);
+            ordered.Sort((a, b) =>
+            {
+                var aDaily = a.Id == _dailyContract.MissionId;
+                var bDaily = b.Id == _dailyContract.MissionId;
+                if (aDaily != bDaily)
+                {
+                    return aDaily ? -1 : 1;
+                }
+
+                var aProgress = ProfileQueries.GetMissionProgress(_profile, a.Id);
+                var bProgress = ProfileQueries.GetMissionProgress(_profile, b.Id);
+                var aStars = aProgress == null ? 0 : aProgress.StarsEarned;
+                var bStars = bProgress == null ? 0 : bProgress.StarsEarned;
+                if (aStars != bStars)
+                {
+                    return aStars.CompareTo(bStars);
+                }
+
+                return a.DifficultyRating.CompareTo(b.DifficultyRating);
+            });
+
+            return ordered;
         }
 
         private void DrawRun()
@@ -271,10 +301,11 @@ namespace Cosmostar.Runtime.App
             GUI.Label(new Rect(area.x + 36f, area.y + 234f, area.width - 72f, 32f), "Credits: " + _pendingRewards.TotalSoftCurrency + "   Shards: " + _pendingRewards.TotalModuleShards + "   Track XP: " + _pendingRewards.TotalUnlockTrackXp, _bodyStyle);
             GUI.Label(new Rect(area.x + 36f, area.y + 266f, area.width - 72f, 32f), "Best Combo: x" + _pendingSummary.BestComboCount + "   Anomaly Events: " + _pendingSummary.AnomalyEventsTriggered, _bodyStyle);
             GUI.Label(new Rect(area.x + 36f, area.y + 298f, area.width - 72f, 32f), "Salvage +" + _pendingRewards.SalvageBonus + "   Graze +" + _pendingRewards.GrazeBonus + "   Anomaly +" + _pendingRewards.AnomalyBonus, _smallStyle);
+            GUI.Label(new Rect(area.x + 36f, area.y + 322f, area.width - 72f, 24f), GetRewardCompositionLabel(), _smallStyle);
 
             var unlockText = _pendingUnlocks.Count == 0 ? "No new unlocks yet." : "Unlocked: " + string.Join(", ", GetUnlockLabels(_pendingUnlocks));
-            GUI.Label(new Rect(area.x + 36f, area.y + 336f, area.width - 72f, 48f), unlockText, _smallStyle);
-            GUI.Label(new Rect(area.x + 36f, area.y + 386f, area.width - 72f, 32f), "Next track: " + GetProjectedNextUnlockSummary(_pendingRewards), _smallStyle);
+            GUI.Label(new Rect(area.x + 36f, area.y + 346f, area.width - 72f, 48f), unlockText, _smallStyle);
+            GUI.Label(new Rect(area.x + 36f, area.y + 396f, area.width - 72f, 32f), "Next track: " + GetProjectedNextUnlockSummary(_pendingRewards), _smallStyle);
 
             if (_pendingRewards.BaseReward.DoubleRewardEligible && GUI.Button(new Rect(area.x + 28f, area.y + 430f, area.width - 56f, 58f), "Watch Rewarded Clip: Double Rewards", _buttonStyle))
             {
@@ -295,6 +326,14 @@ namespace Cosmostar.Runtime.App
             {
                 CollectResults(true);
             }
+        }
+
+        private string GetRewardCompositionLabel()
+        {
+            return "Base " + _pendingRewards.BaseReward.SoftCurrency
+                   + "   Daily +" + _pendingRewards.DailyBonus
+                   + "   Streak +" + _pendingRewards.StreakBonus
+                   + "   Mastery +" + _pendingRewards.MasteryBonus;
         }
 
         private void DrawHeader(string title, string subtitle)
@@ -463,6 +502,30 @@ namespace Cosmostar.Runtime.App
                 DrawCircle(ToScreen(enemy.Position, fieldRect), radius, color);
                 DrawCircle(ToScreen(enemy.Position, fieldRect), Mathf.Max(8f, radius * (enemy.Hull / enemy.MaxHull)), new Color(1f, 1f, 1f, 0.12f));
             }
+
+            DrawOffscreenEnemyIndicators(fieldRect);
+        }
+
+        private void DrawOffscreenEnemyIndicators(Rect fieldRect)
+        {
+            for (var index = 0; index < _runSession.Enemies.Count; index++)
+            {
+                var enemy = _runSession.Enemies[index];
+                if (enemy.Position.x >= 0f && enemy.Position.x <= 1f && enemy.Position.y >= 0f && enemy.Position.y <= 1f)
+                {
+                    continue;
+                }
+
+                var clamped = new Vector2(Mathf.Clamp(enemy.Position.x, 0.04f, 0.96f), Mathf.Clamp(enemy.Position.y, 0.08f, 0.96f));
+                var edge = ToScreen(clamped, fieldRect);
+                var towardEnemy = new Vector2(enemy.Position.x - clamped.x, enemy.Position.y - clamped.y);
+                var magnitude = Mathf.Max(0.0001f, towardEnemy.magnitude);
+                towardEnemy /= magnitude;
+                var tail = edge - towardEnemy * 26f;
+                var color = enemy.Def.IsBoss ? new Color(1f, 0.3f, 0.3f, 0.9f) : new Color(1f, 0.75f, 0.3f, 0.8f);
+                DrawLine(tail, edge, color, enemy.Def.IsBoss ? 6f : 4f);
+                DrawCircle(edge, enemy.Def.IsBoss ? 10f : 7f, color);
+            }
         }
 
         private void DrawAnomalyTelegraphs(Rect fieldRect)
@@ -550,9 +613,21 @@ namespace Cosmostar.Runtime.App
             var phaseLabel = _runSession.Director.Phase.ToString().ToUpperInvariant();
             GUI.Label(new Rect(18f, 14f, Screen.width - 36f, 32f), _selectedMission.DisplayName, _subtitleStyle);
             GUI.Label(new Rect(18f, 42f, Screen.width - 156f, 24f), "Phase: " + phaseLabel + "   " + _runSession.Director.ElapsedSeconds.ToString("0.0") + "s", _smallStyle);
+            if (_runSession.BossStartSecond > 0f && _runSession.Director.Phase != RunPhase.Boss && _runSession.Director.Phase != RunPhase.Results)
+            {
+                var eta = Mathf.Max(0f, _runSession.BossStartSecond - _runSession.Director.ElapsedSeconds);
+                GUI.Label(new Rect(Screen.width - 210f, 90f, 192f, 20f), "Boss ETA " + eta.ToString("0") + "s", _smallStyle);
+            }
             GUI.Label(new Rect(Screen.width - 118f, 42f, 100f, 24f), "Rerolls " + _runSession.RerollsRemaining, _smallStyle);
             GUI.Label(new Rect(18f, 66f, 190f, 24f), "Hull " + Mathf.CeilToInt(_runSession.Player.Hull) + "   Shield " + Mathf.CeilToInt(_runSession.Player.Shield), _smallStyle);
             GUI.Label(new Rect(Screen.width - 190f, 66f, 172f, 24f), "Kills " + _runSession.Kills + "   Graze " + _runSession.Grazes, _smallStyle);
+            var barrierLabel = _runSession.EmergencyBarrierUsed ? "Barrier spent" : "Barrier armed";
+            GUI.Label(new Rect(18f, 84f, 160f, 20f), barrierLabel, _smallStyle);
+            var comboRateBonus = Mathf.RoundToInt(Mathf.Min(40f, Mathf.Max(0f, _runSession.ComboCount - 1) * 3f));
+            if (comboRateBonus > 0)
+            {
+                GUI.Label(new Rect(Screen.width - 190f, 84f, 172f, 20f), "Combo RoF +" + comboRateBonus + "%", _smallStyle);
+            }
             DrawObjectiveTracker();
             DrawAnomalyStatus();
             DrawBossStatus();
@@ -663,7 +738,7 @@ namespace Cosmostar.Runtime.App
 
         private void DrawPauseOverlay()
         {
-            var overlay = new Rect(28f, Screen.height * 0.28f, Screen.width - 56f, 220f);
+            var overlay = new Rect(28f, Screen.height * 0.24f, Screen.width - 56f, 276f);
             DrawCard(overlay, new Color(0f, 0f, 0f, 0.82f));
             GUI.Label(new Rect(overlay.x, overlay.y + 18f, overlay.width, 36f), "Run Paused", _titleStyle);
             GUI.Label(new Rect(overlay.x + 22f, overlay.y + 66f, overlay.width - 44f, 42f), "Resume when you are ready, or cash out the attempt and go back to the hub.", _smallStyle);
@@ -673,7 +748,12 @@ namespace Cosmostar.Runtime.App
                 _runSession.Paused = false;
             }
 
-            if (GUI.Button(new Rect(overlay.x + 20f, overlay.y + 180f, overlay.width - 40f, 42f), "Abandon Run", _buttonStyle))
+            if (GUI.Button(new Rect(overlay.x + 20f, overlay.y + 180f, overlay.width - 40f, 42f), "Restart Mission", _buttonStyle))
+            {
+                RestartCurrentMission();
+            }
+
+            if (GUI.Button(new Rect(overlay.x + 20f, overlay.y + 228f, overlay.width - 40f, 42f), "Abandon Run", _buttonStyle))
             {
                 _runSession.Paused = false;
                 _runSession.AwaitingRewardedRevive = false;
@@ -713,7 +793,7 @@ namespace Cosmostar.Runtime.App
             DrawCard(overlay, new Color(0f, 0.08f, 0.12f, 0.86f));
             GUI.Label(new Rect(overlay.x, overlay.y + 16f, overlay.width, 36f), "Pilot Brief", _titleStyle);
             GUI.Label(new Rect(overlay.x + 18f, overlay.y + 68f, overlay.width - 36f, 22f), "1. Drag anywhere on the screen to dodge.", _bodyStyle);
-            GUI.Label(new Rect(overlay.x + 18f, overlay.y + 102f, overlay.width - 36f, 22f), "2. Tap Dash to dodge; charge Surge to break pressure.", _bodyStyle);
+            GUI.Label(new Rect(overlay.x + 18f, overlay.y + 102f, overlay.width - 36f, 22f), "2. Tap Dash (or double-tap) to dodge; charge Surge.", _bodyStyle);
             GUI.Label(new Rect(overlay.x + 18f, overlay.y + 136f, overlay.width - 36f, 22f), "3. Warning lanes and anomaly markers show danger.", _bodyStyle);
             GUI.Label(new Rect(overlay.x + 18f, overlay.y + 170f, overlay.width - 36f, 22f), "4. Weapons auto-fire; focus on movement.", _bodyStyle);
             GUI.Label(new Rect(overlay.x + 18f, overlay.y + 204f, overlay.width - 36f, 22f), "5. After each phase, choose one upgrade.", _bodyStyle);
@@ -848,6 +928,26 @@ namespace Cosmostar.Runtime.App
             _runSession.Player.Shield = Mathf.Min(_runSession.Player.Shield, _runSession.Player.MaxShield);
         }
 
+        private static float ResolveBossStartSecond(List<WaveDef> missionWaves)
+        {
+            if (missionWaves == null || missionWaves.Count == 0)
+            {
+                return -1f;
+            }
+
+            for (var index = 0; index < missionWaves.Count; index++)
+            {
+                if (missionWaves[index].Phase != RunPhase.Boss)
+                {
+                    continue;
+                }
+
+                return index == 0 ? 0f : missionWaves[index - 1].EndSecond;
+            }
+
+            return -1f;
+        }
+
         private void StartMission(MissionDef mission)
         {
             _selectedMission = mission;
@@ -868,6 +968,7 @@ namespace Cosmostar.Runtime.App
                 RerollsRemaining = meta.StartingRerolls,
                 ReviveCharges = meta.ReviveCharges,
                 NextAnomalySecond = missionRules.AnomalyFirstSecond,
+                BossStartSecond = ResolveBossStartSecond(missionWaves),
                 TutorialOpen = !_profile.SeenFtue,
                 Paused = !_profile.SeenFtue
             };
@@ -895,6 +996,7 @@ namespace Cosmostar.Runtime.App
             TickCombo(deltaTime);
             var pointer = GetPointerTarget();
             _playerController.TickMovement(_runSession, pointer, deltaTime);
+            HandleQuickDashInput();
             if (Input.GetKeyDown(KeyCode.Space))
             {
                 _playerController.TryDash(_runSession);
@@ -1000,8 +1102,21 @@ namespace Cosmostar.Runtime.App
 
                 if (Vector2.Distance(enemy.Position, _runSession.Player.Position) <= (enemy.Def.IsBoss ? 0.11f : 0.06f))
                 {
-                    _playerController.ApplyDamage(_runSession, enemy.Def.ContactDamage);
-                    enemy.Hull = 0f;
+                    var applied = _playerController.ApplyDamage(_runSession, enemy.Def.ContactDamage);
+                    if (enemy.Def.IsBoss || enemy.Def.Archetype == EnemyArchetype.Rammer)
+                    {
+                        enemy.Hull = 0f;
+                    }
+                    else
+                    {
+                        var push = (enemy.Position - _runSession.Player.Position).normalized;
+                        enemy.Position += push * 0.08f;
+                        enemy.FireCooldown = Mathf.Max(enemy.FireCooldown, 0.45f);
+                        if (applied)
+                        {
+                            enemy.SlowTimer = Mathf.Max(enemy.SlowTimer, 0.45f);
+                        }
+                    }
                 }
 
                 if (enemy.Hull <= 0f)
@@ -1126,6 +1241,7 @@ namespace Cosmostar.Runtime.App
             projectile.GrazedByPlayer = true;
             _runSession.Grazes += 1;
             AddReactorCharge(projectile.Radius >= 12f ? 8f : 4f);
+            _runSession.DashCooldownRemaining = Mathf.Max(0f, _runSession.DashCooldownRemaining - (projectile.Radius >= 12f ? 0.22f : 0.12f));
             if (_runSession.ComboTimer > 0f)
             {
                 _runSession.ComboTimer = Mathf.Min(_runSession.ComboWindowSeconds, _runSession.ComboTimer + 0.65f);
@@ -1135,7 +1251,7 @@ namespace Cosmostar.Runtime.App
             AddCombatPulse(_runSession.Player.Position, new Color(0.32f, 0.95f, 1f, 0.62f), 12f, 34f, 0.26f);
             if (_runSession.Grazes % 5 == 0)
             {
-                ShowRunMessage("Graze chain " + _runSession.Grazes + ". Reactor charge rising.", 2.1f);
+                ShowRunMessage("Graze chain " + _runSession.Grazes + ". Reactor and dash recovering.", 2.1f);
             }
         }
 
@@ -1187,7 +1303,25 @@ namespace Cosmostar.Runtime.App
                 _runSession.AttackTelegraphs.Clear();
             }
 
-            ShowRunMessage("Reactor Surge hit " + hitCount + " and purged " + purgedProjectiles + ".", 2.6f);
+            var collectedBySurge = 0;
+            for (var pickupIndex = _runSession.Pickups.Count - 1; pickupIndex >= 0; pickupIndex--)
+            {
+                var pickup = _runSession.Pickups[pickupIndex];
+                if (Vector2.Distance(origin, pickup.Position) > radius * 1.35f)
+                {
+                    continue;
+                }
+
+                CollectPickup(pickup);
+                _runSession.Pickups.RemoveAt(pickupIndex);
+                collectedBySurge += 1;
+                AddCombatLine(origin, pickup.Position, new Color(0.52f, 1f, 0.46f, 0.65f), 3f, 0.2f);
+            }
+
+            var restoredShield = Mathf.Min(_runSession.Player.MaxShield * 0.25f, 7f + hitCount * 1.2f + collectedBySurge * 0.8f);
+            _runSession.Player.Shield = Mathf.Min(_runSession.Player.MaxShield, _runSession.Player.Shield + restoredShield);
+
+            ShowRunMessage("Reactor Surge hit " + hitCount + ", purged " + purgedProjectiles + ", absorbed " + collectedBySurge + ".", 2.6f);
             return true;
         }
 
@@ -1365,6 +1499,7 @@ namespace Cosmostar.Runtime.App
                             if (projectile.IsCritical)
                             {
                                 AddCombatPulse(enemy.Position, new Color(1f, 0.88f, 0.18f, 0.92f), 12f, enemy.Def.IsBoss ? 44f : 30f, 0.28f);
+                                ApplyCriticalShieldSiphon(projectile.Damage);
                             }
                             else
                             {
@@ -1408,14 +1543,21 @@ namespace Cosmostar.Runtime.App
             for (var pickupIndex = _runSession.Pickups.Count - 1; pickupIndex >= 0; pickupIndex--)
             {
                 var pickup = _runSession.Pickups[pickupIndex];
-                var distance = Vector2.Distance(_runSession.Player.Position, pickup.Position);
+                var toPlayer = _runSession.Player.Position - pickup.Position;
+                var distance = toPlayer.magnitude;
                 if (distance <= magnetRadius)
                 {
-                    var direction = (_runSession.Player.Position - pickup.Position).normalized;
-                    pickup.Position += direction * deltaTime * 0.65f;
+                    var pull = Mathf.Lerp(0.7f, 1.8f, 1f - Mathf.Clamp01(distance / Mathf.Max(0.0001f, magnetRadius)));
+                    pickup.Position += toPlayer.normalized * deltaTime * pull;
+                }
+                else
+                {
+                    pickup.Position += Vector2.down * deltaTime * 0.03f;
                 }
 
-                if (distance <= 0.035f)
+                pickup.Position = new Vector2(Mathf.Clamp01(pickup.Position.x), Mathf.Clamp(pickup.Position.y, 0.03f, 1.02f));
+                var updatedDistance = Vector2.Distance(_runSession.Player.Position, pickup.Position);
+                if (updatedDistance <= 0.04f)
                 {
                     _runSession.PickupsCollected += 1;
                     CollectPickup(pickup);
@@ -1443,6 +1585,22 @@ namespace Cosmostar.Runtime.App
             }
         }
 
+        private void ApplyCriticalShieldSiphon(float projectileDamage)
+        {
+            if (_runSession.Player.MaxShield <= 0f)
+            {
+                return;
+            }
+
+            var siphon = Mathf.Min(4f, Mathf.Max(0.4f, projectileDamage * 0.08f));
+            var before = _runSession.Player.Shield;
+            _runSession.Player.Shield = Mathf.Min(_runSession.Player.MaxShield, _runSession.Player.Shield + siphon);
+            if (_runSession.Player.Shield > before)
+            {
+                AddCombatPulse(_runSession.Player.Position, new Color(0.85f, 1f, 0.45f, 0.55f), 12f, 30f, 0.22f);
+            }
+        }
+
         private void CheckMissionState()
         {
             if (_runSession.Failed)
@@ -1460,8 +1618,16 @@ namespace Cosmostar.Runtime.App
                     _runSession.Completed = _runSession.Kills >= _selectedMission.TargetValue;
                     break;
                 case MissionObjectiveKind.DefeatBoss:
-                case MissionObjectiveKind.PreserveShield:
                     _runSession.Completed = _runSession.BossDefeated;
+                    break;
+                case MissionObjectiveKind.PreserveShield:
+                    if (_runSession.Player.Shield <= 0f)
+                    {
+                        _runSession.Failed = true;
+                        ShowRunMessage("Shield integrity lost. Contract failed.", 2.6f);
+                    }
+
+                    _runSession.Completed = _runSession.BossDefeated && _runSession.Player.Shield > 0f;
                     break;
             }
 
@@ -1469,6 +1635,16 @@ namespace Cosmostar.Runtime.App
             {
                 FinishRun();
             }
+        }
+
+        private void RestartCurrentMission()
+        {
+            if (_selectedMission == null)
+            {
+                return;
+            }
+
+            StartMission(_selectedMission);
         }
 
         private void FinishRun()
@@ -1797,6 +1973,51 @@ namespace Cosmostar.Runtime.App
         private bool HasMissionAnomaly()
         {
             return _runSession != null && _runSession.Rules != null && _runSession.Rules.AnomalyKind != RunAnomalyKind.None;
+        }
+
+        private void HandleQuickDashInput()
+        {
+            if (_runSession == null)
+            {
+                return;
+            }
+
+            if (Input.touchCount > 0)
+            {
+                var touch = Input.GetTouch(0);
+                if (touch.phase == TouchPhase.Ended || touch.phase == TouchPhase.Canceled)
+                {
+                    TryDashOnDoubleTap(touch.position);
+                }
+
+                return;
+            }
+
+            if (Input.GetMouseButtonUp(0))
+            {
+                TryDashOnDoubleTap(Input.mousePosition);
+            }
+        }
+
+        private void TryDashOnDoubleTap(Vector2 screenPoint)
+        {
+            if (IsScreenPointInsideGuiRect(screenPoint, GetDashButtonRect()) || IsScreenPointInsideGuiRect(screenPoint, GetSurgeButtonRect()))
+            {
+                return;
+            }
+
+            var now = Time.unscaledTime;
+            var withinTime = now - _lastTapTime <= 0.28f;
+            var withinDistance = Vector2.Distance(screenPoint, _lastTapPosition) <= 90f;
+            if (withinTime && withinDistance)
+            {
+                _playerController.TryDash(_runSession);
+                _lastTapTime = -10f;
+                return;
+            }
+
+            _lastTapTime = now;
+            _lastTapPosition = screenPoint;
         }
 
         private Vector2 GetPointerTarget()

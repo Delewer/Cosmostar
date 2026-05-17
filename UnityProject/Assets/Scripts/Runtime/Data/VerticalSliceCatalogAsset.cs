@@ -9,4 +9,3 @@ namespace Cosmostar.Runtime.Data
         public VerticalSliceCatalog Catalog = new VerticalSliceCatalog();
     }
 }
-

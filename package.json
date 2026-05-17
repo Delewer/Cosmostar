@@ -1,0 +1,10 @@
+{
+  "name": "neon-sky-survivors-mvp",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test:web": "node tests/web/gameCore.test.mjs",
+    "start:web": "python3 -m http.server 4173 --directory web"
+  }
+}

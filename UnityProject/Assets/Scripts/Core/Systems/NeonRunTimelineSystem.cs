@@ -1,13 +1,15 @@
+#nullable enable annotations
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Cosmostar.Core.Models;
+using NeonSkySurvivors.Core.Models;
 
-namespace Cosmostar.Core.Systems
+namespace NeonSkySurvivors.Core.Systems
 {
     public sealed class NeonRunTimelineSystem
     {
-        public NeonWaveSegmentDef GetActiveWave(NeonSkySurvivorsCatalog catalog, float elapsedSeconds)
+        public NeonWaveSegmentDef? GetActiveWave(NeonSkySurvivorsCatalog catalog, float elapsedSeconds)
         {
             if (catalog == null)
             {

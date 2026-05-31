@@ -1,13 +1,10 @@
 {
-  "name": "Cosmostar.Editor",
-  "rootNamespace": "Cosmostar.Editor",
+  "name": "NeonSkySurvivors.Runtime",
+  "rootNamespace": "NeonSkySurvivors.Runtime",
   "references": [
-    "Cosmostar.Core",
-    "Cosmostar.Runtime"
+    "NeonSkySurvivors.Core"
   ],
-  "includePlatforms": [
-    "Editor"
-  ],
+  "includePlatforms": [],
   "excludePlatforms": [],
   "allowUnsafeCode": false,
   "overrideReferences": false,

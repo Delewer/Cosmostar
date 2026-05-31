@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 
-namespace Cosmostar.Core.Models
+namespace NeonSkySurvivors.Core.Models
 {
     public enum NeonEquipmentSlot
     {
@@ -189,6 +189,9 @@ namespace Cosmostar.Core.Models
         public float ContactDamage;
         public float BulletDamage;
         public string WarningText = string.Empty;
+        public bool IsMiniBoss;
+        public int RewardCoinBonus = 40;
+        public string RewardRarityHint = nameof(NeonEquipmentRarity.Common);
         public List<string> PhaseNotes = new List<string>();
     }
 
@@ -198,6 +201,8 @@ namespace Cosmostar.Core.Models
         public int BaseCoins = 20;
         public int CoinPerKill = 1;
         public int BossCoinBonus = 40;
+        public int MiniBossCoinBonus = 18;
+        public int SurvivalMinuteCoins = 3;
         public string FinalBossGuaranteedRarity = nameof(NeonEquipmentRarity.Rare);
     }
 

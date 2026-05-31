@@ -1,9 +1,11 @@
+#nullable enable annotations
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Cosmostar.Core.Models;
+using NeonSkySurvivors.Core.Models;
 
-namespace Cosmostar.Core.Systems
+namespace NeonSkySurvivors.Core.Systems
 {
     public sealed class NeonRunGameplaySystem
     {
@@ -303,7 +305,15 @@ namespace Cosmostar.Core.Systems
                     continue;
                 }
 
-                run.BossesKilled += 1;
+                if (enemy.IsMiniBoss)
+                {
+                    run.MiniBossesKilled += 1;
+                }
+                else
+                {
+                    run.BossesKilled += 1;
+                }
+
                 if (catalog.Bosses.OrderByDescending(boss => boss.SpawnSecond).First().BossID == enemy.EnemyID)
                 {
                     run.Status = NeonRunStatus.Victory;
@@ -363,7 +373,8 @@ namespace Cosmostar.Core.Systems
                 ContactDamage = boss.ContactDamage,
                 Speed = 0.5f,
                 XPDrop = 20,
-                IsBoss = true
+                IsBoss = true,
+                IsMiniBoss = boss.IsMiniBoss
             });
         }
 
@@ -432,9 +443,9 @@ namespace Cosmostar.Core.Systems
             return HasUpgrade(run, "trail_damage_boost") ? 1.8f : 1f;
         }
 
-        private static NeonRunEnemyState FindNearestEnemy(NeonRunState run, NeonVector2 position)
+        private static NeonRunEnemyState? FindNearestEnemy(NeonRunState run, NeonVector2 position)
         {
-            NeonRunEnemyState best = null;
+            NeonRunEnemyState? best = null;
             var bestDistance = float.MaxValue;
             foreach (var enemy in run.Enemies)
             {

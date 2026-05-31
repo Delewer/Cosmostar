@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
-using Cosmostar.Core.Design;
-using Cosmostar.Core.Models;
-using Cosmostar.Core.Systems;
+using NeonSkySurvivors.Core.Design;
+using NeonSkySurvivors.Core.Models;
+using NeonSkySurvivors.Core.Systems;
 using Xunit;
 
 namespace NeonSkySurvivors.Core.Tests
@@ -84,15 +84,42 @@ namespace NeonSkySurvivors.Core.Tests
 
             var firstBoss = timeline.GetBossesDue(catalog, 179f, 180f, new HashSet<string>());
             var secondBoss = timeline.GetBossesDue(catalog, 359f, 360f, new HashSet<string> { "sky_reaper" });
-            var finalBoss = timeline.GetBossesDue(catalog, 599f, 600f, new HashSet<string> { "sky_reaper", "neon_hydra" });
+            var firstMiniBoss = timeline.GetBossesDue(catalog, 449f, 450f, new HashSet<string> { "sky_reaper", "neon_hydra" });
+            var secondMiniBoss = timeline.GetBossesDue(catalog, 524f, 525f, new HashSet<string> { "sky_reaper", "neon_hydra", "viper_ace" });
+            var finalBoss = timeline.GetBossesDue(catalog, 599f, 600f, new HashSet<string> { "sky_reaper", "neon_hydra", "viper_ace", "bombardier_prime" });
 
             Assert.Single(firstBoss);
             Assert.Equal("sky_reaper", firstBoss[0].BossID);
             Assert.Single(secondBoss);
             Assert.Equal("neon_hydra", secondBoss[0].BossID);
+            Assert.Single(firstMiniBoss);
+            Assert.Equal("viper_ace", firstMiniBoss[0].BossID);
+            Assert.True(firstMiniBoss[0].IsMiniBoss);
+            Assert.Single(secondMiniBoss);
+            Assert.Equal("bombardier_prime", secondMiniBoss[0].BossID);
+            Assert.True(secondMiniBoss[0].IsMiniBoss);
             Assert.Single(finalBoss);
             Assert.Equal("eclipse_core", finalBoss[0].BossID);
             Assert.True(timeline.IsFinalBossVictory(catalog, "eclipse_core"));
+        }
+
+        [Fact]
+        public void Timeline_UsesBalancedEarlyMidLateWavePacing()
+        {
+            var catalog = NeonSkySurvivorsBlueprints.CreateMvpCatalog();
+            var timeline = new NeonRunTimelineSystem();
+            var earlyWave = timeline.GetActiveWave(catalog, 30f)!;
+            var warningWave = timeline.GetActiveWave(catalog, 150f)!;
+            var bossRecoveryWave = timeline.GetActiveWave(catalog, 185f)!;
+            var midWave = timeline.GetActiveWave(catalog, 300f)!;
+            var lateWave = timeline.GetActiveWave(catalog, 535f)!;
+            var finalSurgeWave = timeline.GetActiveWave(catalog, 575f)!;
+
+            Assert.Equal(10, catalog.Waves.Count);
+            Assert.True(earlyWave.SpawnRatePerSecond < warningWave.SpawnRatePerSecond);
+            Assert.True(bossRecoveryWave.SpawnRatePerSecond < midWave.SpawnRatePerSecond);
+            Assert.True(finalSurgeWave.SpawnRatePerSecond > lateWave.SpawnRatePerSecond);
+            Assert.Contains("FINAL BOSS", timeline.GetWarning(catalog, 589f, 590f));
         }
 
         [Fact]

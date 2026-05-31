@@ -1,7 +1,9 @@
-using System.Collections.Generic;
-using Cosmostar.Core.Models;
+#nullable enable annotations
 
-namespace Cosmostar.Core.Design
+using System.Collections.Generic;
+using NeonSkySurvivors.Core.Models;
+
+namespace NeonSkySurvivors.Core.Design
 {
     public static class NeonSkySurvivorsBlueprints
     {
@@ -94,18 +96,25 @@ namespace Cosmostar.Core.Design
 
         private static void AddWaves(NeonSkySurvivorsCatalog catalog)
         {
-            catalog.Waves.Add(Wave("wave_0_1", 0f, 60f, 1.2f, "", -1f, "chaser_drone", "fast_wing"));
-            catalog.Waves.Add(Wave("wave_1_2", 60f, 120f, 1.8f, "", -1f, "chaser_drone", "fast_wing", "shooter_drone"));
-            catalog.Waves.Add(Wave("wave_2_3", 120f, 180f, 2.2f, "WARNING: SKY REAPER APPROACHING", 170f, "chaser_drone", "fast_wing", "shooter_drone", "shield_drone"));
-            catalog.Waves.Add(Wave("wave_3_6", 180f, 360f, 2.6f, "", -1f, "shooter_drone", "shield_drone", "mine_carrier", "splitter_orb", "fast_wing"));
-            catalog.Waves.Add(Wave("wave_6_10", 360f, 600f, 3.4f, "FINAL BOSS INCOMING", 590f, "chaser_drone", "fast_wing", "shooter_drone", "shield_drone", "mine_carrier", "splitter_orb", "elite_chaser", "elite_shooter"));
+            catalog.Waves.Add(Wave("wave_0_1_teach", 0f, 60f, 0.9f, "", -1f, "chaser_drone", "fast_wing"));
+            catalog.Waves.Add(Wave("wave_1_2_learn", 60f, 120f, 1.35f, "", -1f, "chaser_drone", "fast_wing", "shooter_drone"));
+            catalog.Waves.Add(Wave("wave_2_3_warning", 120f, 180f, 1.9f, "WARNING: SKY REAPER APPROACHING", 170f, "chaser_drone", "fast_wing", "shooter_drone", "shield_drone"));
+            catalog.Waves.Add(Wave("wave_3_4_boss_recovery", 180f, 240f, 1.25f, "", -1f, "shooter_drone", "fast_wing"));
+            catalog.Waves.Add(Wave("wave_4_6_pressure", 240f, 360f, 2.55f, "NEON HYDRA APPROACHING", 350f, "shooter_drone", "shield_drone", "mine_carrier", "splitter_orb", "fast_wing"));
+            catalog.Waves.Add(Wave("wave_6_7_boss_pressure", 360f, 420f, 1.7f, "", -1f, "shooter_drone", "shield_drone", "splitter_orb"));
+            catalog.Waves.Add(Wave("wave_7_7_30_elites", 420f, 450f, 3.0f, "VIPER ACE INCOMING", 442f, "chaser_drone", "fast_wing", "mine_carrier", "elite_chaser"));
+            catalog.Waves.Add(Wave("wave_7_30_8_45_chaos", 450f, 525f, 3.25f, "BOMBARDIER PRIME INCOMING", 517f, "fast_wing", "shooter_drone", "mine_carrier", "splitter_orb", "elite_chaser"));
+            catalog.Waves.Add(Wave("wave_8_45_9_30_overload", 525f, 570f, 3.5f, "", -1f, "chaser_drone", "fast_wing", "shield_drone", "mine_carrier", "splitter_orb", "elite_chaser", "elite_shooter"));
+            catalog.Waves.Add(Wave("wave_9_30_final_surge", 570f, 600f, 4.25f, "FINAL BOSS INCOMING", 590f, "chaser_drone", "fast_wing", "shooter_drone", "shield_drone", "mine_carrier", "splitter_orb", "elite_chaser", "elite_shooter"));
         }
 
         private static void AddBosses(NeonSkySurvivorsCatalog catalog)
         {
-            catalog.Bosses.Add(new NeonBossDef { BossID = "sky_reaper", Name = "Sky Reaper", SpawnSecond = 180f, HP = 2500f, ContactDamage = 20f, BulletDamage = 10f, WarningText = "WARNING: SKY REAPER APPROACHING", PhaseNotes = new List<string> { "Charge toward player", "Shoot 5 bullets in a cone", "At 50% HP summon drones and shoot faster" } });
-            catalog.Bosses.Add(new NeonBossDef { BossID = "neon_hydra", Name = "Neon Hydra", SpawnSecond = 360f, HP = 6000f, ContactDamage = 25f, BulletDamage = 12f, WarningText = "NEON HYDRA APPROACHING", PhaseNotes = new List<string> { "Shoot circular bullets", "Summon enemies", "At 50% HP split or increase attack speed" } });
-            catalog.Bosses.Add(new NeonBossDef { BossID = "eclipse_core", Name = "Eclipse Core", SpawnSecond = 600f, HP = 12000f, ContactDamage = 30f, BulletDamage = 15f, WarningText = "FINAL BOSS INCOMING", PhaseNotes = new List<string> { "Fire bullet rings", "At 50% HP add rotating laser arms", "At 25% HP rage with faster attacks" } });
+            catalog.Bosses.Add(new NeonBossDef { BossID = "sky_reaper", Name = "Sky Reaper", SpawnSecond = 180f, HP = 950f, ContactDamage = 18f, BulletDamage = 9f, WarningText = "WARNING: SKY REAPER APPROACHING", RewardCoinBonus = 35, RewardRarityHint = nameof(NeonEquipmentRarity.Uncommon), PhaseNotes = new List<string> { "Simple charge cone pressure", "Beatable with basic movement", "Reduced normal wave pressure during first boss" } });
+            catalog.Bosses.Add(new NeonBossDef { BossID = "neon_hydra", Name = "Neon Hydra", SpawnSecond = 360f, HP = 2200f, ContactDamage = 24f, BulletDamage = 12f, WarningText = "NEON HYDRA APPROACHING", RewardCoinBonus = 55, RewardRarityHint = nameof(NeonEquipmentRarity.Rare), PhaseNotes = new List<string> { "Harder circular bullets", "Punishes bad movement", "Reduced normal wave pressure during second boss" } });
+            catalog.Bosses.Add(new NeonBossDef { BossID = "viper_ace", Name = "Viper Ace", SpawnSecond = 450f, HP = 850f, ContactDamage = 20f, BulletDamage = 10f, WarningText = "VIPER ACE INCOMING", IsMiniBoss = true, RewardCoinBonus = 18, RewardRarityHint = nameof(NeonEquipmentRarity.Uncommon), PhaseNotes = new List<string> { "Fast mini-boss check at 7:30", "Cone shots without full boss durability" } });
+            catalog.Bosses.Add(new NeonBossDef { BossID = "bombardier_prime", Name = "Bombardier Prime", SpawnSecond = 525f, HP = 1250f, ContactDamage = 22f, BulletDamage = 11f, WarningText = "BOMBARDIER PRIME INCOMING", IsMiniBoss = true, RewardCoinBonus = 24, RewardRarityHint = nameof(NeonEquipmentRarity.Rare), PhaseNotes = new List<string> { "Second mini-boss at 8:45", "Mine and radial pressure before final surge" } });
+            catalog.Bosses.Add(new NeonBossDef { BossID = "eclipse_core", Name = "Eclipse Core", SpawnSecond = 600f, HP = 4800f, ContactDamage = 30f, BulletDamage = 15f, WarningText = "FINAL BOSS INCOMING", RewardCoinBonus = 90, RewardRarityHint = nameof(NeonEquipmentRarity.Rare), PhaseNotes = new List<string> { "Hardest encounter", "Bullet rings and laser arms", "Requires strong build and dodging" } });
         }
 
         private static NeonEquipmentItemDef Item(string id, string name, NeonEquipmentSlot slot, params NeonStatModifier[] stats)
@@ -135,7 +144,7 @@ namespace Cosmostar.Core.Design
             return new NeonStatModifier { StatType = statType, Value = value, IsPercent = isPercent };
         }
 
-        private static NeonUpgradeDef Upgrade(string id, string name, NeonUpgradeCategory category, string description, string requiredPassive = "", string evolution = "", NeonStatModifier perLevel = null)
+        private static NeonUpgradeDef Upgrade(string id, string name, NeonUpgradeCategory category, string description, string requiredPassive = "", string evolution = "", NeonStatModifier? perLevel = null)
         {
             var upgrade = new NeonUpgradeDef
             {

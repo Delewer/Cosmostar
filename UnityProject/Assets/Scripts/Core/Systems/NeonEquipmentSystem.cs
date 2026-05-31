@@ -1,9 +1,11 @@
+#nullable enable annotations
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Cosmostar.Core.Models;
+using NeonSkySurvivors.Core.Models;
 
-namespace Cosmostar.Core.Systems
+namespace NeonSkySurvivors.Core.Systems
 {
     public sealed class NeonEquipmentSystem
     {
@@ -146,7 +148,7 @@ namespace Cosmostar.Core.Systems
             return true;
         }
 
-        public bool TryMergeDuplicates(NeonSaveProfile profile, string itemId, NeonEquipmentRarity rarity, out NeonOwnedEquipmentItem mergedItem)
+        public bool TryMergeDuplicates(NeonSaveProfile profile, string itemId, NeonEquipmentRarity rarity, out NeonOwnedEquipmentItem? mergedItem)
         {
             mergedItem = null;
             if (rarity >= NeonEquipmentRarity.Legendary)

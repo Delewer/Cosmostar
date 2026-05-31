@@ -5,7 +5,9 @@ obj/
 bin/
 Temp/
 UserSettings/
+UnityProject/.utmp/
 Build/
+Builds/
 MemoryCaptures/
 .vs/
 .vscode/

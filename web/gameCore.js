@@ -82,27 +82,37 @@ export const catalog = {
     elite_shooter: enemy('elite_shooter', 'Elite Shooter', 110, 14, 1.4, 7, 'shooter', true)
   },
   waves: [
-    wave(0, 60, 1.2, ['chaser_drone', 'fast_wing']),
-    wave(60, 120, 1.8, ['chaser_drone', 'fast_wing', 'shooter_drone']),
-    wave(120, 180, 2.2, ['chaser_drone', 'fast_wing', 'shooter_drone', 'shield_drone'], 'WARNING: SKY REAPER APPROACHING', 170),
-    wave(180, 360, 2.6, ['shooter_drone', 'shield_drone', 'mine_carrier', 'splitter_orb', 'fast_wing']),
-    wave(360, 600, 3.4, ['chaser_drone', 'fast_wing', 'shooter_drone', 'shield_drone', 'mine_carrier', 'splitter_orb', 'elite_chaser', 'elite_shooter'], 'FINAL BOSS INCOMING', 590)
+    wave(0, 60, 0.9, ['chaser_drone', 'fast_wing']),
+    wave(60, 120, 1.35, ['chaser_drone', 'fast_wing', 'shooter_drone']),
+    wave(120, 180, 1.9, ['chaser_drone', 'fast_wing', 'shooter_drone', 'shield_drone'], 'WARNING: SKY REAPER APPROACHING', 170),
+    wave(180, 240, 1.25, ['shooter_drone', 'fast_wing']),
+    wave(240, 360, 2.55, ['shooter_drone', 'shield_drone', 'mine_carrier', 'splitter_orb', 'fast_wing'], 'NEON HYDRA APPROACHING', 350),
+    wave(360, 420, 1.7, ['shooter_drone', 'shield_drone', 'splitter_orb']),
+    wave(420, 450, 3.0, ['chaser_drone', 'fast_wing', 'mine_carrier', 'elite_chaser'], 'VIPER ACE INCOMING', 442),
+    wave(450, 525, 3.25, ['fast_wing', 'shooter_drone', 'mine_carrier', 'splitter_orb', 'elite_chaser'], 'BOMBARDIER PRIME INCOMING', 517),
+    wave(525, 570, 3.5, ['chaser_drone', 'fast_wing', 'shield_drone', 'mine_carrier', 'splitter_orb', 'elite_chaser', 'elite_shooter']),
+    wave(570, 600, 4.25, ['chaser_drone', 'fast_wing', 'shooter_drone', 'shield_drone', 'mine_carrier', 'splitter_orb', 'elite_chaser', 'elite_shooter'], 'FINAL BOSS INCOMING', 590)
   ],
   bosses: [
-    boss('sky_reaper', 'Sky Reaper', 180, 2500, 20, 10, 'WARNING: SKY REAPER APPROACHING'),
-    boss('neon_hydra', 'Neon Hydra', 360, 6000, 25, 12, 'NEON HYDRA APPROACHING'),
-    boss('eclipse_core', 'Eclipse Core', 600, 12000, 30, 15, 'FINAL BOSS INCOMING')
+    boss('sky_reaper', 'Sky Reaper', 180, 950, 18, 9, 'WARNING: SKY REAPER APPROACHING', { rewardCoins: 35, dropTier: 'Uncommon', pattern: 'reaper' }),
+    boss('neon_hydra', 'Neon Hydra', 360, 2200, 24, 12, 'NEON HYDRA APPROACHING', { rewardCoins: 55, dropTier: 'Rare', pattern: 'hydra' }),
+    boss('viper_ace', 'Viper Ace', 450, 850, 20, 10, 'VIPER ACE INCOMING', { mini: true, rewardCoins: 18, dropTier: 'Uncommon', pattern: 'reaper' }),
+    boss('bombardier_prime', 'Bombardier Prime', 525, 1250, 22, 11, 'BOMBARDIER PRIME INCOMING', { mini: true, rewardCoins: 24, dropTier: 'Rare', pattern: 'hydra' }),
+    boss('eclipse_core', 'Eclipse Core', 600, 4800, 30, 15, 'FINAL BOSS INCOMING', { rewardCoins: 90, dropTier: 'Rare', pattern: 'eclipse' })
   ],
   rewards: {
-    baseCoins: 20,
+    baseCoins: 18,
     coinPerKill: 1,
     bossCoinBonus: 40,
+    miniBossCoinBonus: 18,
+    survivalMinuteCoins: 3,
     equipmentDrops: [
-      { minBosses: 0, rarity: 'Common', chance: 0.35, killBonus: 0.0015 },
-      { minBosses: 1, rarity: 'Uncommon', chance: 0.52, killBonus: 0.001 },
-      { minBosses: 2, rarity: 'Rare', chance: 0.66, killBonus: 0.0008 },
-      { minBosses: 3, rarity: 'Rare', chance: 1, killBonus: 0 },
-      { minBosses: 3, rarity: 'Epic', chance: 0.18, killBonus: 0.0005 }
+      { minBosses: 0, minMiniBosses: 0, rarity: 'Common', chance: 0.32, killBonus: 0.0015 },
+      { minBosses: 1, minMiniBosses: 0, rarity: 'Uncommon', chance: 0.52, killBonus: 0.001 },
+      { minBosses: 2, minMiniBosses: 0, rarity: 'Rare', chance: 0.62, killBonus: 0.0008 },
+      { minBosses: 2, minMiniBosses: 1, rarity: 'Rare', chance: 0.78, killBonus: 0.0008 },
+      { minBosses: 3, minMiniBosses: 2, rarity: 'Rare', chance: 1, killBonus: 0 },
+      { minBosses: 3, minMiniBosses: 2, rarity: 'Epic', chance: 0.22, killBonus: 0.0005 }
     ]
   }
 };
@@ -202,7 +212,7 @@ export function mergeEquipment(save, itemId, rarity) {
 
 export function rollEquipmentRewards(run) {
   const drops = catalog.rewards.equipmentDrops
-    .filter((drop) => run.bossesKilled >= drop.minBosses && Math.random() <= Math.min(1, drop.chance + (run.kills ?? 0) * (drop.killBonus ?? 0)))
+    .filter((drop) => (run.bossesKilled ?? 0) >= drop.minBosses && (run.miniBossesKilled ?? 0) >= (drop.minMiniBosses ?? 0) && Math.random() <= Math.min(1, drop.chance + (run.kills ?? 0) * (drop.killBonus ?? 0)))
     .map((drop) => drop.rarity);
   if (drops.length === 0 && (run.kills ?? 0) >= 25) {
     drops.push('Common');
@@ -261,12 +271,17 @@ export function createRun(save) {
     trails: [],
     enemyProjectiles: [],
     dangerZones: [],
+    effects: [],
+    feedbackEvents: [],
     draftChoices: [],
     spawnedBosses: new Set(),
     kills: 0,
     bossesKilled: 0,
+    miniBossesKilled: 0,
+    defeatedBossRewards: [],
     spawnAccumulator: 0,
     bossAttackTimer: 1.2,
+    screenShake: 0,
     message: 'Survive for 10 minutes. Bosses at 3:00, 6:00, 10:00.'
   };
 }
@@ -297,11 +312,13 @@ export function dash(run) {
 
 export function updateRun(run, deltaSeconds) {
   if (run.status !== 'running') return run;
+  run.feedbackEvents = [];
   const previousElapsed = run.elapsed;
   run.elapsed += Math.max(0, deltaSeconds);
   run.player.dashCooldown = Math.max(0, run.player.dashCooldown - deltaSeconds);
   run.player.invulnerable = Math.max(0, run.player.invulnerable - deltaSeconds);
   run.player.weaponCooldown = Math.max(0, run.player.weaponCooldown - deltaSeconds);
+  run.screenShake = Math.max(0, run.screenShake - deltaSeconds);
   movePlayer(run, deltaSeconds);
   updateTimeline(run, previousElapsed);
   updateAutoFire(run);
@@ -313,6 +330,7 @@ export function updateRun(run, deltaSeconds) {
   updateTrails(run, deltaSeconds);
   cleanupDefeated(run);
   updateXp(run, deltaSeconds);
+  updateEffects(run, deltaSeconds);
   spawnWaveEnemies(run, deltaSeconds);
   return run;
 }
@@ -341,9 +359,11 @@ export function formatTime(seconds) {
 }
 
 export function calculateRewards(run) {
-  const coins = Math.round(catalog.rewards.baseCoins + run.kills * catalog.rewards.coinPerKill + run.bossesKilled * catalog.rewards.bossCoinBonus + run.player.coins);
-  const materials = Math.max(1, run.bossesKilled + Math.floor(run.kills / 30));
-  const dropSummary = run.bossesKilled >= 3 ? 'Guaranteed Rare equipment, Epic chance' : run.bossesKilled >= 2 ? 'Rare equipment chance' : run.bossesKilled >= 1 ? 'Uncommon equipment chance' : 'Common equipment chance';
+  const survivalCoins = Math.floor(Math.min(run.elapsed, catalog.durationSeconds) / 60) * catalog.rewards.survivalMinuteCoins;
+  const bossCoins = run.defeatedBossRewards?.reduce((total, reward) => total + (reward.coins ?? 0), 0) ?? ((run.bossesKilled ?? 0) * catalog.rewards.bossCoinBonus + (run.miniBossesKilled ?? 0) * catalog.rewards.miniBossCoinBonus);
+  const coins = Math.round(catalog.rewards.baseCoins + run.kills * catalog.rewards.coinPerKill + bossCoins + survivalCoins + run.player.coins);
+  const materials = Math.max(1, (run.bossesKilled ?? 0) * 2 + (run.miniBossesKilled ?? 0) + Math.floor(run.kills / 30));
+  const dropSummary = run.bossesKilled >= 3 && run.miniBossesKilled >= 2 ? 'Guaranteed Rare equipment, Epic chance' : run.bossesKilled >= 2 || run.miniBossesKilled >= 2 ? 'Rare equipment chance' : run.bossesKilled >= 1 || run.miniBossesKilled >= 1 ? 'Uncommon equipment chance' : 'Common equipment chance';
   return { coins, materials, item: dropSummary };
 }
 
@@ -407,7 +427,7 @@ function updateProjectiles(run, deltaSeconds) {
     projectile.life -= deltaSeconds;
     for (const target of run.enemies) {
       if (distance(projectile.x, projectile.y, target.x, target.y) > projectile.radius + 0.12) continue;
-      target.hp -= projectile.damage;
+      damageEnemy(run, target, projectile.damage, 'projectile', projectile.x, projectile.y);
       if (projectile.pierce > 0) {
         projectile.pierce -= 1;
       } else {
@@ -434,41 +454,42 @@ function updateBossAttacks(run, deltaSeconds) {
   bossTarget.attackMode = resolveBossAttackMode(bossTarget);
   run.bossAttackTimer = Math.max(0.42, (bossTarget.id === 'eclipse_core' ? 1.25 : 1.45) - bossTarget.phase * 0.22);
 
-  if (bossTarget.id === 'sky_reaper') {
-    spawnDangerZone(run, run.player.x, run.player.y, 0.2 + bossTarget.phase * 0.025, bossTarget.damage * 0.65, 0.58);
+  if ((bossTarget.pattern ?? bossTarget.id) === 'reaper') {
+    spawnDangerZone(run, run.player.x, run.player.y, 0.2 + bossTarget.phase * 0.025, bossTarget.damage * 0.65, 0.58, bossTarget.id);
     spawnConeBullets(run, bossTarget, run.player.x - bossTarget.x, run.player.y - bossTarget.y, 3 + bossTarget.phase * 2, 0.42 + bossTarget.phase * 0.08, Math.PI / 3);
     return;
   }
 
-  if (bossTarget.id === 'neon_hydra') {
+  if ((bossTarget.pattern ?? bossTarget.id) === 'hydra') {
     spawnRadialBullets(run, bossTarget, 6 + bossTarget.phase * 4, 0.42 + bossTarget.phase * 0.08, bossTarget.phase % 2 ? 0 : Math.PI / 8);
     if (bossTarget.phase >= 2) {
-      spawnDangerZone(run, Math.sin(run.elapsed) * 0.55, Math.cos(run.elapsed * 0.7) * 0.55, 0.24, bossTarget.damage * 0.7, 0.72);
+      spawnDangerZone(run, Math.sin(run.elapsed) * 0.55, Math.cos(run.elapsed * 0.7) * 0.55, 0.24, bossTarget.damage * 0.7, 0.72, bossTarget.id);
     }
     return;
   }
 
   spawnRadialBullets(run, bossTarget, 8 + bossTarget.phase * 6, 0.45 + bossTarget.phase * 0.1, run.elapsed * 0.6);
-  spawnDangerZone(run, run.player.x, run.player.y, 0.24 + bossTarget.phase * 0.03, bossTarget.damage * 0.75, 0.62);
+  spawnDangerZone(run, run.player.x, run.player.y, 0.24 + bossTarget.phase * 0.03, bossTarget.damage * 0.75, 0.62, bossTarget.id);
   if (bossTarget.phase >= 2) {
     spawnRotatingLaserWarnings(run, bossTarget.phase);
   }
 }
 
 function resolveBossAttackMode(bossTarget) {
-  if (bossTarget.id === 'sky_reaper') return bossTarget.phase === 1 ? 'charge-cone' : bossTarget.phase === 2 ? 'drone-cone' : 'reaper-barrage';
-  if (bossTarget.id === 'neon_hydra') return bossTarget.phase === 1 ? 'bullet-circle' : bossTarget.phase === 2 ? 'danger-meteors' : 'hydra-rage';
+  if ((bossTarget.pattern ?? bossTarget.id) === 'reaper') return bossTarget.phase === 1 ? 'charge-cone' : bossTarget.phase === 2 ? 'drone-cone' : 'reaper-barrage';
+  if ((bossTarget.pattern ?? bossTarget.id) === 'hydra') return bossTarget.phase === 1 ? 'bullet-circle' : bossTarget.phase === 2 ? 'danger-meteors' : 'hydra-rage';
   return bossTarget.phase === 1 ? 'bullet-rings' : bossTarget.phase === 2 ? 'laser-arms' : 'eclipse-rage';
 }
 
-function spawnDangerZone(run, x, y, radius, damage, windup) {
-  run.dangerZones.push({ x, y, radius, damage, windup, life: windup + 0.28 });
+function spawnDangerZone(run, x, y, radius, damage, windup, source = 'boss') {
+  run.dangerZones.push({ x, y, radius, damage, windup, life: windup + 0.28, source });
+  pushBurst(run, 'dangerCharge', x, y, { count: 5, radius, life: windup, color: source === 'eclipse_core' ? '#ffef6a' : '#ff42df' });
 }
 
 function spawnRadialBullets(run, bossTarget, bulletCount, speed, offset = 0) {
   for (let index = 0; index < bulletCount; index += 1) {
     const angle = offset + (Math.PI * 2 * index) / bulletCount;
-    run.enemyProjectiles.push({ x: bossTarget.x, y: bossTarget.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage: bossTarget.damage * 0.45, radius: 0.06, life: 4 });
+    run.enemyProjectiles.push({ x: bossTarget.x, y: bossTarget.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage: bossTarget.damage * 0.45, radius: 0.06, life: 4, source: bossTarget.id });
   }
 }
 
@@ -478,7 +499,7 @@ function spawnConeBullets(run, bossTarget, dx, dy, bulletCount, speed, spreadRad
   const step = bulletCount <= 1 ? 0 : spreadRadians / (bulletCount - 1);
   for (let index = 0; index < bulletCount; index += 1) {
     const angle = startAngle + step * index;
-    run.enemyProjectiles.push({ x: bossTarget.x, y: bossTarget.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage: bossTarget.damage * 0.42, radius: 0.06, life: 4 });
+    run.enemyProjectiles.push({ x: bossTarget.x, y: bossTarget.y, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, damage: bossTarget.damage * 0.42, radius: 0.06, life: 4, source: bossTarget.id });
   }
 }
 
@@ -486,7 +507,7 @@ function spawnRotatingLaserWarnings(run, phase) {
   const laneCount = phase === 3 ? 4 : 2;
   for (let lane = 0; lane < laneCount; lane += 1) {
     const angle = run.elapsed * 0.7 + (Math.PI * lane) / laneCount;
-    spawnDangerZone(run, Math.cos(angle) * 0.42, Math.sin(angle) * 0.42, 0.16, 18 + phase * 5, 0.85);
+    spawnDangerZone(run, Math.cos(angle) * 0.42, Math.sin(angle) * 0.42, 0.16, 18 + phase * 5, 0.85, 'eclipse_core');
   }
 }
 
@@ -496,14 +517,8 @@ function updateEnemyProjectiles(run, deltaSeconds) {
     projectile.x += projectile.vx * deltaSeconds;
     projectile.y += projectile.vy * deltaSeconds;
     projectile.life -= deltaSeconds;
-    if (distance(projectile.x, projectile.y, run.player.x, run.player.y) <= projectile.radius + 0.09 && run.player.invulnerable <= 0) {
-      run.player.stats.currentHP -= Math.max(1, projectile.damage - run.player.stats.armor);
-      run.player.invulnerable = 0.3;
+    if (distance(projectile.x, projectile.y, run.player.x, run.player.y) <= projectile.radius + 0.09 && damagePlayer(run, projectile.damage, projectile.x, projectile.y)) {
       run.enemyProjectiles.splice(index, 1);
-      if (run.player.stats.currentHP <= 0) {
-        run.player.stats.currentHP = 0;
-        run.status = 'game-over';
-      }
       continue;
     }
     if (projectile.life <= 0 || Math.abs(projectile.x) > 1.2 || Math.abs(projectile.y) > 1.2) run.enemyProjectiles.splice(index, 1);
@@ -517,14 +532,8 @@ function updateDangerZones(run, deltaSeconds) {
     zone.life -= deltaSeconds;
     if (zone.windup <= 0 && !zone.fired) {
       zone.fired = true;
-      if (distance(zone.x, zone.y, run.player.x, run.player.y) <= zone.radius && run.player.invulnerable <= 0) {
-        run.player.stats.currentHP -= Math.max(1, zone.damage - run.player.stats.armor);
-        run.player.invulnerable = 0.3;
-        if (run.player.stats.currentHP <= 0) {
-          run.player.stats.currentHP = 0;
-          run.status = 'game-over';
-        }
-      }
+      pushBurst(run, 'dangerDetonate', zone.x, zone.y, { count: 12, radius: zone.radius, color: zone.source === 'eclipse_core' ? '#ffef6a' : '#ff42df' });
+      if (distance(zone.x, zone.y, run.player.x, run.player.y) <= zone.radius) damagePlayer(run, zone.damage, zone.x, zone.y);
     }
     if (zone.life <= 0) run.dangerZones.splice(index, 1);
   }
@@ -535,14 +544,7 @@ function updateEnemies(run, deltaSeconds) {
     const direction = normalize(run.player.x - target.x, run.player.y - target.y);
     target.x += direction.x * (target.speed / 10) * deltaSeconds;
     target.y += direction.y * (target.speed / 10) * deltaSeconds;
-    if (distance(target.x, target.y, run.player.x, run.player.y) <= 0.16 && run.player.invulnerable <= 0) {
-      run.player.stats.currentHP -= Math.max(1, target.damage - run.player.stats.armor);
-      run.player.invulnerable = 0.3;
-      if (run.player.stats.currentHP <= 0) {
-        run.player.stats.currentHP = 0;
-        run.status = 'game-over';
-      }
-    }
+    if (distance(target.x, target.y, run.player.x, run.player.y) <= 0.16) damagePlayer(run, target.damage, target.x, target.y);
   }
 }
 
@@ -556,7 +558,7 @@ function updateTrails(run, deltaSeconds) {
     if (trail.life > 0) continue;
     if (trail.explodes) {
       for (const target of run.enemies) {
-        if (distance(target.x, target.y, trail.end.x, trail.end.y) <= 0.28) target.hp -= run.player.stats.attackDamage * 1.5;
+        if (distance(target.x, target.y, trail.end.x, trail.end.y) <= 0.28) damageEnemy(run, target, run.player.stats.attackDamage * 1.5, 'trailExplosion', trail.end.x, trail.end.y);
       }
     }
     run.trails.splice(trailIndex, 1);
@@ -569,10 +571,17 @@ function cleanupDefeated(run) {
     if (target.hp > 0) continue;
     run.enemies.splice(enemyIndex, 1);
     run.kills += 1;
+    pushFeedback(run, 'enemyDeath', { x: target.x, y: target.y, id: target.id, boss: Boolean(target.boss) });
+    pushBurst(run, target.boss ? 'bossDeath' : 'enemyDeath', target.x, target.y, { count: target.boss ? 34 : 15, radius: target.boss ? 0.24 : 0.12, color: target.boss ? '#ff42df' : '#ff3f5e' });
     run.xpShards.push({ x: target.x, y: target.y, value: target.xp });
     if (Math.random() <= 0.2 * run.player.stats.coinBonus) run.player.coins += 1;
     if (target.boss) {
-      run.bossesKilled += 1;
+      run.defeatedBossRewards.push({ id: target.id, coins: target.rewardCoins ?? (target.mini ? catalog.rewards.miniBossCoinBonus : catalog.rewards.bossCoinBonus), rarity: target.dropTier ?? 'Common', mini: Boolean(target.mini) });
+      if (target.mini) {
+        run.miniBossesKilled += 1;
+      } else {
+        run.bossesKilled += 1;
+      }
       if (target.id === 'eclipse_core') run.status = 'victory';
     }
   }
@@ -590,6 +599,8 @@ function updateXp(run, deltaSeconds) {
     }
     run.player.xp += shard.value * run.player.stats.xpModifier;
     run.xpShards.splice(shardIndex, 1);
+    pushFeedback(run, 'xpCollect', { x: run.player.x, y: run.player.y, value: shard.value });
+    pushBurst(run, 'xpCollect', run.player.x, run.player.y, { count: 8, radius: 0.08, color: '#42ffc8', life: 0.28 });
     if (run.player.xp >= run.player.xpToNext) {
       openDraft(run);
       return;
@@ -628,7 +639,68 @@ function spawnEnemy(run, enemyId) {
 }
 
 function spawnBoss(run, bossDef) {
-  run.enemies.push({ id: bossDef.id, name: bossDef.name, x: 0, y: 0.82, hp: bossDef.hp, maxHP: bossDef.hp, damage: bossDef.contactDamage, speed: 0.5, xp: 20, boss: true, phase: 1, attackMode: 'opening' });
+  run.enemies.push({ id: bossDef.id, name: bossDef.name, x: 0, y: 0.82, hp: bossDef.hp, maxHP: bossDef.hp, damage: bossDef.contactDamage, speed: bossDef.mini ? 0.62 : 0.5, xp: bossDef.mini ? 12 : 20, boss: true, mini: Boolean(bossDef.mini), pattern: bossDef.pattern, rewardCoins: bossDef.rewardCoins, dropTier: bossDef.dropTier, phase: 1, attackMode: 'opening', visualSeed: Math.random() });
+  pushFeedback(run, 'bossSpawn', { x: 0, y: 0.82, id: bossDef.id });
+  pushBurst(run, 'bossSpawn', 0, 0.82, { count: 38, radius: 0.28, color: bossDef.id === 'eclipse_core' ? '#ffef6a' : '#ff42df', life: 0.9 });
+}
+
+function damageEnemy(run, target, amount, source, x = target.x, y = target.y) {
+  target.hp -= amount;
+  pushFeedback(run, 'enemyHit', { x, y, id: target.id, boss: Boolean(target.boss), source, damage: amount });
+  pushBurst(run, target.boss ? 'bossHit' : 'enemyHit', x, y, { count: target.boss ? 14 : 7, radius: target.boss ? 0.13 : 0.07, color: target.boss ? '#ff42df' : '#ff3f5e', life: 0.24 });
+}
+
+function damagePlayer(run, rawDamage, x = run.player.x, y = run.player.y) {
+  if (run.player.invulnerable > 0 || run.status !== 'running') return false;
+  const mitigated = Math.max(1, rawDamage - run.player.stats.armor);
+  run.player.stats.currentHP -= mitigated;
+  run.player.invulnerable = 0.3;
+  run.screenShake = Math.max(run.screenShake, 0.22);
+  pushFeedback(run, 'playerDamage', { x, y, damage: mitigated });
+  pushBurst(run, 'playerDamage', run.player.x, run.player.y, { count: 18, radius: 0.12, color: '#ffef6a', life: 0.32 });
+  if (run.player.stats.currentHP <= 0) {
+    run.player.stats.currentHP = 0;
+    run.status = 'game-over';
+  }
+  return true;
+}
+
+function pushFeedback(run, type, payload = {}) {
+  run.feedbackEvents.push({ type, ...payload });
+}
+
+function pushBurst(run, type, x, y, options = {}) {
+  const life = options.life ?? 0.38;
+  const radius = options.radius ?? 0.1;
+  const color = options.color ?? '#ffffff';
+  const count = options.count ?? 10;
+  const particles = Array.from({ length: count }, (_, index) => {
+    const angle = (Math.PI * 2 * index) / count + Math.random() * 0.45;
+    const speed = (0.22 + Math.random() * 0.36) * (type === 'bossDeath' ? 1.6 : 1);
+    return {
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      size: 0.008 + Math.random() * 0.018
+    };
+  });
+  run.effects.push({ type, x, y, life, maxLife: life, radius, color, particles });
+  if (run.effects.length > 70) run.effects.splice(0, run.effects.length - 70);
+}
+
+function updateEffects(run, deltaSeconds) {
+  for (let index = run.effects.length - 1; index >= 0; index -= 1) {
+    const effect = run.effects[index];
+    effect.life -= deltaSeconds;
+    for (const particle of effect.particles) {
+      particle.x += particle.vx * deltaSeconds;
+      particle.y += particle.vy * deltaSeconds;
+      particle.vx *= 0.92;
+      particle.vy *= 0.92;
+    }
+    if (effect.life <= 0) run.effects.splice(index, 1);
+  }
 }
 
 function applyStatMap(stats, statMap, multiplier) {
@@ -661,8 +733,8 @@ function wave(start, end, rate, enemies, warning = '', warningSecond = -1) {
   return { start, end, rate, enemies, warning, warningSecond };
 }
 
-function boss(id, name, time, hp, contactDamage, bulletDamage, warning) {
-  return { id, name, time, hp, contactDamage, bulletDamage, warning };
+function boss(id, name, time, hp, contactDamage, bulletDamage, warning, options = {}) {
+  return { id, name, time, hp, contactDamage, bulletDamage, warning, ...options };
 }
 
 function clamp(value, min, max) {

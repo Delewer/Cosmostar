@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 
-namespace Cosmostar.Core.Models
+namespace NeonSkySurvivors.Core.Models
 {
     [Serializable]
     public struct NeonVector2
@@ -110,6 +110,7 @@ namespace Cosmostar.Core.Models
         public float Speed;
         public int XPDrop;
         public bool IsBoss;
+        public bool IsMiniBoss;
     }
 
     [Serializable]
@@ -157,6 +158,7 @@ namespace Cosmostar.Core.Models
         public HashSet<string> SpawnedBossIDs = new HashSet<string>();
         public int EnemiesKilled;
         public int BossesKilled;
+        public int MiniBossesKilled;
         public string LastWarning = string.Empty;
     }
 }

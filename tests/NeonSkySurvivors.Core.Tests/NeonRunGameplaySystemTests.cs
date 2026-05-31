@@ -1,6 +1,6 @@
-using Cosmostar.Core.Design;
-using Cosmostar.Core.Models;
-using Cosmostar.Core.Systems;
+using NeonSkySurvivors.Core.Design;
+using NeonSkySurvivors.Core.Models;
+using NeonSkySurvivors.Core.Systems;
 using Xunit;
 
 namespace NeonSkySurvivors.Core.Tests
@@ -59,7 +59,6 @@ namespace NeonSkySurvivors.Core.Tests
                 XPDrop = 1
             });
 
-            gameplay.Tick(run, catalog, 0.1f);
             gameplay.Tick(run, catalog, 0.1f);
 
             Assert.Equal(1, run.EnemiesKilled);

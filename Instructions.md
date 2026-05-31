@@ -8,7 +8,14 @@ Codex Agent Instruction: Build Neon Plane Survivor Game MVP
 - ✅ 2026-05-17: Expanded the web garage with inventory grid, rarity colors, equipment selection, equip/unequip controls, stat preview, coin upgrades, duplicate merges, reward item drops, and local save persistence.
 - ✅ 2026-05-17: Added reward drop tables, Settings screen toggles, lightweight audio hooks, and boss danger-zone/projectile presentation in the web prototype.
 - ✅ 2026-05-17: Added procedural authored audio presets/music drone, advanced boss phase attack modes, settings save validation/reset/export polish, and tuned reward drop pity/kill bonuses.
-- ⏳ Next step: improve combat feel with enemy-hit/death/XP/player-damage audio cues, particle-style canvas bursts, and deeper authored boss visuals.
+- ✅ 2026-05-17: Improved combat feel with enemy-hit/death/XP/player-damage audio cues, particle-style canvas bursts, screen shake, and deeper authored boss visuals in the web prototype.
+- ✅ 2026-05-18: Balanced early/mid/late run pacing with 10 wave segments, reduced spawn pressure during major bosses, mini-boss events at 7:30 and 8:45, final-surge spawn pressure, and staged boss/mini-boss reward timing.
+- ✅ 2026-05-18: Added the Unity mobile runtime shell: portrait Boot scene, Android package settings, touch movement, dash button, HUD, mobile camera, and capped render pools for enemies, projectiles, XP shards, and dash trails.
+- ✅ 2026-05-18: Verified the Unity 6000.4.4f1 mobile Boot scene in batchmode: scene load, app component, MainCamera, portrait settings, and enabled Boot build scene all passed with zero Unity C# warnings/errors.
+- ✅ 2026-05-18: Installed Android Build Support, SDK/NDK tools, and OpenJDK for Unity 6000.4.4f1, then built a real Android smoke APK at Builds/Android/NeonSkySurvivors-Smoke.apk with zero Unity/Gradle build errors.
+- ✅ 2026-05-18: Added Unity mobile level-up upgrade cards: the Boot scene now pauses on draft, shows three touchable upgrade choices, applies the selected core upgrade, and resumes the run without using Restart.
+- ✅ 2026-05-18: Added the Unity mobile Garage/Start Run/results loop: Boot opens in Garage, shows coins/runs/best time, equipped part summary, stat preview, Start Run button, terminal results payout, and a Garage return button.
+- ⏳ Next step: expand the Unity Garage into full touch inventory/equip/upgrade/merge controls, then run the smoke APK on a physical Android phone via adb/device install for device-side performance tuning.
 
 
 You are building a mobile-friendly roguelite survival shooter prototype.
@@ -68,7 +75,7 @@ The player should feel like they are building and improving their aircraft.
 
 3. Game Loop
 Main loop
-Player enters Garage.
+Player enters Garage. ✅ Unity Boot now opens in Garage
 Player equips plane parts.
 Player starts a 10-minute mission.
 Plane spawns with equipped stats and starting weapon.
@@ -79,8 +86,8 @@ Boss appears at 3 minutes.
 Boss appears at 6 minutes.
 Final boss appears at 10 minutes.
 Player wins or dies.
-Player receives coins, parts, and materials.
-Player returns to Garage.
+Player receives coins, parts, and materials. ✅ Unity results payout adds earned coins
+Player returns to Garage. ✅ Unity results screen returns to Garage
 Player upgrades, merges, and equips better parts.
 Player starts another run.
 4. Required MVP Features
@@ -94,26 +101,26 @@ Auto-shooting main weapon. ✅ nearest-enemy auto-aim logic added
 Drag/joystick movement. ✅ movement target logic added
 Dash ✅ lightweight audio hook added ability. ✅ cooldown, invulnerability, and trail state added
 XP drops from enemies. ✅ XP shard drops added
-Level-up system. ✅ XP threshold and draft pause state added
-3 upgrade choices on level-up. ✅ draft selection logic added
+Level-up system. ✅ XP threshold, draft pause state, and Unity mobile upgrade overlay added
+3 upgrade choices on level-up. ✅ draft selection logic, web cards, and Unity mobile touch cards added
 10-minute timer. ✅ core elapsed timer added
 Enemy waves. ✅ timeline-driven enemy spawning added
 Boss at 3:00. ✅ timeline spawn hook added
 Boss at 6:00. ✅ timeline spawn hook added
 Final boss at 10:00. ✅ timeline spawn hook and victory detection added
-Game over screen. ✅ core status, web results screen, and audio hook added
-Victory screen. ✅ core status, web results screen, and audio hook added
-Coins and rewards after run. ✅ web reward payout added
+Game over screen. ✅ core status, web results screen, audio hook, and Unity results panel added
+Victory screen. ✅ core status, web results screen, audio hook, and Unity results panel added
+Coins and rewards after run. ✅ web reward payout and Unity coin payout added
 Garage
-Equipment screen. ✅ web garage screen expanded
+Equipment screen. ✅ web garage screen expanded and Unity garage equipment summary added
 6 equipment slots. ✅ web equipped slots shown
 Inventory grid. ✅ web inventory grid added
 Item rarity colors. ✅ rarity card borders added
 Equip / unequip items. ✅ web controls added
 Upgrade equipment with coins. ✅ web coin upgrade control added
 Merge duplicate equipment. ✅ web 3-duplicate merge control added
-Stats preview. ✅ web stat preview added
-Start run button.
+Stats preview. ✅ web stat preview and Unity garage stat preview added
+Start run button. ✅ Unity mobile Start Run button added
 Equipment Slots
 
 Use exactly these 6 slots for MVP:
@@ -733,11 +740,11 @@ Elite Shooter
 More mines
 More splitters
 
-At 7:30, spawn mini-boss.
+At 7:30, spawn mini-boss. ✅ Viper Ace mini-boss event added
 
-At 8:45, spawn mini-boss.
+At 8:45, spawn mini-boss. ✅ Bombardier Prime mini-boss event added
 
-At 9:30, increase music intensity and spawn rate.
+At 9:30, increase music intensity and spawn rate. ✅ final-surge wave segment added
 
 At 9:50, show warning:
 
@@ -875,9 +882,9 @@ Coins = baseCoins + enemiesKilled * coinPerKill + bossesKilled * bossCoinBonus
 
 Equipment drop: ✅ tuned boss-based web drop table with pity/kill bonuses added
 
-Boss 1 defeated: chance for Common/Uncommon item
-Boss 2 defeated: chance for Uncommon/Rare item
-Final Boss defeated: guaranteed Rare item, chance for Epic
+Boss 1 defeated: chance for Common/Uncommon item ✅ staged reward timing added
+Boss 2 defeated: chance for Uncommon/Rare item ✅ staged reward timing added
+Final Boss defeated: guaranteed Rare item, chance for Epic ✅ full boss + mini-boss progress grants guaranteed Rare and Epic chance
 21. UI Screens
 Main Menu
 
@@ -1011,14 +1018,14 @@ For MVP, simple sounds are enough.
 Required sounds:
 
 Player shooting ✅ lightweight audio hook added
-Enemy hit
-Enemy death
-XP collect
+Enemy hit ✅ web audio cue and hit burst added
+Enemy death ✅ web audio cue and death burst added
+XP collect ✅ web audio cue and pickup burst added
 Level up
 Dash ✅ lightweight audio hook added
 Boss warning ✅ warning message and danger zones added
 Boss spawn ✅ boss warning/audio/music mode hooks added
-Player damage ✅ boss projectile/danger-zone damage path added
+Player damage ✅ boss projectile/danger-zone damage path, audio cue, hit burst, and screen shake added
 Game over ✅ lightweight audio hook added
 Victory ✅ lightweight audio hook added
 
@@ -1116,7 +1123,7 @@ Responsible for:
 
 Spawning enemies
 Using wave rules
-Object pooling
+Object pooling ✅ Unity runtime render pools added
 Spawn positions
 WaveManager
 
@@ -1358,14 +1365,14 @@ Use:
 
 Object pooling
 Simple enemy AI
-Limited projectile lifetime
+Limited projectile lifetime ✅ core projectile lifetime and Unity projectile view cap added
 Distance-based cleanup
-Batch-friendly effects
+Batch-friendly effects ✅ Unity runtime uses simple sprite/line render pools for MVP
 Optimized particles
 
 Target:
 
-60 FPS on mid-range mobile devices
+60 FPS on mid-range mobile devices ✅ Unity runtime caps target frame rate at 60; Unity Editor mobile Boot verification and Android APK smoke build passed; physical device verification pending
 
 For MVP, support at least:
 
@@ -1381,13 +1388,13 @@ The game must feel satisfying.
 Prioritize:
 
 Fast XP collection
-Clear hit feedback
+Clear hit feedback ✅ web hit/death/XP/player-damage feedback added
 Smooth movement
 Good dash feeling
 Readable bullets
 Strong weapon upgrades
-Explosive enemy deaths
-Rewarding level-up choices
+Explosive enemy deaths ✅ particle-style death bursts added
+Rewarding level-up choices ✅ Unity mobile upgrade cards now apply choices without restarting the run
 
 The player should feel weak at the start of a run, then powerful by minute 7–10.
 
@@ -1463,10 +1470,10 @@ Add neon effects
 Add better UI
 Add sound effects
 Add music
-Add hit feedback
-Add particles
-Balance difficulty
-Optimize performance
+Add hit feedback ✅ web combat feedback events added
+Add particles ✅ canvas particle-style bursts added
+Balance difficulty ✅ early/mid/late pacing, boss pressure, mini-bosses, and rewards tuned
+Optimize performance ✅ initial Unity render pooling and mobile frame cap added; Unity Editor mobile Boot verification and Android APK smoke build passed; physical device verification pending
 35. Final MVP Definition
 
 The MVP is complete when the player can:
@@ -1552,7 +1559,7 @@ The player should feel like they are building and improving their aircraft.
 
 3. Game Loop
 Main loop
-Player enters Garage.
+Player enters Garage. ✅ Unity Boot now opens in Garage
 Player equips plane parts.
 Player starts a 10-minute mission.
 Plane spawns with equipped stats and starting weapon.
@@ -1563,8 +1570,8 @@ Boss appears at 3 minutes.
 Boss appears at 6 minutes.
 Final boss appears at 10 minutes.
 Player wins or dies.
-Player receives coins, parts, and materials.
-Player returns to Garage.
+Player receives coins, parts, and materials. ✅ Unity results payout adds earned coins
+Player returns to Garage. ✅ Unity results screen returns to Garage
 Player upgrades, merges, and equips better parts.
 Player starts another run.
 4. Required MVP Features
@@ -1578,26 +1585,26 @@ Auto-shooting main weapon. ✅ nearest-enemy auto-aim logic added
 Drag/joystick movement. ✅ movement target logic added
 Dash ✅ lightweight audio hook added ability. ✅ cooldown, invulnerability, and trail state added
 XP drops from enemies. ✅ XP shard drops added
-Level-up system. ✅ XP threshold and draft pause state added
-3 upgrade choices on level-up. ✅ draft selection logic added
+Level-up system. ✅ XP threshold, draft pause state, and Unity mobile upgrade overlay added
+3 upgrade choices on level-up. ✅ draft selection logic, web cards, and Unity mobile touch cards added
 10-minute timer. ✅ core elapsed timer added
 Enemy waves. ✅ timeline-driven enemy spawning added
 Boss at 3:00. ✅ timeline spawn hook added
 Boss at 6:00. ✅ timeline spawn hook added
 Final boss at 10:00. ✅ timeline spawn hook and victory detection added
-Game over screen. ✅ core status, web results screen, and audio hook added
-Victory screen. ✅ core status, web results screen, and audio hook added
-Coins and rewards after run. ✅ web reward payout added
+Game over screen. ✅ core status, web results screen, audio hook, and Unity results panel added
+Victory screen. ✅ core status, web results screen, audio hook, and Unity results panel added
+Coins and rewards after run. ✅ web reward payout and Unity coin payout added
 Garage
-Equipment screen. ✅ web garage screen expanded
+Equipment screen. ✅ web garage screen expanded and Unity garage equipment summary added
 6 equipment slots. ✅ web equipped slots shown
 Inventory grid. ✅ web inventory grid added
 Item rarity colors. ✅ rarity card borders added
 Equip / unequip items. ✅ web controls added
 Upgrade equipment with coins. ✅ web coin upgrade control added
 Merge duplicate equipment. ✅ web 3-duplicate merge control added
-Stats preview. ✅ web stat preview added
-Start run button.
+Stats preview. ✅ web stat preview and Unity garage stat preview added
+Start run button. ✅ Unity mobile Start Run button added
 Equipment Slots
 
 Use exactly these 6 slots for MVP:
@@ -2217,11 +2224,11 @@ Elite Shooter
 More mines
 More splitters
 
-At 7:30, spawn mini-boss.
+At 7:30, spawn mini-boss. ✅ Viper Ace mini-boss event added
 
-At 8:45, spawn mini-boss.
+At 8:45, spawn mini-boss. ✅ Bombardier Prime mini-boss event added
 
-At 9:30, increase music intensity and spawn rate.
+At 9:30, increase music intensity and spawn rate. ✅ final-surge wave segment added
 
 At 9:50, show warning:
 
@@ -2359,9 +2366,9 @@ Coins = baseCoins + enemiesKilled * coinPerKill + bossesKilled * bossCoinBonus
 
 Equipment drop: ✅ tuned boss-based web drop table with pity/kill bonuses added
 
-Boss 1 defeated: chance for Common/Uncommon item
-Boss 2 defeated: chance for Uncommon/Rare item
-Final Boss defeated: guaranteed Rare item, chance for Epic
+Boss 1 defeated: chance for Common/Uncommon item ✅ staged reward timing added
+Boss 2 defeated: chance for Uncommon/Rare item ✅ staged reward timing added
+Final Boss defeated: guaranteed Rare item, chance for Epic ✅ full boss + mini-boss progress grants guaranteed Rare and Epic chance
 21. UI Screens
 Main Menu
 
@@ -2495,14 +2502,14 @@ For MVP, simple sounds are enough.
 Required sounds:
 
 Player shooting ✅ lightweight audio hook added
-Enemy hit
-Enemy death
-XP collect
+Enemy hit ✅ web audio cue and hit burst added
+Enemy death ✅ web audio cue and death burst added
+XP collect ✅ web audio cue and pickup burst added
 Level up
 Dash ✅ lightweight audio hook added
 Boss warning ✅ warning message and danger zones added
 Boss spawn ✅ boss warning/audio/music mode hooks added
-Player damage ✅ boss projectile/danger-zone damage path added
+Player damage ✅ boss projectile/danger-zone damage path, audio cue, hit burst, and screen shake added
 Game over ✅ lightweight audio hook added
 Victory ✅ lightweight audio hook added
 
@@ -2600,7 +2607,7 @@ Responsible for:
 
 Spawning enemies
 Using wave rules
-Object pooling
+Object pooling ✅ Unity runtime render pools added
 Spawn positions
 WaveManager
 
@@ -2842,14 +2849,14 @@ Use:
 
 Object pooling
 Simple enemy AI
-Limited projectile lifetime
+Limited projectile lifetime ✅ core projectile lifetime and Unity projectile view cap added
 Distance-based cleanup
-Batch-friendly effects
+Batch-friendly effects ✅ Unity runtime uses simple sprite/line render pools for MVP
 Optimized particles
 
 Target:
 
-60 FPS on mid-range mobile devices
+60 FPS on mid-range mobile devices ✅ Unity runtime caps target frame rate at 60; Unity Editor mobile Boot verification and Android APK smoke build passed; physical device verification pending
 
 For MVP, support at least:
 
@@ -2865,13 +2872,13 @@ The game must feel satisfying.
 Prioritize:
 
 Fast XP collection
-Clear hit feedback
+Clear hit feedback ✅ web hit/death/XP/player-damage feedback added
 Smooth movement
 Good dash feeling
 Readable bullets
 Strong weapon upgrades
-Explosive enemy deaths
-Rewarding level-up choices
+Explosive enemy deaths ✅ particle-style death bursts added
+Rewarding level-up choices ✅ Unity mobile upgrade cards now apply choices without restarting the run
 
 The player should feel weak at the start of a run, then powerful by minute 7–10.
 
@@ -2947,10 +2954,10 @@ Add neon effects
 Add better UI
 Add sound effects
 Add music
-Add hit feedback
-Add particles
-Balance difficulty
-Optimize performance
+Add hit feedback ✅ web combat feedback events added
+Add particles ✅ canvas particle-style bursts added
+Balance difficulty ✅ early/mid/late pacing, boss pressure, mini-bosses, and rewards tuned
+Optimize performance ✅ initial Unity render pooling and mobile frame cap added; Unity Editor mobile Boot verification and Android APK smoke build passed; physical device verification pending
 35. Final MVP Definition
 
 The MVP is complete when the player can:

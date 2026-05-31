@@ -26,6 +26,7 @@ namespace NeonSkySurvivors.Core.Systems
             var run = new NeonRunState();
             run.Player.Stats = equipmentSystem.CalculateStats(profile, catalog);
             run.Player.Stats.CurrentHP = run.Player.Stats.MaxHP;
+            run.Player.SpecialCharge = Math.Min(run.Player.Stats.StartingEnergy, run.Player.SpecialChargeMax);
             run.Player.Position = NeonVector2.Zero;
             run.Player.MovementTarget = NeonVector2.Zero;
             run.Player.LastMoveDirection = NeonVector2.Up;
@@ -72,6 +73,7 @@ namespace NeonSkySurvivors.Core.Systems
             var previousElapsedSeconds = run.ElapsedSeconds;
             run.ElapsedSeconds += Math.Max(0f, deltaTime);
             TickTimers(run, deltaTime);
+            TickSpecialCharge(run, deltaTime);
             TickMovement(run, deltaTime);
             TickTimeline(run, catalog, previousElapsedSeconds);
             TickAutoFire(run, deltaTime);
@@ -105,6 +107,45 @@ namespace NeonSkySurvivors.Core.Systems
             run.DraftChoices.Clear();
             run.Status = NeonRunStatus.Running;
             return true;
+        }
+
+        public bool TryActivateSpecial(NeonRunState run)
+        {
+            if (run.Status != NeonRunStatus.Running || run.Player.SpecialCharge < run.Player.SpecialChargeMax)
+            {
+                return false;
+            }
+
+            run.Player.SpecialCharge = 0f;
+
+            // Neon Nova: arena-wide burst, clears enemy fire, and briefly shields the player.
+            var novaDamage = run.Player.Stats.AttackDamage * 6f;
+            foreach (var enemy in run.Enemies)
+            {
+                enemy.HP -= novaDamage;
+            }
+
+            for (var index = run.Projectiles.Count - 1; index >= 0; index--)
+            {
+                if (!run.Projectiles[index].FromPlayer)
+                {
+                    run.Projectiles.RemoveAt(index);
+                }
+            }
+
+            run.Player.InvulnerabilityRemaining = Math.Max(run.Player.InvulnerabilityRemaining, 1f);
+            return true;
+        }
+
+        private void TickSpecialCharge(NeonRunState run, float deltaTime)
+        {
+            if (run.Player.SpecialCharge >= run.Player.SpecialChargeMax)
+            {
+                return;
+            }
+
+            var perSecond = 7f * Math.Max(0.1f, run.Player.Stats.SpecialChargeSpeed);
+            run.Player.SpecialCharge = Math.Min(run.Player.SpecialChargeMax, run.Player.SpecialCharge + perSecond * deltaTime);
         }
 
         private void TickTimers(NeonRunState run, float deltaTime)
@@ -608,6 +649,7 @@ namespace NeonSkySurvivors.Core.Systems
                 run.Enemies.RemoveAt(enemyIndex);
                 run.EnemiesKilled += 1;
                 run.XpShards.Add(new NeonXpShardState { Position = enemy.Position, XPValue = enemy.XPDrop });
+                run.Player.SpecialCharge = Math.Min(run.Player.SpecialChargeMax, run.Player.SpecialCharge + (enemy.IsBoss ? 20f : 1.5f));
                 if (_random.NextDouble() <= 0.2f * run.Player.Stats.CoinBonus)
                 {
                     run.Player.CoinsCollected += 1;

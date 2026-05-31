@@ -88,6 +88,8 @@ namespace NeonSkySurvivors.Core.Models
         public float XPToNextLevel = 5f;
         public int CoinsCollected;
         public float OrbitAngle;
+        public float SpecialCharge;
+        public float SpecialChargeMax = 100f;
     }
 
     [Serializable]

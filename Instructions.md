@@ -34,6 +34,7 @@ Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward dro
 - ✅ 2026-05-31 (M2): Added two in-run weapons that previously had upgrade cards but no combat logic — Homing Missiles (home onto enemies, extra missile at L2, faster cadence at L3, AoE explosion at L4, split fragments at L5) and Laser Wings (perpendicular piercing beams, scaling damage/reach, double beam at L5), each with its own cooldown. Verified: 0 compile errors, scene verify passes.
 - ✅ 2026-05-31 (M2): Added the 4th in-run weapon, Orbit Blades — 1→2 energy blades rotating around the player (orbit positions stored in run state for shared damage/rendering), with larger radius at L3, faster spin at L4, and knockback at L5; rendered via a dedicated sprite pool. All 4 MVP in-run weapons are now functional. Verified: 0 compile errors, scene verify passes.
 - ✅ 2026-05-31 (M2): Made weapon evolutions mechanically real — Plasma Storm turns the main fire into a 3-way piercing high-damage spread; Rocket Swarm adds extra always-splitting missiles with larger blasts and faster cadence. Reworked the evolution trigger to scan all weapon upgrades after each pick (catalog-driven), so it fires regardless of whether the weapon or its required passive was picked last. Verified: 0 compile errors, scene verify passes.
+- ✅ 2026-05-31 (M2): Added the special ability — a charge meter (seeded by StartingEnergy, filled over time via SpecialChargeSpeed + per-kill) shown as the SPECIAL button's fill, and the Neon Nova ultimate (arena-wide damage + enemy-bullet clear + brief invulnerability) with dedicated SFX and a cyan burst. Closes the Section 21 "Special ability charge" HUD element. Verified: 0 compile errors, scene verify passes.
 
 ### Milestone 1 — On-device hardening (close the last MVP step)
 - [ ] Install the smoke APK on a physical Android device (`adb install -r`) and launch it.
@@ -45,7 +46,7 @@ Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward dro
 
 ### Milestone 2 — Gameplay completeness
 - [x] ✅ 2026-05-31: All 6 enemy behaviors implemented end-to-end via NeonEnemyBehaviorType: Chaser/Fast Wing chase, Shooter keeps distance and fires bullets, Shield Drone is high-HP (per spec), Mine Carrier drops timed mines that detonate on proximity/expire, Splitter Orb splits into 2 fast children on death. Enemy projectiles/mines damage the player and render distinctly (red bullets, pulsing orange mines). Elite Chaser/Shooter exist in the catalog for the late game.
-- [ ] Implement the Special ability system referenced by the HUD: a charge meter driven by StartingEnergy/SpecialChargeSpeed, an activation button, and one ultimate (e.g. Neon Nova clear/burst). Add the "Special ability charge" HUD element.
+- [x] ✅ 2026-05-31: Special ability system — a charge meter that starts at StartingEnergy and fills over time (scaled by SpecialChargeSpeed) plus per-kill charge; a SPECIAL button whose fill shows the charge and only activates when full; and the Neon Nova ultimate (arena-wide damage, clears enemy bullets, brief player invulnerability) with its own SFX + burst. Closes the Section 21 "Special ability charge" HUD element.
 - [x] ✅ 2026-05-31: Weapon evolutions now change combat, not just set a flag — Plasma Storm (maxed Plasma Blaster + Attack Boost) makes the main fire a hard-hitting 3-way piercing spread; Rocket Swarm (maxed Homing Missiles + Cooldown Reduction) adds +2 always-splitting missiles with bigger blasts and a faster cadence. The trigger now scans all weapons after every upgrade pick (works in either pick order). Optional chest/boss evolution trigger still TODO.
 - [x] ✅ 2026-05-31: All 4 in-run weapons fire with level scaling — Plasma Blaster (main auto-fire + L5 pierce), Homing Missiles (homing, +missile L2, faster L3, AoE L4, split L5), Laser Wings (perpendicular piercing beams, scaling damage/reach, double beam L5), and Orbit Blades (1→2 rotating blades, larger radius L3, faster spin L4, knockback L5). Trail upgrades (Longer Trail, Trail Explosion) already apply. Remaining: per-level VFX polish only.
 - [ ] Wire equipment special effects that are currently text-only (e.g. "Block first hit", "Shield below 30% HP", dash trail/shield from Engine).
@@ -1017,7 +1018,7 @@ XP bar ✅ Unity filled XP bar added
 Level
 Coins collected
 Dash ✅ lightweight audio hook added cooldown
-Special ability charge
+Special ability charge ✅ Unity SPECIAL button with charge fill + Neon Nova ultimate added
 Pause button ✅ Unity in-game pause/resume button added
 Boss HP bar when boss active ✅ web boss health bar added and Unity boss/mini-boss HP bar added
 Level-Up Screen
@@ -2502,7 +2503,7 @@ XP bar ✅ Unity filled XP bar added
 Level
 Coins collected
 Dash ✅ lightweight audio hook added cooldown
-Special ability charge
+Special ability charge ✅ Unity SPECIAL button with charge fill + Neon Nova ultimate added
 Pause button ✅ Unity in-game pause/resume button added
 Boss HP bar when boss active ✅ web boss health bar added and Unity boss/mini-boss HP bar added
 Level-Up Screen

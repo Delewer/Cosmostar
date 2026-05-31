@@ -30,6 +30,7 @@ namespace NeonSkySurvivors.Runtime.App
         private AudioClip _playerDamage = null!;
         private AudioClip _gameOver = null!;
         private AudioClip _victory = null!;
+        private AudioClip _special = null!;
         private AudioClip _musicNormal = null!;
         private AudioClip _musicBoss = null!;
 
@@ -78,6 +79,7 @@ namespace NeonSkySurvivors.Runtime.App
             _playerDamage = CreateBlip("sfx_damage", 260f, 110f, 0.18f, 0.9f, true);
             _gameOver = CreateBlip("sfx_gameover", 440f, 110f, 0.9f, 0.9f, false);
             _victory = CreateChord("sfx_victory", new[] { 523f, 784f, 1046f }, 0.9f, 0.9f);
+            _special = CreateBlip("sfx_special", 300f, 1500f, 0.6f, 0.95f, false);
 
             _musicNormal = CreateDrone("music_normal", 110f, 0.25f, 1f);
             _musicBoss = CreateDrone("music_boss", 130f, 0.5f, 1.5f);
@@ -102,6 +104,8 @@ namespace NeonSkySurvivors.Runtime.App
         public void PlayGameOver() => PlayOneShot(_gameOver, 0.85f);
 
         public void PlayVictory() => PlayOneShot(_victory, 0.85f);
+
+        public void PlaySpecial() => PlayOneShot(_special, 0.9f);
 
         public void SetMusic(string mode)
         {

@@ -60,6 +60,8 @@ namespace NeonSkySurvivors.Runtime.App
         private Image _hpBarFill = null!;
         private Image _xpBarFill = null!;
         private Button _dashButton = null!;
+        private Button _specialButton = null!;
+        private Image _specialFill = null!;
         private Button _pauseButton = null!;
         private Text _pauseLabel = null!;
         private GameObject _bossBarRoot = null!;
@@ -406,6 +408,10 @@ namespace NeonSkySurvivors.Runtime.App
             }
 
             UpdateBossBar();
+            var specialReady = player.SpecialCharge >= player.SpecialChargeMax;
+            _specialFill.fillAmount = Mathf.Clamp01(player.SpecialCharge / player.SpecialChargeMax);
+            _specialFill.color = specialReady ? new Color(0.4f, 1f, 1f, 0.95f) : new Color(1f, 0.3f, 0.85f, 0.7f);
+            _specialButton.interactable = specialReady && !_paused && _run.Status == NeonRunStatus.Running;
             _dashButton.interactable = !_paused && _run.Status == NeonRunStatus.Running && player.DashCooldownRemaining <= 0f;
             _pauseButton.interactable = _run.Status == NeonRunStatus.Running;
         }
@@ -865,11 +871,47 @@ namespace NeonSkySurvivors.Runtime.App
             _messageText = CreateText(canvasObject.transform, "Message", new Vector2(0f, -205f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, new Color(1f, 0.82f, 0.28f));
             _statusText = CreateText(canvasObject.transform, "Status", new Vector2(0f, 0f), new Vector2(0f, 0.48f), new Vector2(1f, 0.48f), TextAnchor.MiddleCenter, 42, Color.white);
             _dashButton = CreateButton(canvasObject.transform, "Dash", new Vector2(-210f, 150f), TryDash);
+            CreateSpecialButton(canvasObject.transform);
             CreatePauseButton(canvasObject.transform);
             CreateBossBar(canvasObject.transform);
             CreateUpgradePanel(canvasObject.transform);
             CreateGaragePanel(canvasObject.transform);
             CreateResultsPanel(canvasObject.transform);
+        }
+
+        private void CreateSpecialButton(Transform parent)
+        {
+            _specialButton = CreateButton(parent, "SPECIAL", new Vector2(210f, 150f), ActivateSpecial);
+            _specialButton.GetComponent<Image>().color = new Color(0.1f, 0.05f, 0.18f, 0.92f);
+
+            // Charge fill behind the label acts as the "Special ability charge" indicator.
+            var fillObject = new GameObject("Special Fill", typeof(RectTransform), typeof(Image));
+            fillObject.transform.SetParent(_specialButton.transform, false);
+            var fillRect = fillObject.GetComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.offsetMin = new Vector2(4f, 4f);
+            fillRect.offsetMax = new Vector2(-4f, -4f);
+            fillRect.pivot = new Vector2(0f, 0.5f);
+
+            _specialFill = fillObject.GetComponent<Image>();
+            _specialFill.sprite = _sprite;
+            _specialFill.type = Image.Type.Filled;
+            _specialFill.fillMethod = Image.FillMethod.Horizontal;
+            _specialFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            _specialFill.fillAmount = 0f;
+            _specialFill.color = new Color(1f, 0.3f, 0.85f, 0.85f);
+            fillObject.transform.SetSiblingIndex(0); // render behind the label
+        }
+
+        private void ActivateSpecial()
+        {
+            if (_run != null && _gameplay.TryActivateSpecial(_run))
+            {
+                _audio.PlaySpecial();
+                SpawnBurst(_run.Player.Position, new Color(0.4f, 0.9f, 1f, 0.95f), 28, 5f, 0.18f, 0.6f);
+                Handheld.Vibrate();
+            }
         }
 
         private void CreatePauseButton(Transform parent)
@@ -1336,6 +1378,7 @@ namespace NeonSkySurvivors.Runtime.App
             _hpBarFill.transform.parent.gameObject.SetActive(visible);
             _xpBarFill.transform.parent.gameObject.SetActive(visible);
             _dashButton.gameObject.SetActive(visible);
+            _specialButton.gameObject.SetActive(visible);
             _pauseButton.gameObject.SetActive(visible);
             if (!visible)
             {

@@ -30,7 +30,30 @@ namespace NeonSkySurvivors.Core.Systems
             run.Player.Position = NeonVector2.Zero;
             run.Player.MovementTarget = NeonVector2.Zero;
             run.Player.LastMoveDirection = NeonVector2.Up;
+            PopulateEquipmentEffects(run, profile);
             return run;
+        }
+
+        private static void PopulateEquipmentEffects(NeonRunState run, NeonSaveProfile profile)
+        {
+            // Map equipped item IDs to in-run special-effect keys the simulation understands.
+            AddEffectIfEquipped(run, profile, "guardian_frame", "guardian_block");
+            AddEffectIfEquipped(run, profile, "solar_shield_hull", "solar_shield");
+            AddEffectIfEquipped(run, profile, "neon_wings", "dash_firerate");
+            AddEffectIfEquipped(run, profile, "overdrive_core", "levelup_damage");
+        }
+
+        private static void AddEffectIfEquipped(NeonRunState run, NeonSaveProfile profile, string itemId, string effectKey)
+        {
+            if (profile.EquippedWeaponItemID == itemId
+                || profile.EquippedWingsItemID == itemId
+                || profile.EquippedEngineItemID == itemId
+                || profile.EquippedHullItemID == itemId
+                || profile.EquippedCoreItemID == itemId
+                || profile.EquippedRadarItemID == itemId)
+            {
+                run.ActiveEquipmentEffects.Add(effectKey);
+            }
         }
 
         public void SetMovementTarget(NeonRunState run, NeonVector2 target)
@@ -51,6 +74,11 @@ namespace NeonSkySurvivors.Core.Systems
             run.Player.Position = ClampToArena(run.Player.Position + direction * distance);
             run.Player.DashCooldownRemaining = Math.Max(0.6f, run.Player.Stats.DashCooldown);
             run.Player.InvulnerabilityRemaining = Math.Max(run.Player.InvulnerabilityRemaining, 0.28f);
+            if (run.ActiveEquipmentEffects.Contains("dash_firerate"))
+            {
+                // Neon Wings: +20% fire rate for 2s after a dash.
+                run.Player.FireRateBuffRemaining = 2f;
+            }
             run.DashTrails.Add(new NeonDashTrailState
             {
                 Start = start,
@@ -155,6 +183,15 @@ namespace NeonSkySurvivors.Core.Systems
             run.Player.WeaponCooldownRemaining = Math.Max(0f, run.Player.WeaponCooldownRemaining - deltaTime);
             run.Player.MissileCooldownRemaining = Math.Max(0f, run.Player.MissileCooldownRemaining - deltaTime);
             run.Player.LaserCooldownRemaining = Math.Max(0f, run.Player.LaserCooldownRemaining - deltaTime);
+            run.Player.GuardianBlockCooldown = Math.Max(0f, run.Player.GuardianBlockCooldown - deltaTime);
+            run.Player.FireRateBuffRemaining = Math.Max(0f, run.Player.FireRateBuffRemaining - deltaTime);
+            run.Player.DamageBoostRemaining = Math.Max(0f, run.Player.DamageBoostRemaining - deltaTime);
+
+            // Re-arm the Solar Shield once the pilot recovers above 40% HP.
+            if (!run.Player.SolarShieldArmed && run.Player.Stats.CurrentHP > run.Player.Stats.MaxHP * 0.4f)
+            {
+                run.Player.SolarShieldArmed = true;
+            }
         }
 
         private void TickMovement(NeonRunState run, float deltaTime)
@@ -200,7 +237,7 @@ namespace NeonSkySurvivors.Core.Systems
 
             var direction = (target.Position - run.Player.Position).Normalized;
             var isCritical = _random.NextDouble() <= run.Player.Stats.CriticalChance;
-            var damage = run.Player.Stats.AttackDamage * (isCritical ? run.Player.Stats.CriticalDamage : 1f);
+            var damage = run.Player.Stats.AttackDamage * (isCritical ? run.Player.Stats.CriticalDamage : 1f) * DamageMultiplier(run);
 
             if (HasEvolution(run, "plasma_storm"))
             {
@@ -231,7 +268,8 @@ namespace NeonSkySurvivors.Core.Systems
                 });
             }
 
-            run.Player.WeaponCooldownRemaining = 1f / Math.Max(0.1f, run.Player.Stats.FireRate);
+            var effectiveFireRate = run.Player.Stats.FireRate * (run.Player.FireRateBuffRemaining > 0f ? 1.2f : 1f);
+            run.Player.WeaponCooldownRemaining = 1f / Math.Max(0.1f, effectiveFireRate);
         }
 
         private void TickHomingMissiles(NeonRunState run)
@@ -245,7 +283,7 @@ namespace NeonSkySurvivors.Core.Systems
             var count = level >= 2 ? 2 : 1;
             var explosionRadius = level >= 4 ? 0.32f : 0.18f;
             var splits = level >= 5;
-            var damage = run.Player.Stats.AttackDamage * 0.9f;
+            var damage = run.Player.Stats.AttackDamage * 0.9f * DamageMultiplier(run);
             var cooldown = level >= 3 ? 1.5f : 2.2f;
 
             if (HasEvolution(run, "rocket_swarm"))
@@ -295,7 +333,7 @@ namespace NeonSkySurvivors.Core.Systems
             }
 
             var facing = run.Player.LastMoveDirection.SqrMagnitude > 0.0001f ? run.Player.LastMoveDirection.Normalized : NeonVector2.Up;
-            var damage = run.Player.Stats.AttackDamage * (0.5f + 0.1f * level);
+            var damage = run.Player.Stats.AttackDamage * (0.5f + 0.1f * level) * DamageMultiplier(run);
             var speed = level >= 3 ? 2.6f : 2.0f; // longer reach at level 3+
             var life = level >= 3 ? 1.1f : 0.85f;
 
@@ -326,7 +364,7 @@ namespace NeonSkySurvivors.Core.Systems
             var radius = level >= 3 ? 0.34f : 0.26f;
             var rotationSpeed = level >= 4 ? 3.5f : 2.2f;
             var knockback = level >= 5;
-            var damagePerSecond = run.Player.Stats.AttackDamage * 2.5f;
+            var damagePerSecond = run.Player.Stats.AttackDamage * 2.5f * DamageMultiplier(run);
 
             run.Player.OrbitAngle += rotationSpeed * deltaTime;
             const float twoPi = 6.2831855f;
@@ -772,9 +810,28 @@ namespace NeonSkySurvivors.Core.Systems
                 return;
             }
 
+            // Guardian Frame: fully block one hit every 30 seconds.
+            if (run.ActiveEquipmentEffects.Contains("guardian_block") && run.Player.GuardianBlockCooldown <= 0f)
+            {
+                run.Player.GuardianBlockCooldown = 30f;
+                run.Player.InvulnerabilityRemaining = 0.3f;
+                return;
+            }
+
             var mitigated = Math.Max(1f, damage - run.Player.Stats.Armor);
             run.Player.Stats.CurrentHP -= mitigated;
             run.Player.InvulnerabilityRemaining = 0.3f;
+
+            // Solar Shield Hull: once HP dips below 30%, grant a brief protective shield.
+            if (run.ActiveEquipmentEffects.Contains("solar_shield")
+                && run.Player.SolarShieldArmed
+                && run.Player.Stats.CurrentHP > 0f
+                && run.Player.Stats.CurrentHP < run.Player.Stats.MaxHP * 0.3f)
+            {
+                run.Player.SolarShieldArmed = false;
+                run.Player.InvulnerabilityRemaining = Math.Max(run.Player.InvulnerabilityRemaining, 1.5f);
+            }
+
             if (run.Player.Stats.CurrentHP <= 0f)
             {
                 run.Player.Stats.CurrentHP = 0f;
@@ -787,6 +844,12 @@ namespace NeonSkySurvivors.Core.Systems
             run.Player.Level += 1;
             run.Player.XP -= run.Player.XPToNextLevel;
             run.Player.XPToNextLevel = (float)Math.Ceiling(run.Player.XPToNextLevel * 1.35f + 2f);
+            if (run.ActiveEquipmentEffects.Contains("levelup_damage"))
+            {
+                // Overdrive Core: temporary damage boost after each level-up.
+                run.Player.DamageBoostRemaining = 6f;
+            }
+
             run.DraftChoices.Clear();
 
             var eligible = catalog.Upgrades
@@ -833,6 +896,12 @@ namespace NeonSkySurvivors.Core.Systems
         private static bool HasEvolution(NeonRunState run, string evolutionId)
         {
             return run.Build.EvolvedWeapons.Contains(evolutionId);
+        }
+
+        private static float DamageMultiplier(NeonRunState run)
+        {
+            // Overdrive Core grants a temporary post-level-up damage boost.
+            return run.Player.DamageBoostRemaining > 0f ? 1.3f : 1f;
         }
 
         private static bool HasUpgrade(NeonRunState run, string upgradeId)

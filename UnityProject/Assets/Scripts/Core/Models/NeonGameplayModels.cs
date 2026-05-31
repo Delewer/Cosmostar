@@ -90,6 +90,10 @@ namespace NeonSkySurvivors.Core.Models
         public float OrbitAngle;
         public float SpecialCharge;
         public float SpecialChargeMax = 100f;
+        public float GuardianBlockCooldown;
+        public float FireRateBuffRemaining;
+        public float DamageBoostRemaining;
+        public bool SolarShieldArmed = true;
     }
 
     [Serializable]
@@ -169,6 +173,7 @@ namespace NeonSkySurvivors.Core.Models
         public List<NeonVector2> OrbitBlades = new List<NeonVector2>();
         public List<NeonUpgradeDef> DraftChoices = new List<NeonUpgradeDef>();
         public HashSet<string> SpawnedBossIDs = new HashSet<string>();
+        public HashSet<string> ActiveEquipmentEffects = new HashSet<string>();
         public int EnemiesKilled;
         public int BossesKilled;
         public int MiniBossesKilled;

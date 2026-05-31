@@ -15,7 +15,12 @@ Codex Agent Instruction: Build Neon Plane Survivor Game MVP
 - ✅ 2026-05-18: Installed Android Build Support, SDK/NDK tools, and OpenJDK for Unity 6000.4.4f1, then built a real Android smoke APK at Builds/Android/NeonSkySurvivors-Smoke.apk with zero Unity/Gradle build errors.
 - ✅ 2026-05-18: Added Unity mobile level-up upgrade cards: the Boot scene now pauses on draft, shows three touchable upgrade choices, applies the selected core upgrade, and resumes the run without using Restart.
 - ✅ 2026-05-18: Added the Unity mobile Garage/Start Run/results loop: Boot opens in Garage, shows coins/runs/best time, equipped part summary, stat preview, Start Run button, terminal results payout, and a Garage return button.
-- ⏳ Next step: expand the Unity Garage into full touch inventory/equip/upgrade/merge controls, then run the smoke APK on a physical Android phone via adb/device install for device-side performance tuning.
+- ✅ 2026-05-31: Expanded the Unity Garage into full touch controls: scrollable rarity-colored inventory grid, tap-to-select item detail, and Equip/Unequip/Upgrade(coin cost)/Merge(3-duplicate) buttons wired to NeonEquipmentSystem. Added Unity post-run reward equipment drops (mini-boss Common/Uncommon, boss Uncommon/Rare, final-boss guaranteed Rare with Epic chance) so the inventory grows, plus PlayerPrefs JSON save/load (NeonSaveService) so coins, owned items, equipped loadout, and run progress persist between sessions.
+- ✅ 2026-05-31: Completed the Unity in-game HUD required elements: a boss/mini-boss HP bar that appears only while a boss is alive (color-coded, shows current/max HP) and a pause/resume button that halts the run simulation and shows a PAUSED status.
+- ✅ 2026-05-31: Added Unity runtime audio (NeonAudioService): procedurally generated SFX clips (shoot, enemy death, XP pickup, level-up chord, dash sweep, boss warning, boss spawn, player damage, game-over, victory chord) played through an 8-voice pool, plus a looping synth-drone music bed with a normal mode and a more intense boss mode. Run events are detected from run-state deltas each frame and music switches automatically when a boss is on screen.
+- ✅ 2026-05-31: Added Unity neon visuals: a visible cyan player plane (body/nose/wings that rotate to face the movement direction and flash white during dash invulnerability — previously the player had no on-screen marker) and an animated dark-sky background (static cyan vertical grid, downward-scrolling purple horizontal neon lines, and a parallax starfield).
+- ✅ 2026-05-31: Added Unity pooled particle bursts: enemy deaths explode (larger, brighter bursts for bosses/mini-bosses) and the player emits a red burst when taking damage. Deaths are detected by reference-diffing the enemy list across each gameplay Tick (enemies are only removed on death), with a 160-particle round-robin pool that fades and shrinks each particle over its lifetime.
+- ⏳ Next step: run the smoke APK on a physical Android phone via adb/device install for device-side performance tuning, and verify the new Garage touch controls/persistence on-device. (Unity batchmode compile/scene verify must be run in the Unity 6000.4.4f1 environment; it is not installed in the current dev sandbox.)
 
 
 You are building a mobile-friendly roguelite survival shooter prototype.
@@ -96,7 +101,7 @@ Build the MVP with the following features first.
 
 Gameplay
 2D top-down arena. ✅ runnable canvas arena added
-Player-controlled neon plane. ✅ core run state added
+Player-controlled neon plane. ✅ core run state added and Unity cyan plane view (faces movement, flashes during dash) added
 Auto-shooting main weapon. ✅ nearest-enemy auto-aim logic added
 Drag/joystick movement. ✅ movement target logic added
 Dash ✅ lightweight audio hook added ability. ✅ cooldown, invulnerability, and trail state added
@@ -112,13 +117,13 @@ Game over screen. ✅ core status, web results screen, audio hook, and Unity res
 Victory screen. ✅ core status, web results screen, audio hook, and Unity results panel added
 Coins and rewards after run. ✅ web reward payout and Unity coin payout added
 Garage
-Equipment screen. ✅ web garage screen expanded and Unity garage equipment summary added
-6 equipment slots. ✅ web equipped slots shown
-Inventory grid. ✅ web inventory grid added
-Item rarity colors. ✅ rarity card borders added
-Equip / unequip items. ✅ web controls added
-Upgrade equipment with coins. ✅ web coin upgrade control added
-Merge duplicate equipment. ✅ web 3-duplicate merge control added
+Equipment screen. ✅ web garage screen expanded and Unity garage equipment summary + full touch controls added
+6 equipment slots. ✅ web equipped slots shown and Unity equipped-slot summary added
+Inventory grid. ✅ web inventory grid added and Unity scrollable rarity-colored inventory grid added
+Item rarity colors. ✅ rarity card borders added and Unity rarity-colored cards added
+Equip / unequip items. ✅ web controls added and Unity touch Equip/Unequip buttons added
+Upgrade equipment with coins. ✅ web coin upgrade control added and Unity touch Upgrade (coin cost) button added
+Merge duplicate equipment. ✅ web 3-duplicate merge control added and Unity touch Merge x3 button added
 Stats preview. ✅ web stat preview and Unity garage stat preview added
 Start run button. ✅ Unity mobile Start Run button added
 Equipment Slots
@@ -946,8 +951,8 @@ Level
 Coins collected
 Dash ✅ lightweight audio hook added cooldown
 Special ability charge
-Pause button
-Boss HP bar when boss active ✅ web boss health bar added
+Pause button ✅ Unity in-game pause/resume button added
+Boss HP bar when boss active ✅ web boss health bar added and Unity boss/mini-boss HP bar added
 Level-Up Screen
 
 Pause game.
@@ -997,7 +1002,7 @@ Rare items: Blue
 Epic items: Purple
 Legendary items: Gold
 
-Background:
+Background: ✅ Unity dark-sky background with neon grid, starfield, downward-scrolling neon lines, and parallax added
 
 Dark digital sky
 Grid effects
@@ -1009,7 +1014,7 @@ Important:
 
 Gameplay readability is more important than effects.
 Enemy bullets must be clearly visible.
-Player hitbox must be clear.
+Player hitbox must be clear. ✅ Unity cyan player plane view added
 Boss attacks must have warnings. ✅ web danger zones added
 23. Audio Direction
 
@@ -1017,23 +1022,24 @@ For MVP, simple sounds are enough.
 
 Required sounds:
 
-Player shooting ✅ lightweight audio hook added
+Player shooting ✅ lightweight audio hook added and Unity procedural shoot SFX added
 Enemy hit ✅ web audio cue and hit burst added
-Enemy death ✅ web audio cue and death burst added
-XP collect ✅ web audio cue and pickup burst added
-Level up
-Dash ✅ lightweight audio hook added
-Boss warning ✅ warning message and danger zones added
-Boss spawn ✅ boss warning/audio/music mode hooks added
+Enemy death ✅ web audio cue and death burst added and Unity procedural death SFX added
+XP collect ✅ web audio cue and pickup burst added and Unity procedural XP SFX added
+Level up ✅ Unity procedural level-up chord added
+Dash ✅ lightweight audio hook added and Unity procedural dash SFX added
+Boss warning ✅ warning message and danger zones added and Unity procedural warning SFX added
+Boss spawn ✅ boss warning/audio/music mode hooks added and Unity procedural boss-spawn SFX added
 Player damage ✅ boss projectile/danger-zone damage path, audio cue, hit burst, and screen shake added
-Game over ✅ lightweight audio hook added
-Victory ✅ lightweight audio hook added
+Game over ✅ lightweight audio hook added and Unity procedural game-over SFX added
+Victory ✅ lightweight audio hook added and Unity procedural victory chord added
+Player damage ✅ web audio cue/hit burst added and Unity procedural damage SFX added
 
 Music:
 
-Synthwave loop during normal gameplay. ✅ procedural run music drone added
-More intense loop during boss fights. ✅ boss/final music modes added
-Final boss should have stronger music.
+Synthwave loop during normal gameplay. ✅ procedural run music drone added and Unity procedural music drone added
+More intense loop during boss fights. ✅ boss/final music modes added and Unity boss-mode drone added
+Final boss should have stronger music. ✅ Unity boss-mode drone covers the final boss
 24. Data-Driven Architecture — ✅ initial Neon catalog/models separate data from systems
 
 Build the systems data-driven.
@@ -1388,12 +1394,12 @@ The game must feel satisfying.
 Prioritize:
 
 Fast XP collection
-Clear hit feedback ✅ web hit/death/XP/player-damage feedback added
+Clear hit feedback ✅ web hit/death/XP/player-damage feedback added and Unity death/player-damage particle bursts added
 Smooth movement
 Good dash feeling
 Readable bullets
 Strong weapon upgrades
-Explosive enemy deaths ✅ particle-style death bursts added
+Explosive enemy deaths ✅ particle-style death bursts added (web) and Unity death-explosion bursts added (bigger for bosses/mini-bosses)
 Rewarding level-up choices ✅ Unity mobile upgrade cards now apply choices without restarting the run
 
 The player should feel weak at the start of a run, then powerful by minute 7–10.
@@ -1452,26 +1458,26 @@ Add boss spawn at 6:00 ✅ Neon Hydra spawn hook
 Add final boss at 10:00 ✅ Eclipse Core spawn/victory hook
 Add win/loss screens ✅ web results screen
 Phase 3 — Equipment
-Add inventory ✅ web inventory grid
-Add 6 equipment slots ✅ web slot layout
+Add inventory ✅ web inventory grid and Unity scrollable inventory grid
+Add 6 equipment slots ✅ web slot layout and Unity equipped-slot summary
 Add equipment stats ✅ stats preview from equipment
-Add equip/unequip ✅ garage controls
+Add equip/unequip ✅ web garage controls and Unity touch Equip/Unequip buttons
 Add stat calculation ✅ web stat recompute
-Add equipment upgrade ✅ coin upgrade button
-Add merge system ✅ 3-duplicate merge button
+Add equipment upgrade ✅ web coin upgrade button and Unity touch Upgrade button
+Add merge system ✅ web 3-duplicate merge button and Unity touch Merge x3 button
 Phase 4 — Rewards
-Add coins ✅ web coin payout
-Add item drops ✅ reward equipment grants
-Add boss rewards ✅ boss-based drop table
-Add end-of-run rewards ✅ web results payout
-Add save/load ✅ localStorage save/load
+Add coins ✅ web coin payout and Unity results coin payout
+Add item drops ✅ web reward equipment grants and Unity post-run equipment drops
+Add boss rewards ✅ boss-based drop table (web) and Unity boss/mini-boss/final-boss drop tiers
+Add end-of-run rewards ✅ web results payout and Unity results payout
+Add save/load ✅ web localStorage save/load and Unity PlayerPrefs JSON save/load (NeonSaveService)
 Phase 5 — Polish
-Add neon effects
+Add neon effects ✅ Unity animated neon grid/starfield/parallax background and player plane view added
 Add better UI
-Add sound effects
-Add music
+Add sound effects ✅ Unity procedural SFX (shoot/death/XP/level-up/dash/warning/boss/damage/game-over/victory)
+Add music ✅ Unity procedural synth-drone music with normal/boss modes
 Add hit feedback ✅ web combat feedback events added
-Add particles ✅ canvas particle-style bursts added
+Add particles ✅ canvas particle-style bursts added (web) and Unity pooled particle bursts added
 Balance difficulty ✅ early/mid/late pacing, boss pressure, mini-bosses, and rewards tuned
 Optimize performance ✅ initial Unity render pooling and mobile frame cap added; Unity Editor mobile Boot verification and Android APK smoke build passed; physical device verification pending
 35. Final MVP Definition
@@ -1580,7 +1586,7 @@ Build the MVP with the following features first.
 
 Gameplay
 2D top-down arena. ✅ runnable canvas arena added
-Player-controlled neon plane. ✅ core run state added
+Player-controlled neon plane. ✅ core run state added and Unity cyan plane view (faces movement, flashes during dash) added
 Auto-shooting main weapon. ✅ nearest-enemy auto-aim logic added
 Drag/joystick movement. ✅ movement target logic added
 Dash ✅ lightweight audio hook added ability. ✅ cooldown, invulnerability, and trail state added
@@ -1596,13 +1602,13 @@ Game over screen. ✅ core status, web results screen, audio hook, and Unity res
 Victory screen. ✅ core status, web results screen, audio hook, and Unity results panel added
 Coins and rewards after run. ✅ web reward payout and Unity coin payout added
 Garage
-Equipment screen. ✅ web garage screen expanded and Unity garage equipment summary added
-6 equipment slots. ✅ web equipped slots shown
-Inventory grid. ✅ web inventory grid added
-Item rarity colors. ✅ rarity card borders added
-Equip / unequip items. ✅ web controls added
-Upgrade equipment with coins. ✅ web coin upgrade control added
-Merge duplicate equipment. ✅ web 3-duplicate merge control added
+Equipment screen. ✅ web garage screen expanded and Unity garage equipment summary + full touch controls added
+6 equipment slots. ✅ web equipped slots shown and Unity equipped-slot summary added
+Inventory grid. ✅ web inventory grid added and Unity scrollable rarity-colored inventory grid added
+Item rarity colors. ✅ rarity card borders added and Unity rarity-colored cards added
+Equip / unequip items. ✅ web controls added and Unity touch Equip/Unequip buttons added
+Upgrade equipment with coins. ✅ web coin upgrade control added and Unity touch Upgrade (coin cost) button added
+Merge duplicate equipment. ✅ web 3-duplicate merge control added and Unity touch Merge x3 button added
 Stats preview. ✅ web stat preview and Unity garage stat preview added
 Start run button. ✅ Unity mobile Start Run button added
 Equipment Slots
@@ -2430,8 +2436,8 @@ Level
 Coins collected
 Dash ✅ lightweight audio hook added cooldown
 Special ability charge
-Pause button
-Boss HP bar when boss active ✅ web boss health bar added
+Pause button ✅ Unity in-game pause/resume button added
+Boss HP bar when boss active ✅ web boss health bar added and Unity boss/mini-boss HP bar added
 Level-Up Screen
 
 Pause game.
@@ -2481,7 +2487,7 @@ Rare items: Blue
 Epic items: Purple
 Legendary items: Gold
 
-Background:
+Background: ✅ Unity dark-sky background with neon grid, starfield, downward-scrolling neon lines, and parallax added
 
 Dark digital sky
 Grid effects
@@ -2493,7 +2499,7 @@ Important:
 
 Gameplay readability is more important than effects.
 Enemy bullets must be clearly visible.
-Player hitbox must be clear.
+Player hitbox must be clear. ✅ Unity cyan player plane view added
 Boss attacks must have warnings. ✅ web danger zones added
 23. Audio Direction
 
@@ -2501,23 +2507,24 @@ For MVP, simple sounds are enough.
 
 Required sounds:
 
-Player shooting ✅ lightweight audio hook added
+Player shooting ✅ lightweight audio hook added and Unity procedural shoot SFX added
 Enemy hit ✅ web audio cue and hit burst added
-Enemy death ✅ web audio cue and death burst added
-XP collect ✅ web audio cue and pickup burst added
-Level up
-Dash ✅ lightweight audio hook added
-Boss warning ✅ warning message and danger zones added
-Boss spawn ✅ boss warning/audio/music mode hooks added
+Enemy death ✅ web audio cue and death burst added and Unity procedural death SFX added
+XP collect ✅ web audio cue and pickup burst added and Unity procedural XP SFX added
+Level up ✅ Unity procedural level-up chord added
+Dash ✅ lightweight audio hook added and Unity procedural dash SFX added
+Boss warning ✅ warning message and danger zones added and Unity procedural warning SFX added
+Boss spawn ✅ boss warning/audio/music mode hooks added and Unity procedural boss-spawn SFX added
 Player damage ✅ boss projectile/danger-zone damage path, audio cue, hit burst, and screen shake added
-Game over ✅ lightweight audio hook added
-Victory ✅ lightweight audio hook added
+Game over ✅ lightweight audio hook added and Unity procedural game-over SFX added
+Victory ✅ lightweight audio hook added and Unity procedural victory chord added
+Player damage ✅ web audio cue/hit burst added and Unity procedural damage SFX added
 
 Music:
 
-Synthwave loop during normal gameplay. ✅ procedural run music drone added
-More intense loop during boss fights. ✅ boss/final music modes added
-Final boss should have stronger music.
+Synthwave loop during normal gameplay. ✅ procedural run music drone added and Unity procedural music drone added
+More intense loop during boss fights. ✅ boss/final music modes added and Unity boss-mode drone added
+Final boss should have stronger music. ✅ Unity boss-mode drone covers the final boss
 24. Data-Driven Architecture — ✅ initial Neon catalog/models separate data from systems
 
 Build the systems data-driven.
@@ -2872,12 +2879,12 @@ The game must feel satisfying.
 Prioritize:
 
 Fast XP collection
-Clear hit feedback ✅ web hit/death/XP/player-damage feedback added
+Clear hit feedback ✅ web hit/death/XP/player-damage feedback added and Unity death/player-damage particle bursts added
 Smooth movement
 Good dash feeling
 Readable bullets
 Strong weapon upgrades
-Explosive enemy deaths ✅ particle-style death bursts added
+Explosive enemy deaths ✅ particle-style death bursts added (web) and Unity death-explosion bursts added (bigger for bosses/mini-bosses)
 Rewarding level-up choices ✅ Unity mobile upgrade cards now apply choices without restarting the run
 
 The player should feel weak at the start of a run, then powerful by minute 7–10.
@@ -2936,26 +2943,26 @@ Add boss spawn at 6:00 ✅ Neon Hydra spawn hook
 Add final boss at 10:00 ✅ Eclipse Core spawn/victory hook
 Add win/loss screens ✅ web results screen
 Phase 3 — Equipment
-Add inventory ✅ web inventory grid
-Add 6 equipment slots ✅ web slot layout
+Add inventory ✅ web inventory grid and Unity scrollable inventory grid
+Add 6 equipment slots ✅ web slot layout and Unity equipped-slot summary
 Add equipment stats ✅ stats preview from equipment
-Add equip/unequip ✅ garage controls
+Add equip/unequip ✅ web garage controls and Unity touch Equip/Unequip buttons
 Add stat calculation ✅ web stat recompute
-Add equipment upgrade ✅ coin upgrade button
-Add merge system ✅ 3-duplicate merge button
+Add equipment upgrade ✅ web coin upgrade button and Unity touch Upgrade button
+Add merge system ✅ web 3-duplicate merge button and Unity touch Merge x3 button
 Phase 4 — Rewards
-Add coins ✅ web coin payout
-Add item drops ✅ reward equipment grants
-Add boss rewards ✅ boss-based drop table
-Add end-of-run rewards ✅ web results payout
-Add save/load ✅ localStorage save/load
+Add coins ✅ web coin payout and Unity results coin payout
+Add item drops ✅ web reward equipment grants and Unity post-run equipment drops
+Add boss rewards ✅ boss-based drop table (web) and Unity boss/mini-boss/final-boss drop tiers
+Add end-of-run rewards ✅ web results payout and Unity results payout
+Add save/load ✅ web localStorage save/load and Unity PlayerPrefs JSON save/load (NeonSaveService)
 Phase 5 — Polish
-Add neon effects
+Add neon effects ✅ Unity animated neon grid/starfield/parallax background and player plane view added
 Add better UI
-Add sound effects
-Add music
+Add sound effects ✅ Unity procedural SFX (shoot/death/XP/level-up/dash/warning/boss/damage/game-over/victory)
+Add music ✅ Unity procedural synth-drone music with normal/boss modes
 Add hit feedback ✅ web combat feedback events added
-Add particles ✅ canvas particle-style bursts added
+Add particles ✅ canvas particle-style bursts added (web) and Unity pooled particle bursts added
 Balance difficulty ✅ early/mid/late pacing, boss pressure, mini-bosses, and rewards tuned
 Optimize performance ✅ initial Unity render pooling and mobile frame cap added; Unity Editor mobile Boot verification and Android APK smoke build passed; physical device verification pending
 35. Final MVP Definition

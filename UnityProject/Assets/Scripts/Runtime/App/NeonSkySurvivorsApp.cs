@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using NeonSkySurvivors.Core.Design;
 using NeonSkySurvivors.Core.Models;
@@ -16,27 +17,61 @@ namespace NeonSkySurvivors.Runtime.App
         private const int MaxProjectileViews = 80;
         private const int MaxXpViews = 80;
         private const int MaxTrailViews = 24;
+        private const int GridVerticalLines = 9;
+        private const int GridHorizontalLines = 13;
+        private const float GridScrollSpeed = 1.5f;
+        private const float GridTop = 6f;
+        private const float GridBottom = -6f;
+        private const int StarCount = 46;
+        private const int MaxParticles = 160;
 
         private readonly NeonRunGameplaySystem _gameplay = new NeonRunGameplaySystem();
         private readonly NeonEquipmentSystem _equipment = new NeonEquipmentSystem();
+        private readonly NeonAudioService _audio = new NeonAudioService();
         private readonly List<SpriteRenderer> _enemyViews = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> _projectileViews = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> _xpViews = new List<SpriteRenderer>();
         private readonly List<LineRenderer> _trailViews = new List<LineRenderer>();
         private readonly List<Button> _upgradeButtons = new List<Button>();
+        private readonly List<LineRenderer> _gridLines = new List<LineRenderer>();
+        private readonly List<float> _gridLineY = new List<float>();
+        private readonly List<Transform> _stars = new List<Transform>();
+        private readonly List<float> _starSpeeds = new List<float>();
+        private readonly List<NeonParticleView> _particles = new List<NeonParticleView>();
+        private readonly Dictionary<NeonRunEnemyState, EnemyDeathSnapshot> _enemySnapshots = new Dictionary<NeonRunEnemyState, EnemyDeathSnapshot>();
+        private readonly HashSet<NeonRunEnemyState> _enemyAfterTick = new HashSet<NeonRunEnemyState>();
+        private int _particleCursor;
 
         private NeonSkySurvivorsCatalog _catalog = null!;
         private NeonSaveProfile _profile = null!;
         private NeonRunState _run = null!;
         private Camera _camera = null!;
         private Sprite _sprite = null!;
+        private Transform _playerRoot = null!;
+        private SpriteRenderer _playerBody = null!;
+        private SpriteRenderer _playerNose = null!;
+        private SpriteRenderer _playerWingLeft = null!;
+        private SpriteRenderer _playerWingRight = null!;
         private Text _hudText = null!;
         private Text _messageText = null!;
         private Text _statusText = null!;
         private Button _dashButton = null!;
+        private Button _pauseButton = null!;
+        private Text _pauseLabel = null!;
+        private GameObject _bossBarRoot = null!;
+        private Image _bossBarFill = null!;
+        private Text _bossBarText = null!;
         private GameObject _garagePanel = null!;
         private Text _garageTitleText = null!;
         private Text _garageStatsText = null!;
+        private Text _garageDetailText = null!;
+        private RectTransform _inventoryContent = null!;
+        private Button _equipButton = null!;
+        private Button _unequipButton = null!;
+        private Button _upgradeButton = null!;
+        private Button _mergeButton = null!;
+        private readonly List<GameObject> _inventoryCards = new List<GameObject>();
+        private string _selectedInstanceId = string.Empty;
         private GameObject _resultsPanel = null!;
         private Text _resultsTitleText = null!;
         private Text _resultsStatsText = null!;
@@ -44,6 +79,17 @@ namespace NeonSkySurvivors.Runtime.App
         private bool _paused;
         private bool _resultApplied;
         private int _lastRewardCoins;
+        private int _lastRewardItems;
+
+        private NeonRunStatus _prevStatus;
+        private int _prevEnemiesKilled;
+        private int _prevPlayerProjectiles;
+        private int _prevBossCount;
+        private float _prevHP;
+        private float _prevXP;
+        private string _prevWarning = string.Empty;
+        private float _xpSoundCooldown;
+        private float _damageSoundCooldown;
 
         private void Awake()
         {
@@ -52,14 +98,19 @@ namespace NeonSkySurvivors.Runtime.App
             Screen.orientation = ScreenOrientation.Portrait;
 
             _catalog = NeonSkySurvivorsBlueprints.CreateMvpCatalog();
-            _profile = new NeonSaveProfile();
+            _profile = NeonSaveService.Load() ?? new NeonSaveProfile();
             _equipment.EnsureStartingProfile(_profile, _catalog);
+            NeonSaveService.Save(_profile);
             _sprite = CreateSprite();
 
             EnsureCamera();
             EnsureEventSystem();
+            CreateNeonBackground();
+            CreatePlayerView();
             CreatePools();
+            CreateParticlePool();
             CreateHud();
+            _audio.Initialize(transform);
             ShowGarage();
         }
 
@@ -74,10 +125,15 @@ namespace NeonSkySurvivors.Runtime.App
 
             if (!_paused && _run.Status == NeonRunStatus.Running)
             {
+                CapturePreTickEnemies();
                 _gameplay.Tick(_run, _catalog, Mathf.Min(Time.deltaTime, 0.05f));
+                SpawnDeathBursts();
             }
 
             RenderRun();
+            UpdateNeonBackground(Time.deltaTime);
+            UpdateParticles(Time.deltaTime);
+            UpdateAudio(Time.deltaTime);
             UpdateHud();
         }
 
@@ -85,14 +141,18 @@ namespace NeonSkySurvivors.Runtime.App
         {
             _run = _gameplay.StartRun(_profile, _catalog);
             _paused = false;
+            _pauseLabel.text = "II";
             _resultApplied = false;
             _lastRewardCoins = 0;
+            _lastRewardItems = 0;
             _garagePanel.SetActive(false);
             _resultsPanel.SetActive(false);
             SetRunHudVisible(true);
             _statusText.text = string.Empty;
             _messageText.text = "Survive 10 minutes. Bosses at 3:00, 6:00, 7:30, 8:45, 10:00.";
             UpdateUpgradeChoices(false);
+            ResetAudioTrackers();
+            _audio.SetMusic("normal");
         }
 
         private void ShowGarage()
@@ -106,6 +166,7 @@ namespace NeonSkySurvivors.Runtime.App
             _resultsPanel.SetActive(false);
             _garagePanel.SetActive(true);
             UpdateGaragePanel();
+            _audio.StopMusic();
         }
 
         private void HandleTouchInput()
@@ -152,6 +213,7 @@ namespace NeonSkySurvivors.Runtime.App
         {
             if (_run != null && _gameplay.TryDash(_run))
             {
+                _audio.PlayDash();
                 Handheld.Vibrate();
             }
         }
@@ -162,6 +224,41 @@ namespace NeonSkySurvivors.Runtime.App
             RenderProjectiles();
             RenderXp();
             RenderTrails();
+            RenderPlayer();
+        }
+
+        private void RenderPlayer()
+        {
+            var player = _run.Player;
+            var active = _run.Status == NeonRunStatus.Running || _run.Status == NeonRunStatus.LevelUpDraft;
+            _playerRoot.gameObject.SetActive(active);
+            if (!active)
+            {
+                return;
+            }
+
+            _playerRoot.position = ToWorld(player.Position);
+
+            var direction = player.LastMoveDirection;
+            if (direction.SqrMagnitude > 0.0001f)
+            {
+                var angle = Mathf.Atan2(direction.Y, direction.X) * Mathf.Rad2Deg - 90f;
+                _playerRoot.rotation = Quaternion.Euler(0f, 0f, angle);
+            }
+
+            // Bright pulsing flash while dashing / briefly invulnerable.
+            var invulnerable = player.InvulnerabilityRemaining > 0f;
+            var bodyColor = new Color(0.25f, 0.85f, 1f);
+            if (invulnerable)
+            {
+                var pulse = 0.5f + 0.5f * Mathf.Sin(Time.time * 28f);
+                bodyColor = Color.Lerp(bodyColor, Color.white, pulse);
+            }
+
+            _playerBody.color = bodyColor;
+            _playerNose.color = new Color(0.7f, 1f, 1f);
+            _playerWingLeft.color = new Color(0.45f, 0.6f, 1f);
+            _playerWingRight.color = _playerWingLeft.color;
         }
 
         private void RenderEnemies()
@@ -261,11 +358,13 @@ namespace NeonSkySurvivors.Runtime.App
             }
             else
             {
-                _statusText.text = string.Empty;
+                _statusText.text = _paused ? "PAUSED" : string.Empty;
                 UpdateUpgradeChoices(false);
             }
 
-            _dashButton.interactable = _run.Status == NeonRunStatus.Running && player.DashCooldownRemaining <= 0f;
+            UpdateBossBar();
+            _dashButton.interactable = !_paused && _run.Status == NeonRunStatus.Running && player.DashCooldownRemaining <= 0f;
+            _pauseButton.interactable = _run.Status == NeonRunStatus.Running;
         }
 
         private void ShowResults(string title)
@@ -273,11 +372,13 @@ namespace NeonSkySurvivors.Runtime.App
             if (!_resultApplied)
             {
                 _lastRewardCoins = CalculateRunReward(_run);
+                _lastRewardItems = GrantRunRewardItems(_run);
                 _profile.PlayerCoins += _lastRewardCoins;
                 _profile.CompletedRuns += 1;
                 _profile.BestSurvivalTime = Mathf.Max(_profile.BestSurvivalTime, _run.ElapsedSeconds);
                 _profile.BossesDefeated += _run.BossesKilled + _run.MiniBossesKilled;
                 _resultApplied = true;
+                NeonSaveService.Save(_profile);
             }
 
             SetRunHudVisible(false);
@@ -286,7 +387,58 @@ namespace NeonSkySurvivors.Runtime.App
             _resultsStatsText.text = "Time " + FormatTime(_run.ElapsedSeconds) + "  Best " + FormatTime(_profile.BestSurvivalTime) + "\n"
                 + "Kills " + _run.EnemiesKilled + "  Bosses " + (_run.BossesKilled + _run.MiniBossesKilled) + "\n"
                 + "Coins +" + _lastRewardCoins + "  Total " + _profile.PlayerCoins + "\n"
-                + "Runs " + _profile.CompletedRuns;
+                + "Item drops +" + _lastRewardItems + "  Runs " + _profile.CompletedRuns;
+        }
+
+        private int GrantRunRewardItems(NeonRunState run)
+        {
+            var dropped = 0;
+
+            // Mini-bosses lean toward Common/Uncommon drops.
+            for (var index = 0; index < run.MiniBossesKilled; index++)
+            {
+                if (UnityEngine.Random.value < 0.6f)
+                {
+                    GrantRandomItem(UnityEngine.Random.value < 0.5f ? NeonEquipmentRarity.Common : NeonEquipmentRarity.Uncommon);
+                    dropped++;
+                }
+            }
+
+            // Main bosses (3:00, 6:00, final) lean toward Uncommon/Rare drops.
+            for (var index = 0; index < run.BossesKilled; index++)
+            {
+                if (UnityEngine.Random.value < 0.7f)
+                {
+                    GrantRandomItem(UnityEngine.Random.value < 0.5f ? NeonEquipmentRarity.Uncommon : NeonEquipmentRarity.Rare);
+                    dropped++;
+                }
+            }
+
+            // Beating the final boss guarantees a Rare item with a chance at Epic.
+            if (run.Status == NeonRunStatus.Victory)
+            {
+                GrantRandomItem(UnityEngine.Random.value < 0.25f ? NeonEquipmentRarity.Epic : NeonEquipmentRarity.Rare);
+                dropped++;
+            }
+
+            return dropped;
+        }
+
+        private void GrantRandomItem(NeonEquipmentRarity rarity)
+        {
+            if (_catalog.Equipment.Count == 0)
+            {
+                return;
+            }
+
+            var definition = _catalog.Equipment[UnityEngine.Random.Range(0, _catalog.Equipment.Count)];
+            _profile.OwnedEquipmentItems.Add(new NeonOwnedEquipmentItem
+            {
+                InstanceID = definition.ItemID + "_drop_" + Guid.NewGuid().ToString("N").Substring(0, 8),
+                ItemID = definition.ItemID,
+                Rarity = rarity,
+                Level = 1
+            });
         }
 
         private void UpdateUpgradeChoices(bool visible)
@@ -395,6 +547,239 @@ namespace NeonSkySurvivors.Runtime.App
             }
         }
 
+        private void CreateParticlePool()
+        {
+            var root = new GameObject("Neon Particles");
+            for (var index = 0; index < MaxParticles; index++)
+            {
+                var particleObject = new GameObject("Particle " + index);
+                particleObject.transform.SetParent(root.transform, false);
+                var renderer = particleObject.AddComponent<SpriteRenderer>();
+                renderer.sprite = _sprite;
+                renderer.sortingOrder = 6;
+                particleObject.SetActive(false);
+                _particles.Add(new NeonParticleView
+                {
+                    Transform = particleObject.transform,
+                    Renderer = renderer
+                });
+            }
+        }
+
+        private void SpawnBurst(NeonVector2 position, Color color, int count, float speed, float size, float life)
+        {
+            var world = ToWorld(position);
+            for (var spawned = 0; spawned < count; spawned++)
+            {
+                var particle = _particles[_particleCursor];
+                _particleCursor = (_particleCursor + 1) % _particles.Count;
+
+                var angle = UnityEngine.Random.Range(0f, Mathf.PI * 2f);
+                var magnitude = speed * UnityEngine.Random.Range(0.45f, 1f);
+                particle.Velocity = new Vector3(Mathf.Cos(angle) * magnitude, Mathf.Sin(angle) * magnitude, 0f);
+                particle.MaxLife = life * UnityEngine.Random.Range(0.7f, 1f);
+                particle.Life = particle.MaxLife;
+                particle.BaseColor = color;
+                particle.BaseSize = size * UnityEngine.Random.Range(0.7f, 1.2f);
+
+                particle.Transform.position = world;
+                particle.Transform.localScale = Vector3.one * particle.BaseSize;
+                particle.Renderer.color = color;
+                particle.Transform.gameObject.SetActive(true);
+            }
+        }
+
+        private void UpdateParticles(float deltaTime)
+        {
+            for (var index = 0; index < _particles.Count; index++)
+            {
+                var particle = _particles[index];
+                if (particle.Life <= 0f)
+                {
+                    continue;
+                }
+
+                particle.Life -= deltaTime;
+                if (particle.Life <= 0f)
+                {
+                    particle.Transform.gameObject.SetActive(false);
+                    continue;
+                }
+
+                particle.Transform.position += particle.Velocity * deltaTime;
+                particle.Velocity *= Mathf.Clamp01(1f - 3.5f * deltaTime);
+
+                var t = particle.Life / particle.MaxLife;
+                particle.Transform.localScale = Vector3.one * particle.BaseSize * (0.35f + 0.65f * t);
+                var color = particle.BaseColor;
+                color.a = particle.BaseColor.a * t;
+                particle.Renderer.color = color;
+            }
+        }
+
+        private void CapturePreTickEnemies()
+        {
+            _enemySnapshots.Clear();
+            for (var index = 0; index < _run.Enemies.Count; index++)
+            {
+                var enemy = _run.Enemies[index];
+                _enemySnapshots[enemy] = new EnemyDeathSnapshot
+                {
+                    Position = enemy.Position,
+                    IsBoss = enemy.IsBoss,
+                    IsMiniBoss = enemy.IsMiniBoss
+                };
+            }
+        }
+
+        private void SpawnDeathBursts()
+        {
+            _enemyAfterTick.Clear();
+            for (var index = 0; index < _run.Enemies.Count; index++)
+            {
+                _enemyAfterTick.Add(_run.Enemies[index]);
+            }
+
+            foreach (var pair in _enemySnapshots)
+            {
+                if (_enemyAfterTick.Contains(pair.Key))
+                {
+                    continue;
+                }
+
+                var snapshot = pair.Value;
+                if (snapshot.IsBoss && !snapshot.IsMiniBoss)
+                {
+                    SpawnBurst(snapshot.Position, new Color(1f, 0.3f, 0.85f, 0.95f), 22, 4.2f, 0.16f, 0.6f);
+                }
+                else if (snapshot.IsMiniBoss)
+                {
+                    SpawnBurst(snapshot.Position, new Color(1f, 0.65f, 0.2f, 0.95f), 16, 3.6f, 0.13f, 0.5f);
+                }
+                else
+                {
+                    SpawnBurst(snapshot.Position, new Color(1f, 0.4f, 0.45f, 0.9f), 7, 3f, 0.08f, 0.4f);
+                }
+            }
+        }
+
+        private void CreatePlayerView()
+        {
+            var rootObject = new GameObject("Player Plane");
+            _playerRoot = rootObject.transform;
+            _playerRoot.position = Vector3.zero;
+
+            _playerBody = CreatePlayerSprite("Body", new Vector3(0f, 0f, 0f), new Vector3(0.22f, 0.34f, 1f), 4);
+            _playerNose = CreatePlayerSprite("Nose", new Vector3(0f, 0.2f, 0f), new Vector3(0.12f, 0.16f, 1f), 5);
+            _playerWingLeft = CreatePlayerSprite("Wing Left", new Vector3(-0.17f, -0.05f, 0f), new Vector3(0.12f, 0.2f, 1f), 4);
+            _playerWingRight = CreatePlayerSprite("Wing Right", new Vector3(0.17f, -0.05f, 0f), new Vector3(0.12f, 0.2f, 1f), 4);
+            _playerWingLeft.transform.localRotation = Quaternion.Euler(0f, 0f, 28f);
+            _playerWingRight.transform.localRotation = Quaternion.Euler(0f, 0f, -28f);
+
+            rootObject.SetActive(false);
+        }
+
+        private SpriteRenderer CreatePlayerSprite(string name, Vector3 localPosition, Vector3 localScale, int sortingOrder)
+        {
+            var spriteObject = new GameObject(name);
+            spriteObject.transform.SetParent(_playerRoot, false);
+            spriteObject.transform.localPosition = localPosition;
+            spriteObject.transform.localScale = localScale;
+            var renderer = spriteObject.AddComponent<SpriteRenderer>();
+            renderer.sprite = _sprite;
+            renderer.sortingOrder = sortingOrder;
+            return renderer;
+        }
+
+        private void CreateNeonBackground()
+        {
+            var root = new GameObject("Neon Background");
+            var lineMaterial = new Material(Shader.Find("Sprites/Default"));
+
+            for (var index = 0; index < GridVerticalLines; index++)
+            {
+                var x = Mathf.Lerp(-3.4f, 3.4f, index / (float)(GridVerticalLines - 1));
+                CreateBackgroundLine(root.transform, lineMaterial, new Vector3(x, GridBottom, 3f), new Vector3(x, GridTop, 3f), new Color(0.2f, 0.85f, 1f, 0.1f));
+            }
+
+            var step = (GridTop - GridBottom) / (GridHorizontalLines - 1);
+            for (var index = 0; index < GridHorizontalLines; index++)
+            {
+                var y = GridBottom + index * step;
+                var line = CreateBackgroundLine(root.transform, lineMaterial, new Vector3(-3.4f, y, 3f), new Vector3(3.4f, y, 3f), new Color(0.6f, 0.3f, 1f, 0.13f));
+                _gridLines.Add(line);
+                _gridLineY.Add(y);
+            }
+
+            var starRoot = new GameObject("Stars");
+            starRoot.transform.SetParent(root.transform, false);
+            for (var index = 0; index < StarCount; index++)
+            {
+                var star = new GameObject("Star " + index);
+                star.transform.SetParent(starRoot.transform, false);
+                star.transform.position = new Vector3(UnityEngine.Random.Range(-3.2f, 3.2f), UnityEngine.Random.Range(GridBottom, GridTop), 4f);
+                var size = UnityEngine.Random.Range(0.03f, 0.09f);
+                star.transform.localScale = new Vector3(size, size, 1f);
+                var renderer = star.AddComponent<SpriteRenderer>();
+                renderer.sprite = _sprite;
+                renderer.sortingOrder = -9;
+                var shade = UnityEngine.Random.Range(0.5f, 1f);
+                renderer.color = new Color(0.6f * shade, 0.95f * shade, shade, UnityEngine.Random.Range(0.35f, 0.85f));
+                _stars.Add(star.transform);
+                _starSpeeds.Add(UnityEngine.Random.Range(0.5f, 2.1f));
+            }
+        }
+
+        private static LineRenderer CreateBackgroundLine(Transform parent, Material material, Vector3 start, Vector3 end, Color color)
+        {
+            var lineObject = new GameObject("Grid Line");
+            lineObject.transform.SetParent(parent, false);
+            var line = lineObject.AddComponent<LineRenderer>();
+            line.material = material;
+            line.useWorldSpace = true;
+            line.positionCount = 2;
+            line.SetPosition(0, start);
+            line.SetPosition(1, end);
+            line.startWidth = 0.02f;
+            line.endWidth = 0.02f;
+            line.startColor = color;
+            line.endColor = color;
+            line.sortingOrder = -8;
+            return line;
+        }
+
+        private void UpdateNeonBackground(float deltaTime)
+        {
+            var span = GridTop - GridBottom;
+            for (var index = 0; index < _gridLines.Count; index++)
+            {
+                var y = _gridLineY[index] - GridScrollSpeed * deltaTime;
+                if (y < GridBottom)
+                {
+                    y += span;
+                }
+
+                _gridLineY[index] = y;
+                var line = _gridLines[index];
+                line.SetPosition(0, new Vector3(-3.4f, y, 3f));
+                line.SetPosition(1, new Vector3(3.4f, y, 3f));
+            }
+
+            for (var index = 0; index < _stars.Count; index++)
+            {
+                var star = _stars[index];
+                var position = star.position;
+                position.y -= _starSpeeds[index] * deltaTime;
+                if (position.y < GridBottom)
+                {
+                    position.y = GridTop;
+                    position.x = UnityEngine.Random.Range(-3.2f, 3.2f);
+                }
+
+                star.position = position;
+            }
+        }
+
         private void CreateHud()
         {
             var canvasObject = new GameObject("Mobile HUD", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
@@ -411,9 +796,217 @@ namespace NeonSkySurvivors.Runtime.App
             _messageText = CreateText(canvasObject.transform, "Message", new Vector2(0f, -170f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, new Color(1f, 0.82f, 0.28f));
             _statusText = CreateText(canvasObject.transform, "Status", new Vector2(0f, 0f), new Vector2(0f, 0.48f), new Vector2(1f, 0.48f), TextAnchor.MiddleCenter, 42, Color.white);
             _dashButton = CreateButton(canvasObject.transform, "Dash", new Vector2(-210f, 150f), TryDash);
+            CreatePauseButton(canvasObject.transform);
+            CreateBossBar(canvasObject.transform);
             CreateUpgradePanel(canvasObject.transform);
             CreateGaragePanel(canvasObject.transform);
             CreateResultsPanel(canvasObject.transform);
+        }
+
+        private void CreatePauseButton(Transform parent)
+        {
+            _pauseButton = CreateButton(parent, "Pause", new Vector2(0f, 0f), TogglePause);
+            var rect = _pauseButton.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(1f, 1f);
+            rect.anchoredPosition = new Vector2(-28f, -28f);
+            rect.sizeDelta = new Vector2(150f, 96f);
+            _pauseButton.GetComponent<Image>().color = new Color(0.06f, 0.16f, 0.24f, 0.92f);
+            _pauseLabel = _pauseButton.GetComponentInChildren<Text>();
+            _pauseLabel.text = "II";
+        }
+
+        private void CreateBossBar(Transform parent)
+        {
+            _bossBarRoot = new GameObject("Boss Bar", typeof(RectTransform), typeof(Image));
+            _bossBarRoot.transform.SetParent(parent, false);
+            var rootRect = _bossBarRoot.GetComponent<RectTransform>();
+            rootRect.anchorMin = new Vector2(0.5f, 1f);
+            rootRect.anchorMax = new Vector2(0.5f, 1f);
+            rootRect.pivot = new Vector2(0.5f, 1f);
+            rootRect.anchoredPosition = new Vector2(0f, -250f);
+            rootRect.sizeDelta = new Vector2(760f, 44f);
+            _bossBarRoot.GetComponent<Image>().color = new Color(0.05f, 0.02f, 0.08f, 0.85f);
+
+            var fillObject = new GameObject("Boss Bar Fill", typeof(RectTransform), typeof(Image));
+            fillObject.transform.SetParent(_bossBarRoot.transform, false);
+            var fillRect = fillObject.GetComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.offsetMin = new Vector2(4f, 4f);
+            fillRect.offsetMax = new Vector2(-4f, -4f);
+            fillRect.pivot = new Vector2(0f, 0.5f);
+            _bossBarFill = fillObject.GetComponent<Image>();
+            _bossBarFill.sprite = _sprite;
+            _bossBarFill.type = Image.Type.Filled;
+            _bossBarFill.fillMethod = Image.FillMethod.Horizontal;
+            _bossBarFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            _bossBarFill.fillAmount = 1f;
+            _bossBarFill.color = new Color(1f, 0.2f, 0.55f, 0.95f);
+
+            _bossBarText = CreateText(_bossBarRoot.transform, "Boss Bar Label", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 24, Color.white);
+            _bossBarText.rectTransform.offsetMin = Vector2.zero;
+            _bossBarText.rectTransform.offsetMax = Vector2.zero;
+
+            _bossBarRoot.SetActive(false);
+        }
+
+        private void TogglePause()
+        {
+            if (_run == null || (_run.Status != NeonRunStatus.Running && !_paused))
+            {
+                return;
+            }
+
+            _paused = !_paused;
+            _pauseLabel.text = _paused ? "PLAY" : "II";
+        }
+
+        private NeonRunEnemyState FindActiveBoss()
+        {
+            NeonRunEnemyState best = null!;
+            for (var index = 0; index < _run.Enemies.Count; index++)
+            {
+                var enemy = _run.Enemies[index];
+                if (!enemy.IsBoss)
+                {
+                    continue;
+                }
+
+                if (best == null || enemy.MaxHP > best.MaxHP)
+                {
+                    best = enemy;
+                }
+            }
+
+            return best;
+        }
+
+        private void UpdateBossBar()
+        {
+            var boss = FindActiveBoss();
+            if (boss == null || _run.Status != NeonRunStatus.Running)
+            {
+                _bossBarRoot.SetActive(false);
+                return;
+            }
+
+            _bossBarRoot.SetActive(true);
+            var fraction = boss.MaxHP > 0f ? Mathf.Clamp01(boss.HP / boss.MaxHP) : 0f;
+            _bossBarFill.fillAmount = fraction;
+            _bossBarFill.color = boss.IsMiniBoss ? new Color(1f, 0.62f, 0.18f, 0.95f) : new Color(1f, 0.2f, 0.55f, 0.95f);
+            _bossBarText.text = (boss.IsMiniBoss ? "MINI-BOSS  " : "BOSS  ") + Mathf.CeilToInt(boss.HP) + " / " + Mathf.CeilToInt(boss.MaxHP);
+        }
+
+        private void ResetAudioTrackers()
+        {
+            _prevStatus = NeonRunStatus.Running;
+            _prevEnemiesKilled = 0;
+            _prevPlayerProjectiles = 0;
+            _prevBossCount = 0;
+            _prevHP = _run.Player.Stats.CurrentHP;
+            _prevXP = _run.Player.XP;
+            _prevWarning = string.Empty;
+            _xpSoundCooldown = 0f;
+            _damageSoundCooldown = 0f;
+        }
+
+        private void UpdateAudio(float deltaTime)
+        {
+            // Status transitions fire regardless of pause state.
+            if (_run.Status != _prevStatus)
+            {
+                if (_run.Status == NeonRunStatus.GameOver)
+                {
+                    _audio.PlayGameOver();
+                    _audio.StopMusic();
+                }
+                else if (_run.Status == NeonRunStatus.Victory)
+                {
+                    _audio.PlayVictory();
+                    _audio.StopMusic();
+                }
+                else if (_run.Status == NeonRunStatus.LevelUpDraft)
+                {
+                    _audio.PlayLevelUp();
+                }
+
+                _prevStatus = _run.Status;
+            }
+
+            if (_paused || _run.Status != NeonRunStatus.Running)
+            {
+                return;
+            }
+
+            _xpSoundCooldown = Mathf.Max(0f, _xpSoundCooldown - deltaTime);
+            _damageSoundCooldown = Mathf.Max(0f, _damageSoundCooldown - deltaTime);
+
+            var player = _run.Player;
+
+            var playerProjectiles = 0;
+            for (var index = 0; index < _run.Projectiles.Count; index++)
+            {
+                if (_run.Projectiles[index].FromPlayer)
+                {
+                    playerProjectiles++;
+                }
+            }
+
+            if (playerProjectiles > _prevPlayerProjectiles)
+            {
+                _audio.PlayShoot();
+            }
+
+            _prevPlayerProjectiles = playerProjectiles;
+
+            if (_run.EnemiesKilled > _prevEnemiesKilled)
+            {
+                _audio.PlayEnemyDeath();
+                _prevEnemiesKilled = _run.EnemiesKilled;
+            }
+
+            if (player.Stats.CurrentHP < _prevHP - 0.01f && _damageSoundCooldown <= 0f)
+            {
+                _audio.PlayPlayerDamage();
+                SpawnBurst(player.Position, new Color(1f, 0.3f, 0.3f, 0.95f), 10, 3.2f, 0.1f, 0.4f);
+                _damageSoundCooldown = 0.25f;
+            }
+
+            _prevHP = player.Stats.CurrentHP;
+
+            if (player.XP > _prevXP + 0.01f && _xpSoundCooldown <= 0f)
+            {
+                _audio.PlayXp();
+                _xpSoundCooldown = 0.09f;
+            }
+
+            _prevXP = player.XP;
+
+            var bossCount = 0;
+            for (var index = 0; index < _run.Enemies.Count; index++)
+            {
+                if (_run.Enemies[index].IsBoss)
+                {
+                    bossCount++;
+                }
+            }
+
+            if (bossCount > _prevBossCount)
+            {
+                _audio.PlayBossSpawn();
+            }
+
+            _prevBossCount = bossCount;
+
+            if (!string.IsNullOrWhiteSpace(_run.LastWarning) && _run.LastWarning != _prevWarning)
+            {
+                _audio.PlayWarning();
+                _prevWarning = _run.LastWarning;
+            }
+
+            _audio.SetMusic(bossCount > 0 ? "boss" : "normal");
         }
 
         private void CreateGaragePanel(Transform parent)
@@ -429,17 +1022,101 @@ namespace NeonSkySurvivors.Runtime.App
             var image = _garagePanel.GetComponent<Image>();
             image.color = new Color(0.01f, 0.025f, 0.055f, 0.98f);
 
-            _garageTitleText = CreateText(_garagePanel.transform, "Garage Title", new Vector2(0f, -90f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 52, new Color(0.68f, 1f, 1f));
-            _garageTitleText.rectTransform.sizeDelta = new Vector2(-80f, 190f);
+            _garageTitleText = CreateText(_garagePanel.transform, "Garage Title", new Vector2(0f, -40f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 46, new Color(0.68f, 1f, 1f));
+            _garageTitleText.rectTransform.sizeDelta = new Vector2(-80f, 120f);
 
-            _garageStatsText = CreateText(_garagePanel.transform, "Garage Stats", new Vector2(0f, -250f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 30, Color.white);
-            _garageStatsText.rectTransform.sizeDelta = new Vector2(-120f, 1040f);
+            _garageStatsText = CreateText(_garagePanel.transform, "Garage Stats", new Vector2(0f, -170f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 28, Color.white);
+            _garageStatsText.rectTransform.sizeDelta = new Vector2(-100f, 330f);
 
-            var startRunButton = CreateButton(_garagePanel.transform, "Start Run", new Vector2(0f, 150f), StartRun);
-            startRunButton.GetComponent<RectTransform>().sizeDelta = new Vector2(520f, 120f);
+            // Scrollable inventory grid occupies the middle band of the screen.
+            _inventoryContent = CreateInventoryScroll(_garagePanel.transform, new Vector2(0.04f, 0.345f), new Vector2(0.96f, 0.74f));
+
+            _garageDetailText = CreateText(_garagePanel.transform, "Garage Detail", new Vector2(0f, 0f), new Vector2(0.04f, 0.255f), new Vector2(0.96f, 0.34f), TextAnchor.MiddleCenter, 26, new Color(0.85f, 0.95f, 1f));
+            _garageDetailText.rectTransform.offsetMin = Vector2.zero;
+            _garageDetailText.rectTransform.offsetMax = Vector2.zero;
+
+            // Action row: Equip / Unequip / Upgrade / Merge.
+            _equipButton = CreateActionButton(_garagePanel.transform, "Equip", 0.045f, 0.255f, 0.245f, EquipSelected);
+            _unequipButton = CreateActionButton(_garagePanel.transform, "Unequip", 0.265f, 0.255f, 0.485f, UnequipSelected);
+            _upgradeButton = CreateActionButton(_garagePanel.transform, "Upgrade", 0.515f, 0.255f, 0.735f, UpgradeSelected);
+            _mergeButton = CreateActionButton(_garagePanel.transform, "Merge x3", 0.755f, 0.255f, 0.955f, MergeSelected);
+
+            var startRunButton = CreateButton(_garagePanel.transform, "Start Run", new Vector2(0f, 120f), StartRun);
+            startRunButton.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 120f);
             startRunButton.GetComponent<Image>().color = new Color(0.02f, 0.42f, 0.48f, 0.96f);
 
             _garagePanel.SetActive(false);
+        }
+
+        private RectTransform CreateInventoryScroll(Transform parent, Vector2 anchorMin, Vector2 anchorMax)
+        {
+            var scrollObject = new GameObject("Inventory Scroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+            scrollObject.transform.SetParent(parent, false);
+            var scrollRect = scrollObject.GetComponent<RectTransform>();
+            scrollRect.anchorMin = anchorMin;
+            scrollRect.anchorMax = anchorMax;
+            scrollRect.offsetMin = Vector2.zero;
+            scrollRect.offsetMax = Vector2.zero;
+            scrollObject.GetComponent<Image>().color = new Color(0.02f, 0.05f, 0.1f, 0.85f);
+
+            var viewportObject = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            viewportObject.transform.SetParent(scrollObject.transform, false);
+            var viewportRect = viewportObject.GetComponent<RectTransform>();
+            viewportRect.anchorMin = Vector2.zero;
+            viewportRect.anchorMax = Vector2.one;
+            viewportRect.offsetMin = new Vector2(10f, 10f);
+            viewportRect.offsetMax = new Vector2(-10f, -10f);
+            viewportObject.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.01f);
+            viewportObject.GetComponent<Mask>().showMaskGraphic = false;
+
+            var contentObject = new GameObject("Content", typeof(RectTransform), typeof(GridLayoutGroup), typeof(ContentSizeFitter));
+            contentObject.transform.SetParent(viewportObject.transform, false);
+            var contentRect = contentObject.GetComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0f, 1f);
+            contentRect.anchorMax = new Vector2(1f, 1f);
+            contentRect.pivot = new Vector2(0.5f, 1f);
+            contentRect.offsetMin = Vector2.zero;
+            contentRect.offsetMax = Vector2.zero;
+
+            var grid = contentObject.GetComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(470f, 150f);
+            grid.spacing = new Vector2(16f, 16f);
+            grid.padding = new RectOffset(12, 12, 12, 12);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 2;
+
+            var fitter = contentObject.GetComponent<ContentSizeFitter>();
+            fitter.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var scroll = scrollObject.GetComponent<ScrollRect>();
+            scroll.content = contentRect;
+            scroll.viewport = viewportRect;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 30f;
+
+            return contentRect;
+        }
+
+        private Button CreateActionButton(Transform parent, string label, float anchorMinX, float anchorMinY, float anchorMaxX, UnityEngine.Events.UnityAction action)
+        {
+            var buttonObject = new GameObject(label + " Action", typeof(RectTransform), typeof(Image), typeof(Button));
+            buttonObject.transform.SetParent(parent, false);
+            var rect = buttonObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(anchorMinX, anchorMinY - 0.05f);
+            rect.anchorMax = new Vector2(anchorMaxX, anchorMinY);
+            rect.offsetMin = new Vector2(6f, 6f);
+            rect.offsetMax = new Vector2(-6f, -6f);
+
+            buttonObject.GetComponent<Image>().color = new Color(0.06f, 0.16f, 0.24f, 0.95f);
+            buttonObject.GetComponent<Button>().onClick.AddListener(action);
+
+            var text = CreateText(buttonObject.transform, label + " Label", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 26, Color.white);
+            text.rectTransform.offsetMin = Vector2.zero;
+            text.rectTransform.offsetMax = Vector2.zero;
+            text.text = label;
+            return buttonObject.GetComponent<Button>();
         }
 
         private void CreateResultsPanel(Transform parent)
@@ -557,22 +1234,209 @@ namespace NeonSkySurvivors.Runtime.App
             _messageText.gameObject.SetActive(visible);
             _statusText.gameObject.SetActive(visible);
             _dashButton.gameObject.SetActive(visible);
+            _pauseButton.gameObject.SetActive(visible);
+            if (!visible)
+            {
+                _bossBarRoot.SetActive(false);
+            }
         }
 
         private void UpdateGaragePanel()
         {
             var stats = _equipment.CalculateStats(_profile, _catalog);
-            _garageTitleText.text = "NEON SKY SURVIVORS\nGARAGE";
-            _garageStatsText.text = "Coins " + _profile.PlayerCoins + "  Runs " + _profile.CompletedRuns + "  Best " + FormatTime(_profile.BestSurvivalTime) + "\n"
-                + "ATK " + stats.AttackDamage.ToString("0") + "  Fire " + stats.FireRate.ToString("0.0") + "  Speed " + stats.MovementSpeed.ToString("0.0") + "\n"
-                + "HP " + stats.MaxHP.ToString("0") + "  Armor " + stats.Armor.ToString("0") + "  Dash " + stats.DashCooldown.ToString("0.0") + "s\n\n"
-                + "Equipment\n"
-                + FormatEquippedSlot(NeonEquipmentSlot.Weapon) + "\n"
-                + FormatEquippedSlot(NeonEquipmentSlot.Wings) + "\n"
-                + FormatEquippedSlot(NeonEquipmentSlot.Engine) + "\n"
-                + FormatEquippedSlot(NeonEquipmentSlot.Hull) + "\n"
-                + FormatEquippedSlot(NeonEquipmentSlot.Core) + "\n"
-                + FormatEquippedSlot(NeonEquipmentSlot.Radar);
+            _garageTitleText.text = "NEON SKY SURVIVORS — GARAGE";
+            _garageStatsText.text = "Coins " + _profile.PlayerCoins + "   Runs " + _profile.CompletedRuns + "   Best " + FormatTime(_profile.BestSurvivalTime) + "\n"
+                + "ATK " + stats.AttackDamage.ToString("0") + "  Fire " + stats.FireRate.ToString("0.0") + "  Speed " + stats.MovementSpeed.ToString("0.0")
+                + "  HP " + stats.MaxHP.ToString("0") + "  Armor " + stats.Armor.ToString("0") + "  Dash " + stats.DashCooldown.ToString("0.0") + "s\n"
+                + FormatEquippedSlot(NeonEquipmentSlot.Weapon) + "   " + FormatEquippedSlot(NeonEquipmentSlot.Wings) + "\n"
+                + FormatEquippedSlot(NeonEquipmentSlot.Engine) + "   " + FormatEquippedSlot(NeonEquipmentSlot.Hull) + "\n"
+                + FormatEquippedSlot(NeonEquipmentSlot.Core) + "   " + FormatEquippedSlot(NeonEquipmentSlot.Radar);
+
+            RebuildInventoryCards();
+            UpdateGarageActions();
+        }
+
+        private void RebuildInventoryCards()
+        {
+            for (var index = 0; index < _inventoryCards.Count; index++)
+            {
+                var card = _inventoryCards[index];
+                card.transform.SetParent(null, false);
+                Destroy(card);
+            }
+
+            _inventoryCards.Clear();
+
+            for (var index = 0; index < _profile.OwnedEquipmentItems.Count; index++)
+            {
+                var owned = _profile.OwnedEquipmentItems[index];
+                var definition = FindEquipmentDef(owned.ItemID);
+                if (definition == null)
+                {
+                    continue;
+                }
+
+                _inventoryCards.Add(CreateInventoryCard(owned, definition));
+            }
+        }
+
+        private GameObject CreateInventoryCard(NeonOwnedEquipmentItem owned, NeonEquipmentItemDef definition)
+        {
+            var cardObject = new GameObject("Card " + owned.InstanceID, typeof(RectTransform), typeof(Image), typeof(Button));
+            cardObject.transform.SetParent(_inventoryContent, false);
+
+            var isSelected = owned.InstanceID == _selectedInstanceId;
+            var isEquipped = GetEquippedItemId(definition.SlotType) == owned.ItemID;
+            var rarityColor = ResolveRarityColor(owned.Rarity);
+
+            var image = cardObject.GetComponent<Image>();
+            image.color = isSelected
+                ? new Color(rarityColor.r * 0.5f + 0.1f, rarityColor.g * 0.5f + 0.1f, rarityColor.b * 0.5f + 0.1f, 0.98f)
+                : new Color(rarityColor.r * 0.22f, rarityColor.g * 0.22f, rarityColor.b * 0.22f, 0.92f);
+
+            var capturedId = owned.InstanceID;
+            cardObject.GetComponent<Button>().onClick.AddListener(() => SelectInventoryItem(capturedId));
+
+            var label = CreateText(cardObject.transform, "Card Label", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 24, rarityColor);
+            label.rectTransform.offsetMin = new Vector2(12f, 8f);
+            label.rectTransform.offsetMax = new Vector2(-12f, -8f);
+            label.text = definition.Name + (isEquipped ? "  [EQUIPPED]" : string.Empty) + "\n"
+                + definition.SlotType + " · " + owned.Rarity + "\n"
+                + "Lv " + owned.Level + "/" + NeonEquipmentSystem.MvpMaxEquipmentLevel;
+
+            return cardObject;
+        }
+
+        private void SelectInventoryItem(string instanceId)
+        {
+            _selectedInstanceId = instanceId;
+            RebuildInventoryCards();
+            UpdateGarageActions();
+        }
+
+        private void UpdateGarageActions()
+        {
+            var owned = FindOwnedInstance(_selectedInstanceId);
+            if (owned == null)
+            {
+                _garageDetailText.text = "Tap an item to equip, upgrade, or merge.";
+                SetActionState(_equipButton, "Equip", false);
+                SetActionState(_unequipButton, "Unequip", false);
+                SetActionState(_upgradeButton, "Upgrade", false);
+                SetActionState(_mergeButton, "Merge x3", false);
+                return;
+            }
+
+            var definition = FindEquipmentDef(owned.ItemID);
+            var isEquipped = definition != null && GetEquippedItemId(definition.SlotType) == owned.ItemID;
+            var duplicates = _equipment.CountDuplicates(_profile, owned.ItemID, owned.Rarity);
+            var canMerge = owned.Rarity < NeonEquipmentRarity.Legendary && duplicates >= NeonEquipmentSystem.RequiredDuplicatesForMerge;
+            var hasUpgradeCost = _equipment.TryGetUpgradeCost(_profile, _catalog, owned.InstanceID, out var upgradeCost);
+            var canUpgrade = hasUpgradeCost && _profile.PlayerCoins >= upgradeCost;
+
+            _garageDetailText.text = (definition != null ? definition.Name : owned.ItemID) + " · " + owned.Rarity + " Lv " + owned.Level
+                + (string.IsNullOrWhiteSpace(definition?.SpecialEffect) ? string.Empty : "\n" + definition!.SpecialEffect)
+                + "\nOwned at this rarity: " + duplicates;
+
+            SetActionState(_equipButton, "Equip", definition != null && !isEquipped);
+            SetActionState(_unequipButton, "Unequip", isEquipped);
+            SetActionState(_upgradeButton, hasUpgradeCost ? "Upgrade " + upgradeCost : "Maxed", canUpgrade);
+            SetActionState(_mergeButton, "Merge x3", canMerge);
+        }
+
+        private static void SetActionState(Button button, string label, bool interactable)
+        {
+            button.interactable = interactable;
+            var text = button.GetComponentInChildren<Text>();
+            if (text != null)
+            {
+                text.text = label;
+                text.color = interactable ? Color.white : new Color(0.5f, 0.55f, 0.6f);
+            }
+        }
+
+        private void EquipSelected()
+        {
+            if (_equipment.TryEquip(_profile, _catalog, _selectedInstanceId))
+            {
+                PersistAndRefreshGarage();
+            }
+        }
+
+        private void UnequipSelected()
+        {
+            var owned = FindOwnedInstance(_selectedInstanceId);
+            var definition = owned == null ? null : FindEquipmentDef(owned.ItemID);
+            if (definition != null && _equipment.TryUnequip(_profile, definition.SlotType))
+            {
+                PersistAndRefreshGarage();
+            }
+        }
+
+        private void UpgradeSelected()
+        {
+            if (_equipment.TryUpgrade(_profile, _catalog, _selectedInstanceId))
+            {
+                PersistAndRefreshGarage();
+            }
+        }
+
+        private void MergeSelected()
+        {
+            var owned = FindOwnedInstance(_selectedInstanceId);
+            if (owned == null)
+            {
+                return;
+            }
+
+            if (_equipment.TryMergeDuplicates(_profile, owned.ItemID, owned.Rarity, out var mergedItem) && mergedItem != null)
+            {
+                _selectedInstanceId = mergedItem.InstanceID;
+                PersistAndRefreshGarage();
+            }
+        }
+
+        private void PersistAndRefreshGarage()
+        {
+            NeonSaveService.Save(_profile);
+            UpdateGaragePanel();
+        }
+
+        private NeonOwnedEquipmentItem FindOwnedInstance(string instanceId)
+        {
+            if (string.IsNullOrEmpty(instanceId))
+            {
+                return null!;
+            }
+
+            for (var index = 0; index < _profile.OwnedEquipmentItems.Count; index++)
+            {
+                if (_profile.OwnedEquipmentItems[index].InstanceID == instanceId)
+                {
+                    return _profile.OwnedEquipmentItems[index];
+                }
+            }
+
+            return null!;
+        }
+
+        private static Color ResolveRarityColor(NeonEquipmentRarity rarity)
+        {
+            switch (rarity)
+            {
+                case NeonEquipmentRarity.Uncommon:
+                    return new Color(0.42f, 1f, 0.5f);
+                case NeonEquipmentRarity.Rare:
+                    return new Color(0.4f, 0.68f, 1f);
+                case NeonEquipmentRarity.Epic:
+                    return new Color(0.78f, 0.46f, 1f);
+                case NeonEquipmentRarity.Legendary:
+                    return new Color(1f, 0.82f, 0.28f);
+                case NeonEquipmentRarity.Mythic:
+                    return new Color(1f, 0.34f, 0.34f);
+                default:
+                    return new Color(0.78f, 0.82f, 0.86f);
+            }
         }
 
         private int CalculateRunReward(NeonRunState run)
@@ -660,6 +1524,17 @@ namespace NeonSkySurvivors.Runtime.App
             {
                 _trailViews[index].gameObject.SetActive(false);
             }
+
+            if (_playerRoot != null)
+            {
+                _playerRoot.gameObject.SetActive(false);
+            }
+
+            for (var index = 0; index < _particles.Count; index++)
+            {
+                _particles[index].Life = 0f;
+                _particles[index].Transform.gameObject.SetActive(false);
+            }
         }
 
         private static void HideAll(List<SpriteRenderer> views)
@@ -689,6 +1564,24 @@ namespace NeonSkySurvivors.Runtime.App
         {
             var clamped = Mathf.Max(0, Mathf.FloorToInt(seconds));
             return (clamped / 60).ToString("00") + ":" + (clamped % 60).ToString("00");
+        }
+
+        private struct EnemyDeathSnapshot
+        {
+            public NeonVector2 Position;
+            public bool IsBoss;
+            public bool IsMiniBoss;
+        }
+
+        private sealed class NeonParticleView
+        {
+            public Transform Transform = null!;
+            public SpriteRenderer Renderer = null!;
+            public Vector3 Velocity;
+            public float Life;
+            public float MaxLife;
+            public Color BaseColor;
+            public float BaseSize;
         }
     }
 }

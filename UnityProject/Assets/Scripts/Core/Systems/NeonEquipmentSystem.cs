@@ -148,6 +148,30 @@ namespace NeonSkySurvivors.Core.Systems
             return true;
         }
 
+        public bool TryGetUpgradeCost(NeonSaveProfile profile, NeonSkySurvivorsCatalog catalog, string instanceId, out int cost)
+        {
+            cost = 0;
+            var ownedItem = profile.OwnedEquipmentItems.FirstOrDefault(item => item.InstanceID == instanceId);
+            if (ownedItem == null || ownedItem.Level >= MvpMaxEquipmentLevel)
+            {
+                return false;
+            }
+
+            var definition = catalog.Equipment.FirstOrDefault(item => item.ItemID == ownedItem.ItemID);
+            if (definition == null)
+            {
+                return false;
+            }
+
+            cost = GetUpgradeCost(definition, ownedItem);
+            return true;
+        }
+
+        public int CountDuplicates(NeonSaveProfile profile, string itemId, NeonEquipmentRarity rarity)
+        {
+            return profile.OwnedEquipmentItems.Count(item => item.ItemID == itemId && item.Rarity == rarity);
+        }
+
         public bool TryMergeDuplicates(NeonSaveProfile profile, string itemId, NeonEquipmentRarity rarity, out NeonOwnedEquipmentItem? mergedItem)
         {
             mergedItem = null;

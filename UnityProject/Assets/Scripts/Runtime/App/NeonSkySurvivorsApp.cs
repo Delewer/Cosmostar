@@ -288,8 +288,24 @@ namespace NeonSkySurvivors.Runtime.App
                 var view = _projectileViews[index];
                 view.gameObject.SetActive(true);
                 view.transform.position = ToWorld(projectile.Position);
-                view.transform.localScale = Vector3.one * 0.12f;
-                view.color = new Color(0.38f, 1f, 0.52f);
+
+                if (projectile.FromPlayer)
+                {
+                    view.transform.localScale = Vector3.one * 0.12f;
+                    view.color = new Color(0.38f, 1f, 0.52f);
+                }
+                else if (projectile.IsMine)
+                {
+                    // Pulsing orange hazard so mines read as a telegraphed danger.
+                    var pulse = 0.6f + 0.4f * Mathf.Sin(Time.time * 10f);
+                    view.transform.localScale = Vector3.one * 0.2f;
+                    view.color = new Color(1f, 0.55f * pulse, 0.12f);
+                }
+                else
+                {
+                    view.transform.localScale = Vector3.one * 0.14f;
+                    view.color = new Color(1f, 0.4f, 0.25f);
+                }
             }
         }
 

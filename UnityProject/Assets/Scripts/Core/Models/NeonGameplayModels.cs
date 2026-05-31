@@ -111,6 +111,9 @@ namespace NeonSkySurvivors.Core.Models
         public int XPDrop;
         public bool IsBoss;
         public bool IsMiniBoss;
+        public NeonEnemyBehaviorType Behavior;
+        public float AttackCooldownRemaining;
+        public bool CanSplit;
     }
 
     [Serializable]
@@ -123,6 +126,7 @@ namespace NeonSkySurvivors.Core.Models
         public float RemainingLife = 2.5f;
         public int RemainingPierce;
         public bool FromPlayer = true;
+        public bool IsMine;
     }
 
     [Serializable]

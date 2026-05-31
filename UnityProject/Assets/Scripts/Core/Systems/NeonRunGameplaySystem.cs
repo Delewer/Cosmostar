@@ -176,13 +176,26 @@ namespace NeonSkySurvivors.Core.Systems
                 projectile.Position += projectile.Velocity * deltaTime;
                 projectile.RemainingLife -= deltaTime;
 
-                if (projectile.FromPlayer && ResolvePlayerProjectileHits(run, projectile, projectileIndex))
+                if (projectile.FromPlayer)
+                {
+                    if (ResolvePlayerProjectileHits(run, projectile, projectileIndex))
+                    {
+                        continue;
+                    }
+                }
+                else if (ResolveEnemyProjectileHits(run, projectile, projectileIndex))
                 {
                     continue;
                 }
 
                 if (projectile.RemainingLife <= 0f || Math.Abs(projectile.Position.X) > 1.2f || Math.Abs(projectile.Position.Y) > 1.2f)
                 {
+                    // Mines that time out still detonate in a small radius around the player.
+                    if (projectile.IsMine && NeonVector2.Distance(projectile.Position, run.Player.Position) <= 0.3f)
+                    {
+                        DamagePlayer(run, projectile.Damage);
+                    }
+
                     run.Projectiles.RemoveAt(projectileIndex);
                 }
             }
@@ -212,17 +225,102 @@ namespace NeonSkySurvivors.Core.Systems
             return false;
         }
 
+        private bool ResolveEnemyProjectileHits(NeonRunState run, NeonRunProjectileState projectile, int projectileIndex)
+        {
+            var triggerRange = projectile.IsMine ? 0.2f : 0.14f;
+            if (NeonVector2.Distance(projectile.Position, run.Player.Position) > triggerRange)
+            {
+                return false;
+            }
+
+            DamagePlayer(run, projectile.Damage);
+            run.Projectiles.RemoveAt(projectileIndex);
+            return true;
+        }
+
         private void TickEnemyMovementAndContact(NeonRunState run, float deltaTime)
         {
             foreach (var enemy in run.Enemies)
             {
-                var direction = (run.Player.Position - enemy.Position).Normalized;
-                enemy.Position += direction * (enemy.Speed / 10f) * deltaTime;
-                if (NeonVector2.Distance(enemy.Position, run.Player.Position) <= 0.16f)
+                enemy.AttackCooldownRemaining = Math.Max(0f, enemy.AttackCooldownRemaining - deltaTime);
+
+                var toPlayer = run.Player.Position - enemy.Position;
+                var distance = toPlayer.Magnitude;
+                var direction = toPlayer.Normalized;
+                var step = (enemy.Speed / 10f) * deltaTime;
+
+                if (!enemy.IsBoss && enemy.Behavior == NeonEnemyBehaviorType.Shooter)
+                {
+                    // Keep distance and fire simple bullets at the player.
+                    const float preferredRange = 0.55f;
+                    if (distance > preferredRange + 0.08f)
+                    {
+                        enemy.Position += direction * step;
+                    }
+                    else if (distance < preferredRange - 0.08f)
+                    {
+                        enemy.Position -= direction * step;
+                    }
+
+                    if (enemy.AttackCooldownRemaining <= 0f)
+                    {
+                        FireEnemyBullet(run, enemy, direction);
+                        enemy.AttackCooldownRemaining = 1.7f;
+                    }
+                }
+                else if (!enemy.IsBoss && enemy.Behavior == NeonEnemyBehaviorType.MineCarrier)
+                {
+                    // Drift slowly toward the player while dropping timed mines.
+                    enemy.Position += direction * step;
+                    if (enemy.AttackCooldownRemaining <= 0f)
+                    {
+                        DropMine(run, enemy);
+                        enemy.AttackCooldownRemaining = 2.6f;
+                    }
+                }
+                else
+                {
+                    // Chasers, fast chasers, tanks, splitters, and bosses move toward the player.
+                    enemy.Position += direction * step;
+                }
+
+                if (distance <= 0.16f)
                 {
                     DamagePlayer(run, enemy.ContactDamage);
                 }
             }
+        }
+
+        private void FireEnemyBullet(NeonRunState run, NeonRunEnemyState enemy, NeonVector2 direction)
+        {
+            if (direction.SqrMagnitude <= 0.0001f)
+            {
+                direction = NeonVector2.Up;
+            }
+
+            run.Projectiles.Add(new NeonRunProjectileState
+            {
+                Position = enemy.Position,
+                Velocity = direction * 1.15f,
+                Damage = enemy.ContactDamage,
+                Radius = 0.14f,
+                RemainingLife = 3f,
+                FromPlayer = false
+            });
+        }
+
+        private void DropMine(NeonRunState run, NeonRunEnemyState enemy)
+        {
+            run.Projectiles.Add(new NeonRunProjectileState
+            {
+                Position = enemy.Position,
+                Velocity = NeonVector2.Zero,
+                Damage = enemy.ContactDamage * 1.4f,
+                Radius = 0.18f,
+                RemainingLife = 2.6f,
+                FromPlayer = false,
+                IsMine = true
+            });
         }
 
         private void TickDashTrails(NeonRunState run, float deltaTime)
@@ -300,6 +398,11 @@ namespace NeonSkySurvivors.Core.Systems
                     run.Player.CoinsCollected += 1;
                 }
 
+                if (enemy.CanSplit)
+                {
+                    SpawnSplitChildren(run, enemy);
+                }
+
                 if (!enemy.IsBoss)
                 {
                     continue;
@@ -358,8 +461,35 @@ namespace NeonSkySurvivors.Core.Systems
                 ContactDamage = definition.Damage,
                 Speed = definition.Speed,
                 XPDrop = definition.XPDrop,
-                IsBoss = false
+                IsBoss = false,
+                Behavior = definition.BehaviorType,
+                CanSplit = definition.BehaviorType == NeonEnemyBehaviorType.Splitter,
+                // Stagger ranged/mine attacks so they do not all fire on the same frame.
+                AttackCooldownRemaining = 0.6f + (float)_random.NextDouble() * 1.4f
             });
+        }
+
+        private void SpawnSplitChildren(NeonRunState run, NeonRunEnemyState parent)
+        {
+            var childHp = Math.Max(6f, parent.MaxHP * 0.4f);
+            for (var index = 0; index < 2; index++)
+            {
+                var offset = index == 0 ? new NeonVector2(0.06f, 0.04f) : new NeonVector2(-0.06f, -0.04f);
+                run.Enemies.Add(new NeonRunEnemyState
+                {
+                    EnemyID = parent.EnemyID,
+                    Position = ClampToArena(parent.Position + offset),
+                    HP = childHp,
+                    MaxHP = childHp,
+                    ContactDamage = parent.ContactDamage * 0.7f,
+                    Speed = parent.Speed + 0.6f,
+                    XPDrop = 1,
+                    IsBoss = false,
+                    Behavior = NeonEnemyBehaviorType.FastChaser,
+                    CanSplit = false,
+                    AttackCooldownRemaining = 0f
+                });
+            }
         }
 
         private void SpawnBoss(NeonRunState run, NeonBossDef boss)

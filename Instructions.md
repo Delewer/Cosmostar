@@ -30,6 +30,8 @@ The MVP loop is complete and editor-verified. This roadmap takes the project fro
 
 Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward drops, 10-minute run with waves/bosses/mini-bosses, level-up drafts, boss HP bar + pause, procedural audio (SFX + normal/boss music), neon background + player plane, particle bursts, HP/XP bars, category-colored upgrade cards. Compiles with 0 errors, Verify Mobile Boot Scene passes, Android smoke APK builds (arm64, minSdk 25).
 
+- ✅ 2026-05-31 (M2): Implemented distinct enemy behaviors — Shooter drones keep distance and fire bullets, Mine Carriers drop timed proximity mines, Splitter Orbs split into 2 fast children on death — plus enemy-projectile/mine damage to the player and distinct rendering (red bullets, pulsing orange mines). Verified: 0 compile errors, scene verify passes.
+
 ### Milestone 1 — On-device hardening (close the last MVP step)
 - [ ] Install the smoke APK on a physical Android device (`adb install -r`) and launch it.
 - [ ] Profile a full 10-minute run on a mid-range device; confirm ~60 FPS with ~100 enemies / ~200 projectiles (Section 31). Capture frame timings via `adb logcat`.
@@ -39,7 +41,7 @@ Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward dro
 - Acceptance: a 10-minute run completes on-device at stable FPS with no crashes; inputs feel responsive.
 
 ### Milestone 2 — Gameplay completeness
-- [ ] Verify/finish all 6 enemy behaviors end-to-end: Chaser, Fast Wing, Shooter (fires bullets), Shield Drone (reduced frontal damage or high HP), Mine Carrier (drops timed mines), Splitter Orb (splits on death); add Elite Chaser/Shooter for the 6:00–10:00 window.
+- [x] ✅ 2026-05-31: All 6 enemy behaviors implemented end-to-end via NeonEnemyBehaviorType: Chaser/Fast Wing chase, Shooter keeps distance and fires bullets, Shield Drone is high-HP (per spec), Mine Carrier drops timed mines that detonate on proximity/expire, Splitter Orb splits into 2 fast children on death. Enemy projectiles/mines damage the player and render distinctly (red bullets, pulsing orange mines). Elite Chaser/Shooter exist in the catalog for the late game.
 - [ ] Implement the Special ability system referenced by the HUD: a charge meter driven by StartingEnergy/SpecialChargeSpeed, an activation button, and one ultimate (e.g. Neon Nova clear/burst). Add the "Special ability charge" HUD element.
 - [ ] Make weapon evolutions mechanically change weapons (Plasma Blaster→Plasma Storm, Homing Missiles→Rocket Swarm), not just a flag; wire the evolution chest/boss trigger.
 - [ ] Confirm all 4 in-run weapons fire with their 5 upgrade levels (Plasma Blaster, Homing Missiles, Laser Wings, Orbit Blades) and that trail upgrades (Longer Trail, Trail Explosion) have visible effects.

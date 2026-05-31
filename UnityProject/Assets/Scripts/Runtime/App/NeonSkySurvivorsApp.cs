@@ -55,6 +55,8 @@ namespace NeonSkySurvivors.Runtime.App
         private Text _hudText = null!;
         private Text _messageText = null!;
         private Text _statusText = null!;
+        private Image _hpBarFill = null!;
+        private Image _xpBarFill = null!;
         private Button _dashButton = null!;
         private Button _pauseButton = null!;
         private Text _pauseLabel = null!;
@@ -330,9 +332,12 @@ namespace NeonSkySurvivors.Runtime.App
             var player = _run.Player;
             var hpPercent = Mathf.Clamp01(player.Stats.CurrentHP / player.Stats.MaxHP);
             var xpPercent = Mathf.Clamp01(player.XP / player.XPToNextLevel);
-            _hudText.text = FormatTime(_run.ElapsedSeconds) + "\n"
-                + "HP " + Mathf.RoundToInt(hpPercent * 100f) + "%  XP " + Mathf.RoundToInt(xpPercent * 100f) + "%\n"
-                + "Lv " + player.Level + "  Coins " + player.CoinsCollected + "  Dash " + (player.DashCooldownRemaining <= 0f ? "READY" : player.DashCooldownRemaining.ToString("0.0"));
+            _hpBarFill.fillAmount = hpPercent;
+            _hpBarFill.color = Color.Lerp(new Color(1f, 0.28f, 0.3f), new Color(0.3f, 1f, 0.6f), hpPercent);
+            _xpBarFill.fillAmount = xpPercent;
+            _hudText.text = FormatTime(_run.ElapsedSeconds) + "   Lv " + player.Level + "\n"
+                + "HP " + Mathf.CeilToInt(player.Stats.CurrentHP) + "/" + Mathf.CeilToInt(player.Stats.MaxHP) + "   Coins " + player.CoinsCollected + "\n"
+                + "Dash " + (player.DashCooldownRemaining <= 0f ? "READY" : player.DashCooldownRemaining.ToString("0.0"));
 
             if (!string.IsNullOrWhiteSpace(_run.LastWarning))
             {
@@ -460,8 +465,31 @@ namespace NeonSkySurvivors.Runtime.App
                 }
 
                 var choice = _run.DraftChoices[index];
+                var categoryColor = ResolveUpgradeCategoryColor(choice.Category);
+                button.GetComponent<Image>().color = new Color(categoryColor.r * 0.28f, categoryColor.g * 0.28f, categoryColor.b * 0.28f, 0.98f);
+
                 var label = button.GetComponentInChildren<Text>();
-                label.text = choice.Name + "\n" + choice.Description + "\nLv " + (_run.Build.GetLevel(choice.Id) + 1) + "/" + choice.MaxLevel;
+                label.color = categoryColor;
+                label.text = choice.Name + "  [" + choice.Category + "]\n" + choice.Description + "\nLv " + (_run.Build.GetLevel(choice.Id) + 1) + "/" + choice.MaxLevel;
+            }
+        }
+
+        private static Color ResolveUpgradeCategoryColor(NeonUpgradeCategory category)
+        {
+            switch (category)
+            {
+                case NeonUpgradeCategory.Weapon:
+                    return new Color(1f, 0.5f, 0.4f);
+                case NeonUpgradeCategory.Passive:
+                    return new Color(0.45f, 0.8f, 1f);
+                case NeonUpgradeCategory.Trail:
+                    return new Color(0.7f, 0.55f, 1f);
+                case NeonUpgradeCategory.Defense:
+                    return new Color(0.45f, 1f, 0.65f);
+                case NeonUpgradeCategory.Special:
+                    return new Color(1f, 0.82f, 0.32f);
+                default:
+                    return Color.white;
             }
         }
 
@@ -792,8 +820,10 @@ namespace NeonSkySurvivors.Runtime.App
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             scaler.matchWidthOrHeight = 1f;
 
-            _hudText = CreateText(canvasObject.transform, "HUD", new Vector2(32f, -32f), new Vector2(0f, 1f), new Vector2(0f, 1f), TextAnchor.UpperLeft, 34, new Color(0.75f, 1f, 1f));
-            _messageText = CreateText(canvasObject.transform, "Message", new Vector2(0f, -170f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, new Color(1f, 0.82f, 0.28f));
+            _hpBarFill = CreateBar(canvasObject.transform, "HP Bar", -44f, 26f, new Color(0.3f, 1f, 0.6f));
+            _xpBarFill = CreateBar(canvasObject.transform, "XP Bar", -76f, 16f, new Color(0.23f, 1f, 0.78f));
+            _hudText = CreateText(canvasObject.transform, "HUD", new Vector2(32f, -100f), new Vector2(0f, 1f), new Vector2(0f, 1f), TextAnchor.UpperLeft, 34, new Color(0.75f, 1f, 1f));
+            _messageText = CreateText(canvasObject.transform, "Message", new Vector2(0f, -205f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, new Color(1f, 0.82f, 0.28f));
             _statusText = CreateText(canvasObject.transform, "Status", new Vector2(0f, 0f), new Vector2(0f, 0.48f), new Vector2(1f, 0.48f), TextAnchor.MiddleCenter, 42, Color.white);
             _dashButton = CreateButton(canvasObject.transform, "Dash", new Vector2(-210f, 150f), TryDash);
             CreatePauseButton(canvasObject.transform);
@@ -817,6 +847,37 @@ namespace NeonSkySurvivors.Runtime.App
             _pauseLabel.text = "II";
         }
 
+        private Image CreateBar(Transform parent, string name, float topOffset, float height, Color fillColor)
+        {
+            var background = new GameObject(name, typeof(RectTransform), typeof(Image));
+            background.transform.SetParent(parent, false);
+            var rect = background.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(1f, 1f);
+            rect.pivot = new Vector2(0.5f, 1f);
+            rect.anchoredPosition = new Vector2(0f, topOffset);
+            rect.sizeDelta = new Vector2(-64f, height);
+            background.GetComponent<Image>().color = new Color(0.05f, 0.07f, 0.12f, 0.85f);
+
+            var fillObject = new GameObject(name + " Fill", typeof(RectTransform), typeof(Image));
+            fillObject.transform.SetParent(background.transform, false);
+            var fillRect = fillObject.GetComponent<RectTransform>();
+            fillRect.anchorMin = Vector2.zero;
+            fillRect.anchorMax = Vector2.one;
+            fillRect.offsetMin = new Vector2(3f, 3f);
+            fillRect.offsetMax = new Vector2(-3f, -3f);
+            fillRect.pivot = new Vector2(0f, 0.5f);
+
+            var fill = fillObject.GetComponent<Image>();
+            fill.sprite = _sprite;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            fill.fillAmount = 1f;
+            fill.color = fillColor;
+            return fill;
+        }
+
         private void CreateBossBar(Transform parent)
         {
             _bossBarRoot = new GameObject("Boss Bar", typeof(RectTransform), typeof(Image));
@@ -825,7 +886,7 @@ namespace NeonSkySurvivors.Runtime.App
             rootRect.anchorMin = new Vector2(0.5f, 1f);
             rootRect.anchorMax = new Vector2(0.5f, 1f);
             rootRect.pivot = new Vector2(0.5f, 1f);
-            rootRect.anchoredPosition = new Vector2(0f, -250f);
+            rootRect.anchoredPosition = new Vector2(0f, -285f);
             rootRect.sizeDelta = new Vector2(760f, 44f);
             _bossBarRoot.GetComponent<Image>().color = new Color(0.05f, 0.02f, 0.08f, 0.85f);
 
@@ -1233,6 +1294,8 @@ namespace NeonSkySurvivors.Runtime.App
             _hudText.gameObject.SetActive(visible);
             _messageText.gameObject.SetActive(visible);
             _statusText.gameObject.SetActive(visible);
+            _hpBarFill.transform.parent.gameObject.SetActive(visible);
+            _xpBarFill.transform.parent.gameObject.SetActive(visible);
             _dashButton.gameObject.SetActive(visible);
             _pauseButton.gameObject.SetActive(visible);
             if (!visible)

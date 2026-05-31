@@ -20,6 +20,7 @@ Codex Agent Instruction: Build Neon Plane Survivor Game MVP
 - ✅ 2026-05-31: Added Unity runtime audio (NeonAudioService): procedurally generated SFX clips (shoot, enemy death, XP pickup, level-up chord, dash sweep, boss warning, boss spawn, player damage, game-over, victory chord) played through an 8-voice pool, plus a looping synth-drone music bed with a normal mode and a more intense boss mode. Run events are detected from run-state deltas each frame and music switches automatically when a boss is on screen.
 - ✅ 2026-05-31: Added Unity neon visuals: a visible cyan player plane (body/nose/wings that rotate to face the movement direction and flash white during dash invulnerability — previously the player had no on-screen marker) and an animated dark-sky background (static cyan vertical grid, downward-scrolling purple horizontal neon lines, and a parallax starfield).
 - ✅ 2026-05-31: Added Unity pooled particle bursts: enemy deaths explode (larger, brighter bursts for bosses/mini-bosses) and the player emits a red burst when taking damage. Deaths are detected by reference-diffing the enemy list across each gameplay Tick (enemies are only removed on death), with a 160-particle round-robin pool that fades and shrinks each particle over its lifetime.
+- ✅ 2026-05-31: Replaced the text-only HP/XP HUD readouts with real filled bars (Section 21 "HP bar"/"XP bar"): a color-shifting HP bar (green→red as HP drops) and an XP bar, with the numeric HP/level/coins/dash text repositioned below them.
 - ⏳ Next step: run the smoke APK on a physical Android phone via adb/device install for device-side performance tuning, and verify the new Garage touch controls/persistence on-device. (Unity batchmode compile/scene verify must be run in the Unity 6000.4.4f1 environment; it is not installed in the current dev sandbox.)
 
 
@@ -945,8 +946,8 @@ In-Game HUD
 Display:
 
 Timer
-HP bar
-XP bar
+HP bar ✅ Unity filled HP bar (color shifts green→red as HP drops) added
+XP bar ✅ Unity filled XP bar added
 Level
 Coins collected
 Dash ✅ lightweight audio hook added cooldown
@@ -965,7 +966,7 @@ Upgrade icon
 Upgrade name
 Current level
 Description
-Rarity/color
+Rarity/color ✅ Unity upgrade cards now tinted and labeled by category (Weapon/Passive/Trail/Defense/Special)
 Game Over Screen
 
 Show:
@@ -1473,7 +1474,7 @@ Add end-of-run rewards ✅ web results payout and Unity results payout
 Add save/load ✅ web localStorage save/load and Unity PlayerPrefs JSON save/load (NeonSaveService)
 Phase 5 — Polish
 Add neon effects ✅ Unity animated neon grid/starfield/parallax background and player plane view added
-Add better UI
+Add better UI ✅ Unity filled HP/XP bars added to the in-game HUD
 Add sound effects ✅ Unity procedural SFX (shoot/death/XP/level-up/dash/warning/boss/damage/game-over/victory)
 Add music ✅ Unity procedural synth-drone music with normal/boss modes
 Add hit feedback ✅ web combat feedback events added
@@ -2430,8 +2431,8 @@ In-Game HUD
 Display:
 
 Timer
-HP bar
-XP bar
+HP bar ✅ Unity filled HP bar (color shifts green→red as HP drops) added
+XP bar ✅ Unity filled XP bar added
 Level
 Coins collected
 Dash ✅ lightweight audio hook added cooldown
@@ -2450,7 +2451,7 @@ Upgrade icon
 Upgrade name
 Current level
 Description
-Rarity/color
+Rarity/color ✅ Unity upgrade cards now tinted and labeled by category (Weapon/Passive/Trail/Defense/Special)
 Game Over Screen
 
 Show:
@@ -2958,7 +2959,7 @@ Add end-of-run rewards ✅ web results payout and Unity results payout
 Add save/load ✅ web localStorage save/load and Unity PlayerPrefs JSON save/load (NeonSaveService)
 Phase 5 — Polish
 Add neon effects ✅ Unity animated neon grid/starfield/parallax background and player plane view added
-Add better UI
+Add better UI ✅ Unity filled HP/XP bars added to the in-game HUD
 Add sound effects ✅ Unity procedural SFX (shoot/death/XP/level-up/dash/warning/boss/damage/game-over/victory)
 Add music ✅ Unity procedural synth-drone music with normal/boss modes
 Add hit feedback ✅ web combat feedback events added

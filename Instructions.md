@@ -24,6 +24,66 @@ Codex Agent Instruction: Build Neon Plane Survivor Game MVP
 - ✅ 2026-05-31: Re-verified the whole feature batch in the real Unity 6000.4.4f1 editor (batchmode). Found and fixed a blocker: the built-in Audio module was disabled in the package manifest, so NeonAudioService (AudioClip/AudioSource) failed to compile (CS1069); added com.unity.modules.audio. After the fix: scripts compile with 0 errors, "Verify Mobile Boot Scene" passes, and "Build Android Smoke APK" rebuilds Builds/Android/NeonSkySurvivors-Smoke.apk (~53 MB) with BuildResult.Succeeded.
 - ⏳ Next step: run the smoke APK on a physical Android phone via adb/device install for device-side performance tuning, and verify the Garage touch controls/persistence, audio, neon visuals, and HP/XP bars on-device. (Editor-side compile, scene verify, and Android APK build are now confirmed passing in Unity 6000.4.4f1.)
 
+## Roadmap to v1.0 (Post-MVP Plan)
+
+The MVP loop is complete and editor-verified. This roadmap takes the project from "verified prototype" to a shippable Android game. Work milestones top-to-bottom; each task gets a ✅ with a dated Progress Mark when done. Definition of v1.0 Done is at the end.
+
+Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward drops, 10-minute run with waves/bosses/mini-bosses, level-up drafts, boss HP bar + pause, procedural audio (SFX + normal/boss music), neon background + player plane, particle bursts, HP/XP bars, category-colored upgrade cards. Compiles with 0 errors, Verify Mobile Boot Scene passes, Android smoke APK builds (arm64, minSdk 25).
+
+### Milestone 1 — On-device hardening (close the last MVP step)
+- [ ] Install the smoke APK on a physical Android device (`adb install -r`) and launch it.
+- [ ] Profile a full 10-minute run on a mid-range device; confirm ~60 FPS with ~100 enemies / ~200 projectiles (Section 31). Capture frame timings via `adb logcat`.
+- [ ] Tune touch movement/dash feel on a real touchscreen (responsiveness, dead-zone, dash double-tap option).
+- [ ] Fix any device-only issues (audio glitches, GC spikes from per-frame allocations, UI scaling on notched/aspect-ratio screens).
+- [ ] Switch the player build to IL2CPP + ARM64 release config; confirm it still builds and runs.
+- Acceptance: a 10-minute run completes on-device at stable FPS with no crashes; inputs feel responsive.
+
+### Milestone 2 — Gameplay completeness
+- [ ] Verify/finish all 6 enemy behaviors end-to-end: Chaser, Fast Wing, Shooter (fires bullets), Shield Drone (reduced frontal damage or high HP), Mine Carrier (drops timed mines), Splitter Orb (splits on death); add Elite Chaser/Shooter for the 6:00–10:00 window.
+- [ ] Implement the Special ability system referenced by the HUD: a charge meter driven by StartingEnergy/SpecialChargeSpeed, an activation button, and one ultimate (e.g. Neon Nova clear/burst). Add the "Special ability charge" HUD element.
+- [ ] Make weapon evolutions mechanically change weapons (Plasma Blaster→Plasma Storm, Homing Missiles→Rocket Swarm), not just a flag; wire the evolution chest/boss trigger.
+- [ ] Confirm all 4 in-run weapons fire with their 5 upgrade levels (Plasma Blaster, Homing Missiles, Laser Wings, Orbit Blades) and that trail upgrades (Longer Trail, Trail Explosion) have visible effects.
+- [ ] Wire equipment special effects that are currently text-only (e.g. "Block first hit", "Shield below 30% HP", dash trail/shield from Engine).
+- Acceptance: every enemy/weapon/upgrade/boss listed in the MVP catalog has a real in-run effect.
+
+### Milestone 3 — Meta systems & screens
+- [ ] Unity Main Menu screen (Play / Garage / Settings) as the entry point.
+- [ ] Settings screen in Unity (music & SFX volume sliders, mute toggles, vibration toggle, quality/FPS) persisted via the save profile; wire NeonAudioService.Enabled and volumes.
+- [ ] Pause menu with Resume / Restart / Quit-to-Garage (extend the existing pause button).
+- [ ] Garage layout polish toward Section 21 (plane preview in center, 6 slots arranged around it) while keeping the working inventory grid.
+- [ ] Missions/Daily objectives + meta progression: account level, upgrade materials, and boss cores from Section 20 feeding garage upgrades; restore a lightweight mission system.
+- [ ] Results screen shows the actual items found (not just a count) and any account-level/material gains.
+- Acceptance: a player can navigate Menu→Garage→Run→Results→Garage entirely on touch, with settings and meta progression persisting.
+
+### Milestone 4 — Art & audio production
+- [ ] Replace placeholder 1×1 sprites with real neon art: player plane, the 6 enemy types, 5 bosses, projectiles, XP shards, mines.
+- [ ] Author equipment icons and upgrade-card icons (Section 21 cards specify icons).
+- [ ] Background/parallax art pass; VFX polish (better bursts, dash trail, boss telegraphs); add screen shake / brief hit-stop for impact.
+- [ ] Distinct music tracks for normal / boss / final-boss with a proper mix; SFX pass and volume balancing.
+- Acceptance: no placeholder white quads remain in normal gameplay; the game reads clearly and looks like the neon target style (Section 22).
+
+### Milestone 5 — Content depth & balance
+- [ ] On-device balance passes against the Section 29 difficulty curve (first minute easy → final boss hard); tune Section 30 starting values.
+- [ ] Fully implement rarity rules and special effects across the 24 items; add the Mythic rarity tier.
+- [ ] Expand content: more upgrades/evolutions, additional enemy variants or mini-events, optional second mission/biome.
+- Acceptance: a full run feels like the Section 32 fantasy — weak at start, powerful by minute 7–10 — and is winnable with a good build.
+
+### Milestone 6 — Release engineering
+- [ ] App icon + splash screen; final product name/package/version.
+- [ ] Android keystore + signing config; build a signed AAB (App Bundle) for the Play Store in addition to the APK.
+- [ ] Lightweight crash/analytics reporting and a privacy policy.
+- [ ] CI: batchmode compile + Verify Mobile Boot Scene + APK/AAB build on push (the same executeMethod calls used today).
+- [ ] Store listing assets: screenshots, short/long description, feature graphic; set up a closed testing track.
+- Acceptance: a signed AAB uploads to a Play Console internal/closed testing track and installs from there.
+
+### Milestone 7 — Soft launch & iteration to 1.0
+- [ ] Closed beta with a handful of testers; collect FPS/crash/retention feedback.
+- [ ] Fix top issues, run a final balance pass, lock content.
+- [ ] Promote to production as v1.0.
+
+### Definition of v1.0 Done
+The game ships when, on a physical mid-range Android device, a player can: open the game from a real menu, build a plane in a polished garage, play a stable-60-FPS 10-minute run with all enemy/weapon/boss/special systems working and real art/audio, win or lose, receive rewards and meta progression that persist, adjust settings, and reinstall from a signed Play Store testing track without crashes.
+
 
 You are building a mobile-friendly roguelite survival shooter prototype.
 

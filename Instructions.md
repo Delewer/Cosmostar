@@ -31,6 +31,7 @@ The MVP loop is complete and editor-verified. This roadmap takes the project fro
 Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward drops, 10-minute run with waves/bosses/mini-bosses, level-up drafts, boss HP bar + pause, procedural audio (SFX + normal/boss music), neon background + player plane, particle bursts, HP/XP bars, category-colored upgrade cards. Compiles with 0 errors, Verify Mobile Boot Scene passes, Android smoke APK builds (arm64, minSdk 25).
 
 - ✅ 2026-05-31 (M2): Implemented distinct enemy behaviors — Shooter drones keep distance and fire bullets, Mine Carriers drop timed proximity mines, Splitter Orbs split into 2 fast children on death — plus enemy-projectile/mine damage to the player and distinct rendering (red bullets, pulsing orange mines). Verified: 0 compile errors, scene verify passes.
+- ✅ 2026-05-31 (M2): Added two in-run weapons that previously had upgrade cards but no combat logic — Homing Missiles (home onto enemies, extra missile at L2, faster cadence at L3, AoE explosion at L4, split fragments at L5) and Laser Wings (perpendicular piercing beams, scaling damage/reach, double beam at L5), each with its own cooldown. Verified: 0 compile errors, scene verify passes.
 
 ### Milestone 1 — On-device hardening (close the last MVP step)
 - [ ] Install the smoke APK on a physical Android device (`adb install -r`) and launch it.
@@ -44,7 +45,7 @@ Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward dro
 - [x] ✅ 2026-05-31: All 6 enemy behaviors implemented end-to-end via NeonEnemyBehaviorType: Chaser/Fast Wing chase, Shooter keeps distance and fires bullets, Shield Drone is high-HP (per spec), Mine Carrier drops timed mines that detonate on proximity/expire, Splitter Orb splits into 2 fast children on death. Enemy projectiles/mines damage the player and render distinctly (red bullets, pulsing orange mines). Elite Chaser/Shooter exist in the catalog for the late game.
 - [ ] Implement the Special ability system referenced by the HUD: a charge meter driven by StartingEnergy/SpecialChargeSpeed, an activation button, and one ultimate (e.g. Neon Nova clear/burst). Add the "Special ability charge" HUD element.
 - [ ] Make weapon evolutions mechanically change weapons (Plasma Blaster→Plasma Storm, Homing Missiles→Rocket Swarm), not just a flag; wire the evolution chest/boss trigger.
-- [ ] Confirm all 4 in-run weapons fire with their 5 upgrade levels (Plasma Blaster, Homing Missiles, Laser Wings, Orbit Blades) and that trail upgrades (Longer Trail, Trail Explosion) have visible effects.
+- [~] In-run weapons: Plasma Blaster (main auto-fire + L5 pierce), Homing Missiles (✅ 2026-05-31: homing, +missile at L2, faster at L3, AoE explosion at L4, split at L5), and Laser Wings (✅ 2026-05-31: perpendicular piercing beams, scaling damage/reach, double beam at L5) now fire with level scaling; trail upgrades (Longer Trail, Trail Explosion) already apply. Remaining: Orbit Blades (orbiting melee) and per-level VFX polish.
 - [ ] Wire equipment special effects that are currently text-only (e.g. "Block first hit", "Shield below 30% HP", dash trail/shield from Engine).
 - Acceptance: every enemy/weapon/upgrade/boss listed in the MVP catalog has a real in-run effect.
 

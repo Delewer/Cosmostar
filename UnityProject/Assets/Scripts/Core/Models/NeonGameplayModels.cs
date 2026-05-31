@@ -81,6 +81,8 @@ namespace NeonSkySurvivors.Core.Models
         public float DashCooldownRemaining;
         public float InvulnerabilityRemaining;
         public float WeaponCooldownRemaining;
+        public float MissileCooldownRemaining;
+        public float LaserCooldownRemaining;
         public int Level = 1;
         public float XP;
         public float XPToNextLevel = 5f;
@@ -127,6 +129,9 @@ namespace NeonSkySurvivors.Core.Models
         public int RemainingPierce;
         public bool FromPlayer = true;
         public bool IsMine;
+        public bool IsHoming;
+        public float ExplosionRadius;
+        public bool SplitsOnHit;
     }
 
     [Serializable]

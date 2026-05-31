@@ -75,6 +75,8 @@ namespace NeonSkySurvivors.Core.Systems
             TickMovement(run, deltaTime);
             TickTimeline(run, catalog, previousElapsedSeconds);
             TickAutoFire(run, deltaTime);
+            TickHomingMissiles(run);
+            TickLaserWings(run);
             TickProjectiles(run, deltaTime);
             TickEnemyMovementAndContact(run, deltaTime);
             TickDashTrails(run, deltaTime);
@@ -109,6 +111,8 @@ namespace NeonSkySurvivors.Core.Systems
             run.Player.DashCooldownRemaining = Math.Max(0f, run.Player.DashCooldownRemaining - deltaTime);
             run.Player.InvulnerabilityRemaining = Math.Max(0f, run.Player.InvulnerabilityRemaining - deltaTime);
             run.Player.WeaponCooldownRemaining = Math.Max(0f, run.Player.WeaponCooldownRemaining - deltaTime);
+            run.Player.MissileCooldownRemaining = Math.Max(0f, run.Player.MissileCooldownRemaining - deltaTime);
+            run.Player.LaserCooldownRemaining = Math.Max(0f, run.Player.LaserCooldownRemaining - deltaTime);
         }
 
         private void TickMovement(NeonRunState run, float deltaTime)
@@ -168,11 +172,109 @@ namespace NeonSkySurvivors.Core.Systems
             run.Player.WeaponCooldownRemaining = 1f / Math.Max(0.1f, run.Player.Stats.FireRate);
         }
 
+        private void TickHomingMissiles(NeonRunState run)
+        {
+            var level = run.Build.GetLevel("homing_missiles");
+            if (level <= 0 || run.Player.MissileCooldownRemaining > 0f || run.Enemies.Count == 0)
+            {
+                return;
+            }
+
+            var count = level >= 2 ? 2 : 1;
+            var explosionRadius = level >= 4 ? 0.32f : 0.18f;
+            var splits = level >= 5;
+            var damage = run.Player.Stats.AttackDamage * 0.9f;
+
+            for (var index = 0; index < count; index++)
+            {
+                var target = FindNearestEnemy(run, run.Player.Position);
+                var direction = target != null ? (target.Position - run.Player.Position).Normalized : run.Player.LastMoveDirection.Normalized;
+                if (direction.SqrMagnitude <= 0.0001f)
+                {
+                    direction = NeonVector2.Up;
+                }
+
+                // Fan multiple missiles out slightly so they do not perfectly overlap.
+                var spread = (index - (count - 1) * 0.5f) * 0.25f;
+                run.Projectiles.Add(new NeonRunProjectileState
+                {
+                    Position = run.Player.Position,
+                    Velocity = Rotate(direction, spread) * 1.3f,
+                    Damage = damage,
+                    Radius = 0.16f,
+                    RemainingLife = 3.5f,
+                    FromPlayer = true,
+                    IsHoming = true,
+                    ExplosionRadius = explosionRadius,
+                    SplitsOnHit = splits
+                });
+            }
+
+            run.Player.MissileCooldownRemaining = level >= 3 ? 1.5f : 2.2f;
+        }
+
+        private void TickLaserWings(NeonRunState run)
+        {
+            var level = run.Build.GetLevel("laser_wings");
+            if (level <= 0 || run.Player.LaserCooldownRemaining > 0f)
+            {
+                return;
+            }
+
+            var facing = run.Player.LastMoveDirection.SqrMagnitude > 0.0001f ? run.Player.LastMoveDirection.Normalized : NeonVector2.Up;
+            var damage = run.Player.Stats.AttackDamage * (0.5f + 0.1f * level);
+            var speed = level >= 3 ? 2.6f : 2.0f; // longer reach at level 3+
+            var life = level >= 3 ? 1.1f : 0.85f;
+
+            // Base beams fire perpendicular to facing (left and right wings).
+            const float halfPi = 1.5707964f;
+            FireLaserBolt(run, Rotate(facing, halfPi), damage, speed, life);
+            FireLaserBolt(run, Rotate(facing, -halfPi), damage, speed, life);
+            if (level >= 5)
+            {
+                // Double beam: add a second pair angled slightly forward.
+                FireLaserBolt(run, Rotate(facing, halfPi + 0.35f), damage, speed, life);
+                FireLaserBolt(run, Rotate(facing, -halfPi - 0.35f), damage, speed, life);
+            }
+
+            run.Player.LaserCooldownRemaining = level >= 4 ? 0.8f : 1.2f;
+        }
+
+        private void FireLaserBolt(NeonRunState run, NeonVector2 direction, float damage, float speed, float life)
+        {
+            run.Projectiles.Add(new NeonRunProjectileState
+            {
+                Position = run.Player.Position,
+                Velocity = direction * speed,
+                Damage = damage,
+                Radius = 0.14f,
+                RemainingLife = life,
+                RemainingPierce = 3,
+                FromPlayer = true
+            });
+        }
+
         private void TickProjectiles(NeonRunState run, float deltaTime)
         {
             for (var projectileIndex = run.Projectiles.Count - 1; projectileIndex >= 0; projectileIndex--)
             {
                 var projectile = run.Projectiles[projectileIndex];
+
+                if (projectile.IsHoming)
+                {
+                    var target = FindNearestEnemy(run, projectile.Position);
+                    if (target != null)
+                    {
+                        var speed = projectile.Velocity.Magnitude;
+                        if (speed <= 0.0001f)
+                        {
+                            speed = 1.3f;
+                        }
+
+                        projectile.Velocity = (target.Position - projectile.Position).Normalized * speed;
+                    }
+                }
+
                 projectile.Position += projectile.Velocity * deltaTime;
                 projectile.RemainingLife -= deltaTime;
 
@@ -212,6 +314,14 @@ namespace NeonSkySurvivors.Core.Systems
                 }
 
                 enemy.HP -= projectile.Damage;
+
+                if (projectile.ExplosionRadius > 0f)
+                {
+                    DetonateProjectile(run, projectile, enemy.Position);
+                    run.Projectiles.RemoveAt(projectileIndex);
+                    return true;
+                }
+
                 if (projectile.RemainingPierce > 0)
                 {
                     projectile.RemainingPierce -= 1;
@@ -223,6 +333,39 @@ namespace NeonSkySurvivors.Core.Systems
             }
 
             return false;
+        }
+
+        private void DetonateProjectile(NeonRunState run, NeonRunProjectileState projectile, NeonVector2 center)
+        {
+            // Area damage to every enemy within the blast radius.
+            foreach (var enemy in run.Enemies)
+            {
+                if (NeonVector2.Distance(enemy.Position, center) <= projectile.ExplosionRadius)
+                {
+                    enemy.HP -= projectile.Damage * 0.75f;
+                }
+            }
+
+            if (!projectile.SplitsOnHit)
+            {
+                return;
+            }
+
+            // Level 5 missiles split into two non-homing fragments on impact.
+            for (var index = 0; index < 2; index++)
+            {
+                var direction = Rotate(NeonVector2.Up, index == 0 ? 0.6f : -0.6f);
+                run.Projectiles.Add(new NeonRunProjectileState
+                {
+                    Position = center,
+                    Velocity = direction * 1.6f,
+                    Damage = projectile.Damage * 0.5f,
+                    Radius = 0.12f,
+                    RemainingLife = 1.2f,
+                    RemainingPierce = 1,
+                    FromPlayer = true
+                });
+            }
         }
 
         private bool ResolveEnemyProjectileHits(NeonRunState run, NeonRunProjectileState projectile, int projectileIndex)
@@ -635,6 +778,13 @@ namespace NeonSkySurvivors.Core.Systems
         private static NeonVector2 ClampToArena(NeonVector2 position)
         {
             return new NeonVector2(Math.Max(-1f, Math.Min(1f, position.X)), Math.Max(-1f, Math.Min(1f, position.Y)));
+        }
+
+        private static NeonVector2 Rotate(NeonVector2 value, float radians)
+        {
+            var cos = (float)Math.Cos(radians);
+            var sin = (float)Math.Sin(radians);
+            return new NeonVector2(value.X * cos - value.Y * sin, value.X * sin + value.Y * cos);
         }
 
         private static float DistanceToSegment(NeonVector2 point, NeonVector2 start, NeonVector2 end)

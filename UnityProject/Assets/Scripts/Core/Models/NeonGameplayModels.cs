@@ -87,6 +87,7 @@ namespace NeonSkySurvivors.Core.Models
         public float XP;
         public float XPToNextLevel = 5f;
         public int CoinsCollected;
+        public float OrbitAngle;
     }
 
     [Serializable]
@@ -163,6 +164,7 @@ namespace NeonSkySurvivors.Core.Models
         public List<NeonRunProjectileState> Projectiles = new List<NeonRunProjectileState>();
         public List<NeonXpShardState> XpShards = new List<NeonXpShardState>();
         public List<NeonDashTrailState> DashTrails = new List<NeonDashTrailState>();
+        public List<NeonVector2> OrbitBlades = new List<NeonVector2>();
         public List<NeonUpgradeDef> DraftChoices = new List<NeonUpgradeDef>();
         public HashSet<string> SpawnedBossIDs = new HashSet<string>();
         public int EnemiesKilled;

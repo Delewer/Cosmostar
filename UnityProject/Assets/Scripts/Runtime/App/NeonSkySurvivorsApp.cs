@@ -17,6 +17,7 @@ namespace NeonSkySurvivors.Runtime.App
         private const int MaxProjectileViews = 80;
         private const int MaxXpViews = 80;
         private const int MaxTrailViews = 24;
+        private const int MaxOrbitViews = 6;
         private const int GridVerticalLines = 9;
         private const int GridHorizontalLines = 13;
         private const float GridScrollSpeed = 1.5f;
@@ -31,6 +32,7 @@ namespace NeonSkySurvivors.Runtime.App
         private readonly List<SpriteRenderer> _enemyViews = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> _projectileViews = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> _xpViews = new List<SpriteRenderer>();
+        private readonly List<SpriteRenderer> _orbitViews = new List<SpriteRenderer>();
         private readonly List<LineRenderer> _trailViews = new List<LineRenderer>();
         private readonly List<Button> _upgradeButtons = new List<Button>();
         private readonly List<LineRenderer> _gridLines = new List<LineRenderer>();
@@ -226,7 +228,27 @@ namespace NeonSkySurvivors.Runtime.App
             RenderProjectiles();
             RenderXp();
             RenderTrails();
+            RenderOrbitBlades();
             RenderPlayer();
+        }
+
+        private void RenderOrbitBlades()
+        {
+            HideAll(_orbitViews);
+            if (_run.Status != NeonRunStatus.Running && _run.Status != NeonRunStatus.LevelUpDraft)
+            {
+                return;
+            }
+
+            var count = Mathf.Min(_run.OrbitBlades.Count, _orbitViews.Count);
+            for (var index = 0; index < count; index++)
+            {
+                var view = _orbitViews[index];
+                view.gameObject.SetActive(true);
+                view.transform.position = ToWorld(_run.OrbitBlades[index]);
+                view.transform.localScale = Vector3.one * 0.16f;
+                view.color = new Color(0.7f, 0.5f, 1f);
+            }
         }
 
         private void RenderPlayer()
@@ -558,6 +580,7 @@ namespace NeonSkySurvivors.Runtime.App
             CreateSpritePool("Enemies", MaxEnemyViews, _enemyViews, 1);
             CreateSpritePool("Projectiles", MaxProjectileViews, _projectileViews, 2);
             CreateSpritePool("XP", MaxXpViews, _xpViews, 3);
+            CreateSpritePool("Orbit", MaxOrbitViews, _orbitViews, 4);
 
             var trailRoot = new GameObject("Dash Trail Pool");
             for (var index = 0; index < MaxTrailViews; index++)
@@ -1599,6 +1622,7 @@ namespace NeonSkySurvivors.Runtime.App
             HideAll(_enemyViews);
             HideAll(_projectileViews);
             HideAll(_xpViews);
+            HideAll(_orbitViews);
             for (var index = 0; index < _trailViews.Count; index++)
             {
                 _trailViews[index].gameObject.SetActive(false);

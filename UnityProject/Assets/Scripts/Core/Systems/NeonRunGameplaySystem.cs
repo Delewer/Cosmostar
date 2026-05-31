@@ -77,6 +77,7 @@ namespace NeonSkySurvivors.Core.Systems
             TickAutoFire(run, deltaTime);
             TickHomingMissiles(run);
             TickLaserWings(run);
+            TickOrbitBlades(run, deltaTime);
             TickProjectiles(run, deltaTime);
             TickEnemyMovementAndContact(run, deltaTime);
             TickDashTrails(run, deltaTime);
@@ -238,6 +239,46 @@ namespace NeonSkySurvivors.Core.Systems
             }
 
             run.Player.LaserCooldownRemaining = level >= 4 ? 0.8f : 1.2f;
+        }
+
+        private void TickOrbitBlades(NeonRunState run, float deltaTime)
+        {
+            run.OrbitBlades.Clear();
+            var level = run.Build.GetLevel("orbit_blades");
+            if (level <= 0)
+            {
+                return;
+            }
+
+            var count = level >= 2 ? 2 : 1;
+            var radius = level >= 3 ? 0.34f : 0.26f;
+            var rotationSpeed = level >= 4 ? 3.5f : 2.2f;
+            var knockback = level >= 5;
+            var damagePerSecond = run.Player.Stats.AttackDamage * 2.5f;
+
+            run.Player.OrbitAngle += rotationSpeed * deltaTime;
+            const float twoPi = 6.2831855f;
+            for (var index = 0; index < count; index++)
+            {
+                var angle = run.Player.OrbitAngle + index * (twoPi / count);
+                var bladePosition = run.Player.Position + new NeonVector2((float)Math.Cos(angle), (float)Math.Sin(angle)) * radius;
+                run.OrbitBlades.Add(bladePosition);
+
+                foreach (var enemy in run.Enemies)
+                {
+                    if (NeonVector2.Distance(enemy.Position, bladePosition) > 0.14f)
+                    {
+                        continue;
+                    }
+
+                    enemy.HP -= damagePerSecond * deltaTime;
+                    if (knockback)
+                    {
+                        var push = (enemy.Position - run.Player.Position).Normalized * 0.02f;
+                        enemy.Position = ClampToArena(enemy.Position + push);
+                    }
+                }
+            }
         }
 
         private void FireLaserBolt(NeonRunState run, NeonVector2 direction, float damage, float speed, float life)

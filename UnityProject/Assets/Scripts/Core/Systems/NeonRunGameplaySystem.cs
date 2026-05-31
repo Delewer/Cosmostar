@@ -86,7 +86,7 @@ namespace NeonSkySurvivors.Core.Systems
             TrySpawnWaveEnemies(run, catalog, deltaTime);
         }
 
-        public bool ApplyUpgradeChoice(NeonRunState run, NeonUpgradeDef upgrade)
+        public bool ApplyUpgradeChoice(NeonRunState run, NeonSkySurvivorsCatalog catalog, NeonUpgradeDef upgrade)
         {
             if (run.Status != NeonRunStatus.LevelUpDraft || upgrade == null || !run.DraftChoices.Contains(upgrade))
             {
@@ -101,7 +101,7 @@ namespace NeonSkySurvivors.Core.Systems
 
             run.Build.UpgradeLevels[upgrade.Id] = currentLevel + 1;
             ApplyUpgradeStats(run, upgrade);
-            TryEvolve(run, upgrade);
+            CheckEvolutions(run, catalog);
             run.DraftChoices.Clear();
             run.Status = NeonRunStatus.Running;
             return true;
@@ -160,15 +160,35 @@ namespace NeonSkySurvivors.Core.Systems
             var direction = (target.Position - run.Player.Position).Normalized;
             var isCritical = _random.NextDouble() <= run.Player.Stats.CriticalChance;
             var damage = run.Player.Stats.AttackDamage * (isCritical ? run.Player.Stats.CriticalDamage : 1f);
-            run.Projectiles.Add(new NeonRunProjectileState
+
+            if (HasEvolution(run, "plasma_storm"))
             {
-                Position = run.Player.Position,
-                Velocity = direction * 1.8f,
-                Damage = damage,
-                Radius = isCritical ? 0.24f : 0.18f,
-                RemainingPierce = HasUpgrade(run, "plasma_blaster") && run.Build.GetLevel("plasma_blaster") >= 5 ? 1 : 0,
-                FromPlayer = true
-            });
+                // Plasma Storm: a hard-hitting, piercing 3-way spread.
+                for (var shot = -1; shot <= 1; shot++)
+                {
+                    run.Projectiles.Add(new NeonRunProjectileState
+                    {
+                        Position = run.Player.Position,
+                        Velocity = Rotate(direction, shot * 0.18f) * 1.9f,
+                        Damage = damage * 1.4f,
+                        Radius = isCritical ? 0.26f : 0.2f,
+                        RemainingPierce = 2,
+                        FromPlayer = true
+                    });
+                }
+            }
+            else
+            {
+                run.Projectiles.Add(new NeonRunProjectileState
+                {
+                    Position = run.Player.Position,
+                    Velocity = direction * 1.8f,
+                    Damage = damage,
+                    Radius = isCritical ? 0.24f : 0.18f,
+                    RemainingPierce = HasUpgrade(run, "plasma_blaster") && run.Build.GetLevel("plasma_blaster") >= 5 ? 1 : 0,
+                    FromPlayer = true
+                });
+            }
 
             run.Player.WeaponCooldownRemaining = 1f / Math.Max(0.1f, run.Player.Stats.FireRate);
         }
@@ -185,6 +205,17 @@ namespace NeonSkySurvivors.Core.Systems
             var explosionRadius = level >= 4 ? 0.32f : 0.18f;
             var splits = level >= 5;
             var damage = run.Player.Stats.AttackDamage * 0.9f;
+            var cooldown = level >= 3 ? 1.5f : 2.2f;
+
+            if (HasEvolution(run, "rocket_swarm"))
+            {
+                // Rocket Swarm: more missiles, always-splitting, larger blasts, rapid cadence.
+                count += 2;
+                explosionRadius = Math.Max(explosionRadius, 0.34f);
+                splits = true;
+                damage *= 1.2f;
+                cooldown *= 0.6f;
+            }
 
             for (var index = 0; index < count; index++)
             {
@@ -211,7 +242,7 @@ namespace NeonSkySurvivors.Core.Systems
                 });
             }
 
-            run.Player.MissileCooldownRemaining = level >= 3 ? 1.5f : 2.2f;
+            run.Player.MissileCooldownRemaining = cooldown;
         }
 
         private void TickLaserWings(NeonRunState run)
@@ -734,17 +765,32 @@ namespace NeonSkySurvivors.Core.Systems
             }
         }
 
-        private void TryEvolve(NeonRunState run, NeonUpgradeDef upgrade)
+        private void CheckEvolutions(NeonRunState run, NeonSkySurvivorsCatalog catalog)
         {
-            if (string.IsNullOrWhiteSpace(upgrade.EvolutionId) || run.Build.GetLevel(upgrade.Id) < upgrade.MaxLevel || string.IsNullOrWhiteSpace(upgrade.RequiredPassiveId))
+            // Scan every weapon upgrade so an evolution triggers regardless of whether the
+            // weapon or its required passive was the most recently picked card.
+            foreach (var upgrade in catalog.Upgrades)
             {
-                return;
-            }
+                if (string.IsNullOrWhiteSpace(upgrade.EvolutionId) || string.IsNullOrWhiteSpace(upgrade.RequiredPassiveId))
+                {
+                    continue;
+                }
 
-            if (run.Build.GetLevel(upgrade.RequiredPassiveId) >= 1 && !run.Build.EvolvedWeapons.Contains(upgrade.EvolutionId))
-            {
-                run.Build.EvolvedWeapons.Add(upgrade.EvolutionId);
+                if (run.Build.GetLevel(upgrade.Id) < upgrade.MaxLevel || run.Build.GetLevel(upgrade.RequiredPassiveId) < 1)
+                {
+                    continue;
+                }
+
+                if (!run.Build.EvolvedWeapons.Contains(upgrade.EvolutionId))
+                {
+                    run.Build.EvolvedWeapons.Add(upgrade.EvolutionId);
+                }
             }
+        }
+
+        private static bool HasEvolution(NeonRunState run, string evolutionId)
+        {
+            return run.Build.EvolvedWeapons.Contains(evolutionId);
         }
 
         private static bool HasUpgrade(NeonRunState run, string upgradeId)

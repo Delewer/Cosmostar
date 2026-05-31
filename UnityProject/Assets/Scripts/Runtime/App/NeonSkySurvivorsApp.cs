@@ -539,7 +539,7 @@ namespace NeonSkySurvivors.Runtime.App
             }
 
             var choice = _run.DraftChoices[index];
-            if (_gameplay.ApplyUpgradeChoice(_run, choice))
+            if (_gameplay.ApplyUpgradeChoice(_run, _catalog, choice))
             {
                 _messageText.text = "Installed: " + choice.Name;
                 UpdateUpgradeChoices(false);

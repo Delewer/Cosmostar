@@ -136,6 +136,11 @@ namespace NeonSkySurvivors.Core.Models
         public int CompletedRuns;
         public float BestSurvivalTime;
         public int BossesDefeated;
+        public float MusicVolume = 0.8f;
+        public float SfxVolume = 1.0f;
+        public bool VibrationEnabled = true;
+        public int AccountLevel = 1;
+        public int AccountXP = 0;
         public Dictionary<string, string> Settings = new Dictionary<string, string>();
     }
 

@@ -17,6 +17,8 @@ namespace NeonSkySurvivors.Runtime.App
         private readonly List<AudioSource> _sfxSources = new List<AudioSource>();
         private AudioSource _musicSource = null!;
         private int _sfxIndex;
+        private float _sfxVolume = 1f;
+        private float _musicVolume = 0.8f;
         private bool _enabled = true;
         private string _musicMode = string.Empty;
 
@@ -46,6 +48,25 @@ namespace NeonSkySurvivors.Runtime.App
                     _musicMode = "off";
                 }
             }
+        }
+
+        public float MusicVolume
+        {
+            get => _musicVolume;
+            set
+            {
+                _musicVolume = Mathf.Clamp01(value);
+                if (_musicSource != null)
+                {
+                    _musicSource.volume = _musicVolume * (_musicMode == "boss" ? 0.4f : 0.32f);
+                }
+            }
+        }
+
+        public float SfxVolume
+        {
+            get => _sfxVolume;
+            set => _sfxVolume = Mathf.Clamp01(value);
         }
 
         public void Initialize(Transform parent)
@@ -122,7 +143,7 @@ namespace NeonSkySurvivors.Runtime.App
             }
 
             _musicSource.clip = mode == "boss" ? _musicBoss : _musicNormal;
-            _musicSource.volume = mode == "boss" ? 0.4f : 0.32f;
+            _musicSource.volume = _musicVolume * (mode == "boss" ? 0.4f : 0.32f);
             _musicSource.Play();
         }
 
@@ -141,7 +162,7 @@ namespace NeonSkySurvivors.Runtime.App
 
             var source = _sfxSources[_sfxIndex];
             _sfxIndex = (_sfxIndex + 1) % _sfxSources.Count;
-            source.PlayOneShot(clip, Mathf.Clamp01(volume));
+            source.PlayOneShot(clip, Mathf.Clamp01(volume * _sfxVolume));
         }
 
         private static AudioClip CreateBlip(string name, float startFreq, float endFreq, float duration, float volume, bool square)

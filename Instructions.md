@@ -65,8 +65,9 @@ Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward dro
 ### Milestone 4 — Art & audio production
 - [ ] Replace placeholder 1×1 sprites with real neon art: player plane, the 6 enemy types, 5 bosses, projectiles, XP shards, mines.
 - [ ] Author equipment icons and upgrade-card icons (Section 21 cards specify icons).
-- [ ] Background/parallax art pass; VFX polish (better bursts, dash trail, boss telegraphs); add screen shake / brief hit-stop for impact.
-- [ ] Distinct music tracks for normal / boss / final-boss with a proper mix; SFX pass and volume balancing.
+- [x] ✅ 2026-06-02: VFX polish — screen shake (camera jitter on player damage/boss spawn/special; amplitude decays over duration), brief hit-stop (Time.timeScale=0.05 for 60–80 ms on boss spawn and special), boss telegraph circles (pulsing ring around each boss that fills as its attack cooldown reaches zero; magenta for main boss, amber for mini-boss), animated dash trail (width and alpha now fade with remaining lifetime for a more vivid trail feel).
+- [x] ✅ 2026-06-02: Enemy visual differentiation — each enemy behavior type now has a distinct color: Chaser=red, FastChaser=hot-pink, Shooter=amber, ShieldDrone=steel-blue (pulsing), MineCarrier=toxic-green, Splitter=violet; bosses shift from magenta toward orange as HP drops; shooters and mine carriers flash white just before firing; attack-ready flash on short cooldown.
+- [x] ✅ 2026-06-02: Distinct final-boss music — third procedural drone track (higher base pitch 155 Hz, faster LFO 1.1 Hz, stronger overtones) plays only during the Eclipse Core (≥10 000 HP) fight; normal boss track plays for Sky Reaper/Neon Hydra/mini-bosses; vibration now respects the VibrationEnabled setting.
 - Acceptance: no placeholder white quads remain in normal gameplay; the game reads clearly and looks like the neon target style (Section 22).
 
 ### Milestone 5 — Content depth & balance

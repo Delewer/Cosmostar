@@ -25,6 +25,19 @@ namespace NeonSkySurvivors.Runtime.App
         private const float GridBottom = -6f;
         private const int StarCount = 46;
         private const int MaxParticles = 160;
+        private const int MaxBossTelegraphCircles = 8;
+
+        // Screen-shake state
+        private float _shakeRemaining;
+        private float _shakeAmplitude;
+        private Vector3 _cameraBasePosition;
+
+        // Hit-stop state
+        private float _hitStopRemaining;
+
+        // Boss telegraph circles (danger zone rings)
+        private readonly List<LineRenderer> _telegraphCircles = new List<LineRenderer>();
+        private readonly List<float> _telegraphRadii = new List<float>();
 
         private readonly NeonRunGameplaySystem _gameplay = new NeonRunGameplaySystem();
         private readonly NeonEquipmentSystem _equipment = new NeonEquipmentSystem();
@@ -123,10 +136,12 @@ namespace NeonSkySurvivors.Runtime.App
             _sprite = CreateSprite();
 
             EnsureCamera();
+            _cameraBasePosition = _camera.transform.position;
             EnsureEventSystem();
             CreateNeonBackground();
             CreatePlayerView();
             CreatePools();
+            CreateTelegraphCirclePool();
             CreateParticlePool();
             CreateHud();
             _audio.Initialize(transform);
@@ -143,17 +158,27 @@ namespace NeonSkySurvivors.Runtime.App
 
             HandleTouchInput();
 
+            // Advance hit-stop timer — restores timescale once done.
+            if (_hitStopRemaining > 0f)
+            {
+                _hitStopRemaining -= Time.unscaledDeltaTime;
+                if (_hitStopRemaining <= 0f) Time.timeScale = 1f;
+            }
+
+            var dt = Mathf.Min(Time.deltaTime, 0.05f);
+
             if (!_paused && _run.Status == NeonRunStatus.Running)
             {
                 CapturePreTickEnemies();
-                _gameplay.Tick(_run, _catalog, Mathf.Min(Time.deltaTime, 0.05f));
+                _gameplay.Tick(_run, _catalog, dt);
                 SpawnDeathBursts();
             }
 
             RenderRun();
-            UpdateNeonBackground(Time.deltaTime);
-            UpdateParticles(Time.deltaTime);
-            UpdateAudio(Time.deltaTime);
+            UpdateNeonBackground(dt);
+            UpdateParticles(dt);
+            UpdateScreenShake(dt);
+            UpdateAudio(dt);
             UpdateHud();
         }
 
@@ -302,7 +327,7 @@ namespace NeonSkySurvivors.Runtime.App
             if (_run != null && _gameplay.TryDash(_run))
             {
                 _audio.PlayDash();
-                Handheld.Vibrate();
+                if (_profile.VibrationEnabled) Handheld.Vibrate();
             }
         }
 
@@ -314,6 +339,7 @@ namespace NeonSkySurvivors.Runtime.App
             RenderTrails();
             RenderOrbitBlades();
             RenderPlayer();
+            RenderBossTelegraphs();
         }
 
         private void RenderOrbitBlades()
@@ -380,7 +406,46 @@ namespace NeonSkySurvivors.Runtime.App
                 view.gameObject.SetActive(true);
                 view.transform.position = ToWorld(enemy.Position);
                 view.transform.localScale = Vector3.one * ResolveEnemySize(enemy);
-                view.color = enemy.IsBoss ? (enemy.IsMiniBoss ? new Color(1f, 0.62f, 0.18f) : new Color(1f, 0.18f, 0.82f)) : new Color(1f, 0.24f, 0.36f);
+
+                if (enemy.IsBoss)
+                {
+                    // Phase-based boss pulse: darker when HP is low.
+                    var hpFraction = enemy.MaxHP > 0f ? enemy.HP / enemy.MaxHP : 1f;
+                    var pulse = 0.75f + 0.25f * Mathf.Sin(Time.time * 4f);
+                    view.color = enemy.IsMiniBoss
+                        ? new Color(1f, 0.62f * pulse, 0.18f)
+                        : Color.Lerp(new Color(1f, 0.18f, 0.82f), new Color(1f, 0.65f, 0.1f), 1f - hpFraction) * pulse;
+                }
+                else
+                {
+                    view.color = ResolveEnemyColor(enemy.Behavior);
+                    // Slight pulsing on shield drones
+                    if (enemy.Behavior == NeonEnemyBehaviorType.Tank)
+                    {
+                        var shield = 0.7f + 0.3f * Mathf.Sin(Time.time * 3f);
+                        view.color = new Color(0.28f * shield, 0.72f * shield, 1f * shield);
+                    }
+                }
+
+                // Attack-ready flash on shooters/mine-carriers
+                if (!enemy.IsBoss && enemy.AttackCooldownRemaining <= 0.18f && enemy.AttackCooldownRemaining >= 0f &&
+                    (enemy.Behavior == NeonEnemyBehaviorType.Shooter || enemy.Behavior == NeonEnemyBehaviorType.MineCarrier))
+                {
+                    view.color = Color.white;
+                }
+            }
+        }
+
+        private static Color ResolveEnemyColor(NeonEnemyBehaviorType behavior)
+        {
+            switch (behavior)
+            {
+                case NeonEnemyBehaviorType.FastChaser: return new Color(1f, 0.35f, 0.72f);   // hot pink
+                case NeonEnemyBehaviorType.Shooter:    return new Color(1f, 0.65f, 0.1f);    // amber
+                case NeonEnemyBehaviorType.Tank:       return new Color(0.28f, 0.72f, 1f);   // steel blue
+                case NeonEnemyBehaviorType.MineCarrier: return new Color(0.35f, 0.85f, 0.3f); // toxic green
+                case NeonEnemyBehaviorType.Splitter:   return new Color(0.6f, 0.28f, 1f);    // violet
+                default:                               return new Color(1f, 0.24f, 0.36f);   // red (Chaser)
             }
         }
 
@@ -442,10 +507,18 @@ namespace NeonSkySurvivors.Runtime.App
                 }
 
                 var trail = _run.DashTrails[index];
+                var lifeRatio = Mathf.Clamp01(trail.RemainingLifetime / 1.5f);
+                var alpha = lifeRatio * 0.9f;
+                var width = Mathf.Lerp(0.06f, 0.28f, lifeRatio);
+
                 view.gameObject.SetActive(true);
                 view.positionCount = 2;
                 view.SetPosition(0, ToWorld(trail.Start));
                 view.SetPosition(1, ToWorld(trail.End));
+                view.startWidth = width;
+                view.endWidth = width * 0.3f;
+                view.startColor = new Color(0.36f, 0.95f, 1f, alpha);
+                view.endColor = new Color(0.75f, 0.38f, 1f, alpha * 0.35f);
             }
         }
 
@@ -999,7 +1072,9 @@ namespace NeonSkySurvivors.Runtime.App
             {
                 _audio.PlaySpecial();
                 SpawnBurst(_run.Player.Position, new Color(0.4f, 0.9f, 1f, 0.95f), 28, 5f, 0.18f, 0.6f);
-                Handheld.Vibrate();
+                TriggerScreenShake(0.12f, 0.35f);
+                TriggerHitStop(0.08f);
+                if (_profile.VibrationEnabled) Handheld.Vibrate();
             }
         }
 
@@ -1228,6 +1303,7 @@ namespace NeonSkySurvivors.Runtime.App
             {
                 _audio.PlayPlayerDamage();
                 SpawnBurst(player.Position, new Color(1f, 0.3f, 0.3f, 0.95f), 10, 3.2f, 0.1f, 0.4f);
+                TriggerScreenShake(0.08f, 0.25f);
                 _damageSoundCooldown = 0.25f;
             }
 
@@ -1253,6 +1329,8 @@ namespace NeonSkySurvivors.Runtime.App
             if (bossCount > _prevBossCount)
             {
                 _audio.PlayBossSpawn();
+                TriggerScreenShake(0.18f, 0.5f);
+                TriggerHitStop(0.06f);
             }
 
             _prevBossCount = bossCount;
@@ -1263,7 +1341,14 @@ namespace NeonSkySurvivors.Runtime.App
                 _prevWarning = _run.LastWarning;
             }
 
-            _audio.SetMusic(bossCount > 0 ? "boss" : "normal");
+            // Use "final" music mode when the final boss (Eclipse Core — highest HP boss) is alive.
+            var musicMode = "normal";
+            if (bossCount > 0)
+            {
+                var activeBoss = FindActiveBoss();
+                musicMode = activeBoss != null && !activeBoss.IsMiniBoss && activeBoss.MaxHP >= 10000f ? "final" : "boss";
+            }
+            _audio.SetMusic(musicMode);
         }
 
         private void CreateGaragePanel(Transform parent)
@@ -2339,6 +2424,116 @@ namespace NeonSkySurvivors.Runtime.App
             quitButton.GetComponentInChildren<Text>().fontSize = 32;
 
             _pauseMenuPanel.SetActive(false);
+        }
+
+        // ── Screen shake & hit-stop ───────────────────────────────────────────
+
+        private void TriggerScreenShake(float amplitude, float duration)
+        {
+            _shakeAmplitude = Mathf.Max(_shakeAmplitude, amplitude);
+            _shakeRemaining = Mathf.Max(_shakeRemaining, duration);
+        }
+
+        private void TriggerHitStop(float duration)
+        {
+            if (duration > _hitStopRemaining)
+            {
+                _hitStopRemaining = duration;
+                Time.timeScale = 0.05f;
+            }
+        }
+
+        private void UpdateScreenShake(float deltaTime)
+        {
+            if (_shakeRemaining <= 0f)
+            {
+                _camera.transform.position = _cameraBasePosition;
+                _shakeAmplitude = 0f;
+                return;
+            }
+
+            _shakeRemaining -= deltaTime;
+            var decay = _shakeRemaining > 0f ? _shakeRemaining : 0f;
+            var magnitude = _shakeAmplitude * decay;
+            var offset = new Vector3(
+                UnityEngine.Random.Range(-magnitude, magnitude),
+                UnityEngine.Random.Range(-magnitude, magnitude),
+                0f);
+            _camera.transform.position = _cameraBasePosition + offset;
+            if (_shakeRemaining <= 0f) _shakeAmplitude = 0f;
+        }
+
+        // ── Boss telegraph circles ─────────────────────────────────────────────
+
+        private void CreateTelegraphCirclePool()
+        {
+            var root = new GameObject("Boss Telegraphs");
+            var mat = new Material(Shader.Find("Sprites/Default"));
+            for (var index = 0; index < MaxBossTelegraphCircles; index++)
+            {
+                var obj = new GameObject("Telegraph " + index);
+                obj.transform.SetParent(root.transform, false);
+                var line = obj.AddComponent<LineRenderer>();
+                line.material = mat;
+                line.useWorldSpace = true;
+                line.loop = true;
+                line.positionCount = 32;
+                line.startWidth = 0.06f;
+                line.endWidth = 0.06f;
+                line.sortingOrder = 3;
+                obj.SetActive(false);
+                _telegraphCircles.Add(line);
+                _telegraphRadii.Add(0f);
+            }
+        }
+
+        private void RenderBossTelegraphs()
+        {
+            // Hide all first.
+            for (var index = 0; index < _telegraphCircles.Count; index++)
+            {
+                _telegraphCircles[index].gameObject.SetActive(false);
+            }
+
+            if (_run == null || (_run.Status != NeonRunStatus.Running && _run.Status != NeonRunStatus.LevelUpDraft))
+            {
+                return;
+            }
+
+            var circleIndex = 0;
+            for (var enemyIndex = 0; enemyIndex < _run.Enemies.Count && circleIndex < _telegraphCircles.Count; enemyIndex++)
+            {
+                var enemy = _run.Enemies[enemyIndex];
+                if (!enemy.IsBoss) continue;
+
+                // Show an attack-ready telegraph ring as the cooldown nears zero.
+                var readiness = enemy.AttackCooldownRemaining;
+                if (readiness > 0.9f || readiness < 0f) continue; // not about to fire
+
+                var t = 1f - Mathf.Clamp01(readiness / 0.9f); // 0→1 as attack approaches
+                var radius = (enemy.IsMiniBoss ? 1.2f : 1.8f) * (0.5f + 0.5f * t);
+                var alpha = t * 0.75f;
+                var col = enemy.IsMiniBoss
+                    ? new Color(1f, 0.65f, 0.15f, alpha)
+                    : new Color(0.9f, 0.15f, 0.75f, alpha);
+
+                DrawTelegraphCircle(_telegraphCircles[circleIndex], ToWorld(enemy.Position), radius, col);
+                _telegraphCircles[circleIndex].gameObject.SetActive(true);
+                circleIndex++;
+            }
+        }
+
+        private static void DrawTelegraphCircle(LineRenderer line, Vector3 center, float radius, Color color)
+        {
+            const int segments = 32;
+            line.positionCount = segments;
+            line.startColor = color;
+            line.endColor = color;
+            for (var i = 0; i < segments; i++)
+            {
+                var angle = i / (float)segments * Mathf.PI * 2f;
+                line.SetPosition(i, center + new Vector3(Mathf.Cos(angle) * radius, Mathf.Sin(angle) * radius, 0f));
+            }
         }
 
         // ── Garage slot arrangement ──────────────────────────────────────────

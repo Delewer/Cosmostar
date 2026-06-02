@@ -141,6 +141,8 @@ namespace NeonSkySurvivors.Core.Models
         public bool VibrationEnabled = true;
         public int AccountLevel = 1;
         public int AccountXP = 0;
+        public List<NeonActiveMission> ActiveMissions = new List<NeonActiveMission>();
+        public long MissionLastResetTicks;
         public Dictionary<string, string> Settings = new Dictionary<string, string>();
     }
 
@@ -209,6 +211,28 @@ namespace NeonSkySurvivors.Core.Models
         public int MiniBossCoinBonus = 18;
         public int SurvivalMinuteCoins = 3;
         public string FinalBossGuaranteedRarity = nameof(NeonEquipmentRarity.Rare);
+    }
+
+    public enum NeonMissionType
+    {
+        KillEnemies,
+        SurviveMinutes,
+        DefeatBoss,
+        CompleteRun
+    }
+
+    [Serializable]
+    public sealed class NeonActiveMission
+    {
+        public string MissionId = string.Empty;
+        public string Name = string.Empty;
+        public string Description = string.Empty;
+        public NeonMissionType Type;
+        public int TargetCount;
+        public int CurrentCount;
+        public bool Claimed;
+        public int RewardCoins;
+        public int RewardAccountXP;
     }
 
     [Serializable]

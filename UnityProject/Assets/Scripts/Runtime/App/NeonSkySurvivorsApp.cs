@@ -78,6 +78,8 @@ namespace NeonSkySurvivors.Runtime.App
         private Button _mergeButton = null!;
         private readonly List<GameObject> _inventoryCards = new List<GameObject>();
         private string _selectedInstanceId = string.Empty;
+        private NeonEquipmentSlot? _selectedSlotFilter;
+        private readonly Dictionary<NeonEquipmentSlot, Button> _slotFilterButtons = new Dictionary<NeonEquipmentSlot, Button>();
         private GameObject _resultsPanel = null!;
         private Text _resultsTitleText = null!;
         private Text _resultsStatsText = null!;
@@ -95,6 +97,8 @@ namespace NeonSkySurvivors.Runtime.App
         private bool _settingsFromMainMenu;
         private GameObject _pauseMenuPanel = null!;
         private readonly List<string> _lastRewardItemList = new List<string>();
+        private GameObject _missionsPanel = null!;
+        private RectTransform _missionsContent = null!;
 
         private NeonRunStatus _prevStatus;
         private int _prevEnemiesKilled;
@@ -166,6 +170,7 @@ namespace NeonSkySurvivors.Runtime.App
             _pauseMenuPanel.SetActive(false);
             _mainMenuPanel.SetActive(false);
             _settingsPanel.SetActive(false);
+            _missionsPanel.SetActive(false);
             SetRunHudVisible(true);
             _statusText.text = string.Empty;
             _messageText.text = "Survive 10 minutes. Bosses at 3:00, 6:00, 7:30, 8:45, 10:00.";
@@ -179,6 +184,7 @@ namespace NeonSkySurvivors.Runtime.App
             _run = null!;
             _paused = true;
             _resultApplied = false;
+            _selectedSlotFilter = null;
             HideRuntimeViews();
             UpdateUpgradeChoices(false);
             SetRunHudVisible(false);
@@ -186,6 +192,7 @@ namespace NeonSkySurvivors.Runtime.App
             _mainMenuPanel.SetActive(false);
             _settingsPanel.SetActive(false);
             _pauseMenuPanel.SetActive(false);
+            _missionsPanel.SetActive(false);
             _garagePanel.SetActive(true);
             UpdateGaragePanel();
             _audio.StopMusic();
@@ -202,6 +209,7 @@ namespace NeonSkySurvivors.Runtime.App
             _settingsPanel.SetActive(false);
             _pauseMenuPanel.SetActive(false);
             _resultsPanel.SetActive(false);
+            _missionsPanel.SetActive(false);
             _mainMenuPanel.SetActive(true);
             UpdateMainMenuPanel();
             _audio.StopMusic();
@@ -501,6 +509,7 @@ namespace NeonSkySurvivors.Runtime.App
                 _profile.BestSurvivalTime = Mathf.Max(_profile.BestSurvivalTime, _run.ElapsedSeconds);
                 _profile.BossesDefeated += _run.BossesKilled + _run.MiniBossesKilled;
                 _resultApplied = true;
+                UpdateMissionProgressFromRun(_run);
                 NeonSaveService.Save(_profile);
             }
 
@@ -956,6 +965,7 @@ namespace NeonSkySurvivors.Runtime.App
             CreateMainMenuPanel(canvasObject.transform);
             CreateSettingsPanel(canvasObject.transform);
             CreatePauseMenuPanel(canvasObject.transform);
+            CreateMissionsPanel(canvasObject.transform);
         }
 
         private void CreateSpecialButton(Transform parent)
@@ -1272,8 +1282,10 @@ namespace NeonSkySurvivors.Runtime.App
             _garageTitleText = CreateText(_garagePanel.transform, "Garage Title", new Vector2(0f, -40f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 46, new Color(0.68f, 1f, 1f));
             _garageTitleText.rectTransform.sizeDelta = new Vector2(-80f, 120f);
 
-            _garageStatsText = CreateText(_garagePanel.transform, "Garage Stats", new Vector2(0f, -170f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 28, Color.white);
-            _garageStatsText.rectTransform.sizeDelta = new Vector2(-100f, 330f);
+            _garageStatsText = CreateText(_garagePanel.transform, "Garage Stats", new Vector2(0f, -170f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 26, Color.white);
+            _garageStatsText.rectTransform.sizeDelta = new Vector2(-100f, 80f);
+
+            CreateSlotArrangement(_garagePanel.transform);
 
             // Scrollable inventory grid occupies the middle band of the screen.
             _inventoryContent = CreateInventoryScroll(_garagePanel.transform, new Vector2(0.04f, 0.345f), new Vector2(0.96f, 0.74f));
@@ -1293,6 +1305,11 @@ namespace NeonSkySurvivors.Runtime.App
             settingsBtn.GetComponent<Image>().color = new Color(0.08f, 0.18f, 0.28f, 0.92f);
             settingsBtn.GetComponentInChildren<Text>().fontSize = 26;
 
+            var missionsBtn = CreateButton(_garagePanel.transform, "Missions", new Vector2(290f, 240f), ShowMissions);
+            missionsBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 90f);
+            missionsBtn.GetComponent<Image>().color = new Color(0.14f, 0.22f, 0.1f, 0.92f);
+            missionsBtn.GetComponentInChildren<Text>().fontSize = 26;
+
             var backToMenuBtn = CreateButton(_garagePanel.transform, "< Menu", new Vector2(-290f, 240f), ShowMainMenu);
             backToMenuBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, 90f);
             backToMenuBtn.GetComponent<Image>().color = new Color(0.08f, 0.14f, 0.22f, 0.92f);
@@ -1303,6 +1320,101 @@ namespace NeonSkySurvivors.Runtime.App
             startRunButton.GetComponent<Image>().color = new Color(0.02f, 0.42f, 0.48f, 0.96f);
 
             _garagePanel.SetActive(false);
+        }
+
+        private void CreateSlotArrangement(Transform parent)
+        {
+            var panel = new GameObject("Slot Arrangement", typeof(RectTransform), typeof(Image));
+            panel.transform.SetParent(parent, false);
+            var panelRect = panel.GetComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.04f, 0.74f);
+            panelRect.anchorMax = new Vector2(0.96f, 0.895f);
+            panelRect.offsetMin = Vector2.zero;
+            panelRect.offsetMax = Vector2.zero;
+            panel.GetComponent<Image>().color = new Color(0.02f, 0.05f, 0.1f, 0.6f);
+
+            NeonEquipmentSlot[] row0 = { NeonEquipmentSlot.Wings, NeonEquipmentSlot.Weapon, NeonEquipmentSlot.Engine };
+            NeonEquipmentSlot[] row1 = { NeonEquipmentSlot.Hull, NeonEquipmentSlot.Core, NeonEquipmentSlot.Radar };
+
+            CreateSlotRow(panel.transform, row0, 0);
+            CreateSlotRow(panel.transform, row1, 1);
+        }
+
+        private void CreateSlotRow(Transform parent, NeonEquipmentSlot[] slots, int rowIndex)
+        {
+            for (var col = 0; col < slots.Length; col++)
+            {
+                var slot = slots[col];
+                var capturedSlot = slot;
+                var colFrac = col / 3f;
+                var rowFrac = rowIndex == 0 ? 0.5f : 0f;
+
+                var btnObject = new GameObject(slot + " Slot Btn", typeof(RectTransform), typeof(Image), typeof(Button));
+                btnObject.transform.SetParent(parent, false);
+                var rect = btnObject.GetComponent<RectTransform>();
+                rect.anchorMin = new Vector2(colFrac + 0.01f, rowFrac + 0.03f);
+                rect.anchorMax = new Vector2(colFrac + 0.325f, rowFrac + 0.47f);
+                rect.offsetMin = Vector2.zero;
+                rect.offsetMax = Vector2.zero;
+
+                var image = btnObject.GetComponent<Image>();
+                image.color = new Color(0.06f, 0.14f, 0.2f, 0.95f);
+                btnObject.GetComponent<Button>().onClick.AddListener(() => FilterInventoryBySlot(capturedSlot));
+
+                var label = CreateText(btnObject.transform, slot + " Lbl", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 20, Color.white);
+                label.rectTransform.offsetMin = new Vector2(4f, 2f);
+                label.rectTransform.offsetMax = new Vector2(-4f, -2f);
+
+                _slotFilterButtons[slot] = btnObject.GetComponent<Button>();
+            }
+        }
+
+        private void FilterInventoryBySlot(NeonEquipmentSlot slot)
+        {
+            if (_selectedSlotFilter == slot)
+            {
+                _selectedSlotFilter = null; // toggle off → show all
+            }
+            else
+            {
+                _selectedSlotFilter = slot;
+            }
+
+            RebuildInventoryCards();
+            UpdateSlotButtons();
+            UpdateGarageActions();
+        }
+
+        private void UpdateSlotButtons()
+        {
+            foreach (var pair in _slotFilterButtons)
+            {
+                var slot = pair.Key;
+                var button = pair.Value;
+                var equippedId = GetEquippedItemId(slot);
+                var ownedItem = FindOwnedItem(equippedId);
+                var def = FindEquipmentDef(equippedId);
+                var isFiltered = _selectedSlotFilter == slot;
+
+                var rarityColor = ownedItem != null ? ResolveRarityColor(ownedItem.Rarity) : new Color(0.4f, 0.45f, 0.5f);
+                var bg = isFiltered
+                    ? new Color(rarityColor.r * 0.45f + 0.08f, rarityColor.g * 0.45f + 0.08f, rarityColor.b * 0.45f + 0.08f, 0.98f)
+                    : new Color(rarityColor.r * 0.15f + 0.03f, rarityColor.g * 0.15f + 0.03f, rarityColor.b * 0.15f + 0.03f, 0.92f);
+                button.GetComponent<Image>().color = bg;
+
+                var label = button.GetComponentInChildren<Text>();
+                if (label != null)
+                {
+                    var itemName = def != null ? TruncateName(def.Name, 10) : "Empty";
+                    label.text = slot.ToString() + "\n" + itemName + (isFiltered ? " ▼" : "");
+                    label.color = ownedItem != null ? rarityColor : new Color(0.5f, 0.55f, 0.6f);
+                }
+            }
+        }
+
+        private static string TruncateName(string name, int maxLen)
+        {
+            return name.Length <= maxLen ? name : name.Substring(0, maxLen - 1) + "…";
         }
 
         private RectTransform CreateInventoryScroll(Transform parent, Vector2 anchorMin, Vector2 anchorMax)
@@ -1506,13 +1618,18 @@ namespace NeonSkySurvivors.Runtime.App
         {
             var stats = _equipment.CalculateStats(_profile, _catalog);
             _garageTitleText.text = "NEON SKY SURVIVORS — GARAGE";
-            _garageStatsText.text = "Coins " + _profile.PlayerCoins + "   Runs " + _profile.CompletedRuns + "   Best " + FormatTime(_profile.BestSurvivalTime) + "\n"
-                + "ATK " + stats.AttackDamage.ToString("0") + "  Fire " + stats.FireRate.ToString("0.0") + "  Speed " + stats.MovementSpeed.ToString("0.0")
-                + "  HP " + stats.MaxHP.ToString("0") + "  Armor " + stats.Armor.ToString("0") + "  Dash " + stats.DashCooldown.ToString("0.0") + "s\n"
-                + FormatEquippedSlot(NeonEquipmentSlot.Weapon) + "   " + FormatEquippedSlot(NeonEquipmentSlot.Wings) + "\n"
-                + FormatEquippedSlot(NeonEquipmentSlot.Engine) + "   " + FormatEquippedSlot(NeonEquipmentSlot.Hull) + "\n"
-                + FormatEquippedSlot(NeonEquipmentSlot.Core) + "   " + FormatEquippedSlot(NeonEquipmentSlot.Radar);
+            _garageStatsText.text = "Coins " + _profile.PlayerCoins
+                + "   Runs " + _profile.CompletedRuns
+                + "   Best " + FormatTime(_profile.BestSurvivalTime)
+                + "   Lv " + _profile.AccountLevel
+                + "\nATK " + stats.AttackDamage.ToString("0")
+                + "  Fire " + stats.FireRate.ToString("0.0")
+                + "  Speed " + stats.MovementSpeed.ToString("0.0")
+                + "  HP " + stats.MaxHP.ToString("0")
+                + "  Armor " + stats.Armor.ToString("0")
+                + "  Dash " + stats.DashCooldown.ToString("0.0") + "s";
 
+            UpdateSlotButtons();
             RebuildInventoryCards();
             UpdateGarageActions();
         }
@@ -1533,6 +1650,11 @@ namespace NeonSkySurvivors.Runtime.App
                 var owned = _profile.OwnedEquipmentItems[index];
                 var definition = FindEquipmentDef(owned.ItemID);
                 if (definition == null)
+                {
+                    continue;
+                }
+
+                if (_selectedSlotFilter.HasValue && definition.SlotType != _selectedSlotFilter.Value)
                 {
                     continue;
                 }
@@ -1712,6 +1834,250 @@ namespace NeonSkySurvivors.Runtime.App
                 + survivalMinutes * rewards.SurvivalMinuteCoins;
 
             return Mathf.Max(0, Mathf.RoundToInt(coins * run.Player.Stats.CoinBonus));
+        }
+
+        private void CreateMissionsPanel(Transform parent)
+        {
+            _missionsPanel = new GameObject("Missions Panel", typeof(RectTransform), typeof(Image));
+            _missionsPanel.transform.SetParent(parent, false);
+            var panelRect = _missionsPanel.GetComponent<RectTransform>();
+            panelRect.anchorMin = Vector2.zero;
+            panelRect.anchorMax = Vector2.one;
+            panelRect.offsetMin = Vector2.zero;
+            panelRect.offsetMax = Vector2.zero;
+            _missionsPanel.GetComponent<Image>().color = new Color(0.01f, 0.025f, 0.055f, 0.98f);
+
+            CreateText(_missionsPanel.transform, "Missions Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 48, new Color(0.5f, 1f, 0.6f))
+                .text = "DAILY MISSIONS";
+
+            // Scrollable list
+            var scrollObject = new GameObject("Missions Scroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+            scrollObject.transform.SetParent(_missionsPanel.transform, false);
+            var scrollRect = scrollObject.GetComponent<RectTransform>();
+            scrollRect.anchorMin = new Vector2(0.04f, 0.18f);
+            scrollRect.anchorMax = new Vector2(0.96f, 0.84f);
+            scrollRect.offsetMin = Vector2.zero;
+            scrollRect.offsetMax = Vector2.zero;
+            scrollObject.GetComponent<Image>().color = new Color(0.02f, 0.05f, 0.1f, 0.85f);
+
+            var viewportObj = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            viewportObj.transform.SetParent(scrollObject.transform, false);
+            var vpRect = viewportObj.GetComponent<RectTransform>();
+            vpRect.anchorMin = Vector2.zero;
+            vpRect.anchorMax = Vector2.one;
+            vpRect.offsetMin = new Vector2(10f, 10f);
+            vpRect.offsetMax = new Vector2(-10f, -10f);
+            viewportObj.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.01f);
+            viewportObj.GetComponent<Mask>().showMaskGraphic = false;
+
+            var contentObj = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            contentObj.transform.SetParent(viewportObj.transform, false);
+            var contentRect = contentObj.GetComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0f, 1f);
+            contentRect.anchorMax = new Vector2(1f, 1f);
+            contentRect.pivot = new Vector2(0.5f, 1f);
+            contentRect.offsetMin = Vector2.zero;
+            contentRect.offsetMax = Vector2.zero;
+
+            var vlg = contentObj.GetComponent<VerticalLayoutGroup>();
+            vlg.spacing = 16f;
+            vlg.padding = new RectOffset(12, 12, 12, 12);
+            vlg.childControlHeight = false;
+            vlg.childForceExpandHeight = false;
+            vlg.childControlWidth = true;
+            vlg.childForceExpandWidth = true;
+
+            contentObj.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var scroll = scrollObject.GetComponent<ScrollRect>();
+            scroll.content = contentRect;
+            scroll.viewport = vpRect;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 30f;
+
+            _missionsContent = contentRect;
+
+            var backButton = CreateButton(_missionsPanel.transform, "Back", new Vector2(0f, 120f), HideMissions);
+            backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 110f);
+            backButton.GetComponent<Image>().color = new Color(0.12f, 0.18f, 0.28f, 0.95f);
+
+            _missionsPanel.SetActive(false);
+        }
+
+        private void ShowMissions()
+        {
+            RefreshDailyMissions();
+            _garagePanel.SetActive(false);
+            _missionsPanel.SetActive(true);
+            RebuildMissionCards();
+        }
+
+        private void HideMissions()
+        {
+            _missionsPanel.SetActive(false);
+            ShowGarage();
+        }
+
+        private static readonly NeonActiveMission[] MissionTemplates =
+        {
+            new NeonActiveMission { MissionId = "kill30", Name = "Exterminator", Description = "Kill 30 enemies in one run", Type = NeonMissionType.KillEnemies, TargetCount = 30, RewardCoins = 40, RewardAccountXP = 20 },
+            new NeonActiveMission { MissionId = "kill100", Name = "Slaughter", Description = "Kill 100 enemies in one run", Type = NeonMissionType.KillEnemies, TargetCount = 100, RewardCoins = 80, RewardAccountXP = 40 },
+            new NeonActiveMission { MissionId = "survive3", Name = "Survivor", Description = "Survive 3 minutes", Type = NeonMissionType.SurviveMinutes, TargetCount = 3, RewardCoins = 30, RewardAccountXP = 15 },
+            new NeonActiveMission { MissionId = "survive6", Name = "Veteran", Description = "Survive 6 minutes", Type = NeonMissionType.SurviveMinutes, TargetCount = 6, RewardCoins = 60, RewardAccountXP = 30 },
+            new NeonActiveMission { MissionId = "boss1", Name = "Boss Hunter", Description = "Defeat a major boss", Type = NeonMissionType.DefeatBoss, TargetCount = 1, RewardCoins = 50, RewardAccountXP = 25 },
+            new NeonActiveMission { MissionId = "complete1", Name = "Full Run", Description = "Complete a full 10-minute run", Type = NeonMissionType.CompleteRun, TargetCount = 1, RewardCoins = 100, RewardAccountXP = 50 },
+        };
+
+        private void RefreshDailyMissions()
+        {
+            const long TicksPerDay = 864000000000L;
+            var now = System.DateTime.UtcNow.Ticks;
+            var daysSinceEpoch = now / TicksPerDay;
+            var lastReset = _profile.MissionLastResetTicks / TicksPerDay;
+
+            if (_profile.ActiveMissions.Count == 3 && daysSinceEpoch == lastReset)
+            {
+                return; // still current day
+            }
+
+            // New day — pick 3 missions using the day number as a deterministic seed
+            _profile.ActiveMissions.Clear();
+            var rng = new System.Random((int)daysSinceEpoch);
+            var indices = new System.Collections.Generic.List<int> { 0, 1, 2, 3, 4, 5 };
+            for (var pick = 0; pick < 3 && indices.Count > 0; pick++)
+            {
+                var chosen = rng.Next(indices.Count);
+                var template = MissionTemplates[indices[chosen]];
+                indices.RemoveAt(chosen);
+                _profile.ActiveMissions.Add(new NeonActiveMission
+                {
+                    MissionId = template.MissionId,
+                    Name = template.Name,
+                    Description = template.Description,
+                    Type = template.Type,
+                    TargetCount = template.TargetCount,
+                    CurrentCount = 0,
+                    Claimed = false,
+                    RewardCoins = template.RewardCoins,
+                    RewardAccountXP = template.RewardAccountXP
+                });
+            }
+
+            _profile.MissionLastResetTicks = daysSinceEpoch * TicksPerDay;
+            NeonSaveService.Save(_profile);
+        }
+
+        private void UpdateMissionProgressFromRun(NeonRunState run)
+        {
+            var changed = false;
+            foreach (var mission in _profile.ActiveMissions)
+            {
+                if (mission.Claimed) continue;
+                var prev = mission.CurrentCount;
+                switch (mission.Type)
+                {
+                    case NeonMissionType.KillEnemies:
+                        mission.CurrentCount = Mathf.Max(mission.CurrentCount, run.EnemiesKilled);
+                        break;
+                    case NeonMissionType.SurviveMinutes:
+                        mission.CurrentCount = Mathf.Max(mission.CurrentCount, Mathf.FloorToInt(run.ElapsedSeconds / 60f));
+                        break;
+                    case NeonMissionType.DefeatBoss:
+                        mission.CurrentCount = Mathf.Max(mission.CurrentCount, run.BossesKilled);
+                        break;
+                    case NeonMissionType.CompleteRun:
+                        if (run.Status == NeonRunStatus.Victory)
+                            mission.CurrentCount = Mathf.Max(mission.CurrentCount, 1);
+                        break;
+                }
+
+                if (mission.CurrentCount != prev) changed = true;
+            }
+
+            if (changed) NeonSaveService.Save(_profile);
+        }
+
+        private void ClaimMission(int index)
+        {
+            if (index < 0 || index >= _profile.ActiveMissions.Count) return;
+            var mission = _profile.ActiveMissions[index];
+            if (mission.Claimed || mission.CurrentCount < mission.TargetCount) return;
+
+            mission.Claimed = true;
+            _profile.PlayerCoins += mission.RewardCoins;
+            _profile.AccountXP += mission.RewardAccountXP;
+
+            // Level up account if threshold reached: threshold = 100 * current level
+            while (_profile.AccountXP >= 100 * _profile.AccountLevel)
+            {
+                _profile.AccountXP -= 100 * _profile.AccountLevel;
+                _profile.AccountLevel += 1;
+                _profile.PlayerCoins += 30 * _profile.AccountLevel; // level-up coin bonus
+            }
+
+            NeonSaveService.Save(_profile);
+            RebuildMissionCards();
+            UpdateGaragePanel();
+        }
+
+        private void RebuildMissionCards()
+        {
+            // Destroy old children of _missionsContent
+            for (var i = _missionsContent.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_missionsContent.GetChild(i).gameObject);
+            }
+
+            for (var index = 0; index < _profile.ActiveMissions.Count; index++)
+            {
+                var mission = _profile.ActiveMissions[index];
+                CreateMissionCard(mission, index);
+            }
+        }
+
+        private void CreateMissionCard(NeonActiveMission mission, int index)
+        {
+            var card = new GameObject("Mission " + mission.MissionId, typeof(RectTransform), typeof(Image));
+            card.transform.SetParent(_missionsContent, false);
+
+            var layoutElem = card.AddComponent<LayoutElement>();
+            layoutElem.preferredHeight = 200f;
+            layoutElem.flexibleWidth = 1f;
+
+            var complete = mission.CurrentCount >= mission.TargetCount;
+            var claimed = mission.Claimed;
+            var cardColor = claimed
+                ? new Color(0.06f, 0.2f, 0.08f, 0.8f)
+                : complete
+                    ? new Color(0.04f, 0.3f, 0.12f, 0.95f)
+                    : new Color(0.05f, 0.1f, 0.14f, 0.92f);
+            card.GetComponent<Image>().color = cardColor;
+
+            var progressText = mission.TargetCount > 1
+                ? Mathf.Min(mission.CurrentCount, mission.TargetCount) + "/" + mission.TargetCount
+                : (complete ? "Done" : "0/" + mission.TargetCount);
+
+            var statusSuffix = claimed ? "  ✓ Claimed" : complete ? "  — COMPLETE!" : "  [" + progressText + "]";
+            var infoText = CreateText(card.transform, "Mission Info", new Vector2(0f, 0f), new Vector2(0f, 0.5f), new Vector2(0.68f, 1f), TextAnchor.MiddleLeft, 26, complete && !claimed ? new Color(0.6f, 1f, 0.65f) : Color.white);
+            infoText.rectTransform.offsetMin = new Vector2(18f, 8f);
+            infoText.rectTransform.offsetMax = new Vector2(-8f, -8f);
+            infoText.text = mission.Name + statusSuffix + "\n" + mission.Description + "\nReward: " + mission.RewardCoins + " coins  +" + mission.RewardAccountXP + " XP";
+
+            if (complete && !claimed)
+            {
+                var capturedIndex = index;
+                var claimBtn = CreateButton(card.transform, "Claim!", new Vector2(0f, 0f), () => ClaimMission(capturedIndex));
+                var claimRect = claimBtn.GetComponent<RectTransform>();
+                claimRect.anchorMin = new Vector2(0.7f, 0.15f);
+                claimRect.anchorMax = new Vector2(0.97f, 0.85f);
+                claimRect.offsetMin = Vector2.zero;
+                claimRect.offsetMax = Vector2.zero;
+                claimRect.sizeDelta = Vector2.zero;
+                claimBtn.GetComponent<Image>().color = new Color(0.08f, 0.5f, 0.18f, 0.96f);
+                claimBtn.GetComponentInChildren<Text>().fontSize = 30;
+            }
         }
 
         private string FormatEquippedSlot(NeonEquipmentSlot slot)
@@ -1973,6 +2339,299 @@ namespace NeonSkySurvivors.Runtime.App
             quitButton.GetComponentInChildren<Text>().fontSize = 32;
 
             _pauseMenuPanel.SetActive(false);
+        }
+
+        // ── Garage slot arrangement ──────────────────────────────────────────
+
+        private void CreateSlotArrangement(Transform parent)
+        {
+            var panel = new GameObject("Slot Arrangement", typeof(RectTransform), typeof(Image));
+            panel.transform.SetParent(parent, false);
+            var panelRect = panel.GetComponent<RectTransform>();
+            panelRect.anchorMin = new Vector2(0.04f, 0.74f);
+            panelRect.anchorMax = new Vector2(0.96f, 0.895f);
+            panelRect.offsetMin = Vector2.zero;
+            panelRect.offsetMax = Vector2.zero;
+            panel.GetComponent<Image>().color = new Color(0.02f, 0.05f, 0.1f, 0.6f);
+
+            NeonEquipmentSlot[] row0 = { NeonEquipmentSlot.Wings, NeonEquipmentSlot.Weapon, NeonEquipmentSlot.Engine };
+            NeonEquipmentSlot[] row1 = { NeonEquipmentSlot.Hull, NeonEquipmentSlot.Core, NeonEquipmentSlot.Radar };
+            CreateSlotRow(panel.transform, row0, 0);
+            CreateSlotRow(panel.transform, row1, 1);
+        }
+
+        private void CreateSlotRow(Transform parent, NeonEquipmentSlot[] slots, int rowIndex)
+        {
+            for (var col = 0; col < slots.Length; col++)
+            {
+                var slot = slots[col];
+                var capturedSlot = slot;
+                var colFrac = col / 3f;
+                var rowFrac = rowIndex == 0 ? 0.5f : 0f;
+
+                var btnObject = new GameObject(slot + " Slot Btn", typeof(RectTransform), typeof(Image), typeof(Button));
+                btnObject.transform.SetParent(parent, false);
+                var rect = btnObject.GetComponent<RectTransform>();
+                rect.anchorMin = new Vector2(colFrac + 0.01f, rowFrac + 0.03f);
+                rect.anchorMax = new Vector2(colFrac + 0.325f, rowFrac + 0.47f);
+                rect.offsetMin = Vector2.zero;
+                rect.offsetMax = Vector2.zero;
+                btnObject.GetComponent<Image>().color = new Color(0.06f, 0.14f, 0.2f, 0.95f);
+                btnObject.GetComponent<Button>().onClick.AddListener(() => FilterInventoryBySlot(capturedSlot));
+
+                var label = CreateText(btnObject.transform, slot + " Lbl", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 20, Color.white);
+                label.rectTransform.offsetMin = new Vector2(4f, 2f);
+                label.rectTransform.offsetMax = new Vector2(-4f, -2f);
+                _slotFilterButtons[slot] = btnObject.GetComponent<Button>();
+            }
+        }
+
+        private void FilterInventoryBySlot(NeonEquipmentSlot slot)
+        {
+            _selectedSlotFilter = _selectedSlotFilter == slot ? (NeonEquipmentSlot?)null : slot;
+            RebuildInventoryCards();
+            UpdateSlotButtons();
+            UpdateGarageActions();
+        }
+
+        private void UpdateSlotButtons()
+        {
+            foreach (var pair in _slotFilterButtons)
+            {
+                var slot = pair.Key;
+                var button = pair.Value;
+                var equippedId = GetEquippedItemId(slot);
+                var ownedItem = FindOwnedItem(equippedId);
+                var def = FindEquipmentDef(equippedId);
+                var isFiltered = _selectedSlotFilter == slot;
+                var rarityColor = ownedItem != null ? ResolveRarityColor(ownedItem.Rarity) : new Color(0.4f, 0.45f, 0.5f);
+                button.GetComponent<Image>().color = isFiltered
+                    ? new Color(rarityColor.r * 0.45f + 0.08f, rarityColor.g * 0.45f + 0.08f, rarityColor.b * 0.45f + 0.08f, 0.98f)
+                    : new Color(rarityColor.r * 0.15f + 0.03f, rarityColor.g * 0.15f + 0.03f, rarityColor.b * 0.15f + 0.03f, 0.92f);
+                var label = button.GetComponentInChildren<Text>();
+                if (label != null)
+                {
+                    var itemName = def != null ? TruncateName(def.Name, 10) : "Empty";
+                    label.text = slot.ToString() + "\n" + itemName + (isFiltered ? " v" : string.Empty);
+                    label.color = ownedItem != null ? rarityColor : new Color(0.5f, 0.55f, 0.6f);
+                }
+            }
+        }
+
+        private static string TruncateName(string name, int maxLen)
+        {
+            return name.Length <= maxLen ? name : name.Substring(0, maxLen - 1) + "~";
+        }
+
+        // ── Missions panel ────────────────────────────────────────────────────
+
+        private static readonly NeonActiveMission[] MissionTemplates =
+        {
+            new NeonActiveMission { MissionId = "kill30",   Name = "Exterminator", Description = "Kill 30 enemies in one run",     Type = NeonMissionType.KillEnemies,    TargetCount = 30,  RewardCoins = 40,  RewardAccountXP = 20 },
+            new NeonActiveMission { MissionId = "kill100",  Name = "Slaughter",    Description = "Kill 100 enemies in one run",    Type = NeonMissionType.KillEnemies,    TargetCount = 100, RewardCoins = 80,  RewardAccountXP = 40 },
+            new NeonActiveMission { MissionId = "survive3", Name = "Survivor",     Description = "Survive 3 minutes",             Type = NeonMissionType.SurviveMinutes, TargetCount = 3,   RewardCoins = 30,  RewardAccountXP = 15 },
+            new NeonActiveMission { MissionId = "survive6", Name = "Veteran",      Description = "Survive 6 minutes",             Type = NeonMissionType.SurviveMinutes, TargetCount = 6,   RewardCoins = 60,  RewardAccountXP = 30 },
+            new NeonActiveMission { MissionId = "boss1",    Name = "Boss Hunter",  Description = "Defeat a major boss",           Type = NeonMissionType.DefeatBoss,     TargetCount = 1,   RewardCoins = 50,  RewardAccountXP = 25 },
+            new NeonActiveMission { MissionId = "run1",     Name = "Full Run",     Description = "Complete a full 10-minute run", Type = NeonMissionType.CompleteRun,    TargetCount = 1,   RewardCoins = 100, RewardAccountXP = 50 },
+        };
+
+        private void RefreshDailyMissions()
+        {
+            const long TicksPerDay = 864000000000L;
+            var daysSinceEpoch = System.DateTime.UtcNow.Ticks / TicksPerDay;
+            if (_profile.ActiveMissions.Count == 3 && _profile.MissionLastResetTicks / TicksPerDay == daysSinceEpoch) return;
+
+            _profile.ActiveMissions.Clear();
+            var rng = new System.Random((int)daysSinceEpoch);
+            var indices = new System.Collections.Generic.List<int> { 0, 1, 2, 3, 4, 5 };
+            for (var pick = 0; pick < 3 && indices.Count > 0; pick++)
+            {
+                var chosen = rng.Next(indices.Count);
+                var t = MissionTemplates[indices[chosen]];
+                indices.RemoveAt(chosen);
+                _profile.ActiveMissions.Add(new NeonActiveMission
+                {
+                    MissionId = t.MissionId, Name = t.Name, Description = t.Description,
+                    Type = t.Type, TargetCount = t.TargetCount, CurrentCount = 0, Claimed = false,
+                    RewardCoins = t.RewardCoins, RewardAccountXP = t.RewardAccountXP
+                });
+            }
+            _profile.MissionLastResetTicks = daysSinceEpoch * TicksPerDay;
+            NeonSaveService.Save(_profile);
+        }
+
+        private void UpdateMissionProgressFromRun(NeonRunState run)
+        {
+            var changed = false;
+            for (var i = 0; i < _profile.ActiveMissions.Count; i++)
+            {
+                var m = _profile.ActiveMissions[i];
+                if (m.Claimed) continue;
+                var prev = m.CurrentCount;
+                switch (m.Type)
+                {
+                    case NeonMissionType.KillEnemies:    m.CurrentCount = Mathf.Max(m.CurrentCount, run.EnemiesKilled); break;
+                    case NeonMissionType.SurviveMinutes: m.CurrentCount = Mathf.Max(m.CurrentCount, Mathf.FloorToInt(run.ElapsedSeconds / 60f)); break;
+                    case NeonMissionType.DefeatBoss:     m.CurrentCount = Mathf.Max(m.CurrentCount, run.BossesKilled); break;
+                    case NeonMissionType.CompleteRun:    if (run.Status == NeonRunStatus.Victory) m.CurrentCount = Mathf.Max(m.CurrentCount, 1); break;
+                }
+                if (m.CurrentCount != prev) changed = true;
+            }
+            if (changed) NeonSaveService.Save(_profile);
+        }
+
+        private void ClaimMission(int index)
+        {
+            if (index < 0 || index >= _profile.ActiveMissions.Count) return;
+            var m = _profile.ActiveMissions[index];
+            if (m.Claimed || m.CurrentCount < m.TargetCount) return;
+            m.Claimed = true;
+            _profile.PlayerCoins += m.RewardCoins;
+            _profile.AccountXP += m.RewardAccountXP;
+            while (_profile.AccountXP >= 100 * _profile.AccountLevel)
+            {
+                _profile.AccountXP -= 100 * _profile.AccountLevel;
+                _profile.AccountLevel += 1;
+                _profile.PlayerCoins += 30 * _profile.AccountLevel;
+            }
+            NeonSaveService.Save(_profile);
+            RebuildMissionCards();
+            UpdateGaragePanel();
+        }
+
+        private void ShowMissions()
+        {
+            RefreshDailyMissions();
+            _garagePanel.SetActive(false);
+            _missionsPanel.SetActive(true);
+            RebuildMissionCards();
+        }
+
+        private void HideMissions()
+        {
+            _missionsPanel.SetActive(false);
+            ShowGarage();
+        }
+
+        private void RebuildMissionCards()
+        {
+            for (var i = _missionsContent.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_missionsContent.GetChild(i).gameObject);
+            }
+
+            var header = new GameObject("Acct Header", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            header.transform.SetParent(_missionsContent, false);
+            header.GetComponent<Image>().color = new Color(0.06f, 0.08f, 0.16f, 0.9f);
+            header.GetComponent<LayoutElement>().preferredHeight = 100f;
+            var acctLabel = CreateText(header.transform, "Acct Lbl", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 28, new Color(0.9f, 0.9f, 0.5f));
+            acctLabel.rectTransform.offsetMin = new Vector2(12f, 4f);
+            acctLabel.rectTransform.offsetMax = new Vector2(-12f, -4f);
+            acctLabel.text = "Account Level " + _profile.AccountLevel + "   XP " + _profile.AccountXP + " / " + (100 * _profile.AccountLevel);
+
+            for (var index = 0; index < _profile.ActiveMissions.Count; index++)
+            {
+                CreateMissionCard(_profile.ActiveMissions[index], index);
+            }
+        }
+
+        private void CreateMissionCard(NeonActiveMission mission, int index)
+        {
+            var card = new GameObject("Mission " + mission.MissionId, typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            card.transform.SetParent(_missionsContent, false);
+            card.GetComponent<LayoutElement>().preferredHeight = 200f;
+
+            var complete = mission.CurrentCount >= mission.TargetCount;
+            card.GetComponent<Image>().color = mission.Claimed
+                ? new Color(0.06f, 0.2f, 0.08f, 0.8f)
+                : complete ? new Color(0.04f, 0.3f, 0.12f, 0.95f) : new Color(0.05f, 0.1f, 0.14f, 0.92f);
+
+            var progress = Mathf.Min(mission.CurrentCount, mission.TargetCount) + "/" + mission.TargetCount;
+            var statusSuffix = mission.Claimed ? "  Done" : complete ? "  COMPLETE!" : "  [" + progress + "]";
+            var infoText = CreateText(card.transform, "Mission Info", Vector2.zero, new Vector2(0f, 0f), new Vector2(0.68f, 1f), TextAnchor.MiddleLeft, 26, complete && !mission.Claimed ? new Color(0.6f, 1f, 0.65f) : Color.white);
+            infoText.rectTransform.offsetMin = new Vector2(18f, 8f);
+            infoText.rectTransform.offsetMax = new Vector2(-8f, -8f);
+            infoText.text = mission.Name + statusSuffix + "\n" + mission.Description + "\n+" + mission.RewardCoins + " coins  +" + mission.RewardAccountXP + " XP";
+
+            if (complete && !mission.Claimed)
+            {
+                var capturedIndex = index;
+                var claimBtn = CreateButton(card.transform, "Claim!", new Vector2(0f, 0f), () => ClaimMission(capturedIndex));
+                var claimRect = claimBtn.GetComponent<RectTransform>();
+                claimRect.anchorMin = new Vector2(0.7f, 0.15f);
+                claimRect.anchorMax = new Vector2(0.97f, 0.85f);
+                claimRect.offsetMin = Vector2.zero;
+                claimRect.offsetMax = Vector2.zero;
+                claimRect.sizeDelta = Vector2.zero;
+                claimBtn.GetComponent<Image>().color = new Color(0.08f, 0.5f, 0.18f, 0.96f);
+                claimBtn.GetComponentInChildren<Text>().fontSize = 30;
+            }
+        }
+
+        private void CreateMissionsPanel(Transform parent)
+        {
+            _missionsPanel = new GameObject("Missions Panel", typeof(RectTransform), typeof(Image));
+            _missionsPanel.transform.SetParent(parent, false);
+            var panelRect = _missionsPanel.GetComponent<RectTransform>();
+            panelRect.anchorMin = Vector2.zero;
+            panelRect.anchorMax = Vector2.one;
+            panelRect.offsetMin = Vector2.zero;
+            panelRect.offsetMax = Vector2.zero;
+            _missionsPanel.GetComponent<Image>().color = new Color(0.01f, 0.025f, 0.055f, 0.98f);
+
+            CreateText(_missionsPanel.transform, "Missions Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 48, new Color(0.5f, 1f, 0.6f))
+                .text = "DAILY MISSIONS";
+
+            var scrollObject = new GameObject("Missions Scroll", typeof(RectTransform), typeof(Image), typeof(ScrollRect));
+            scrollObject.transform.SetParent(_missionsPanel.transform, false);
+            var scrollRectComp = scrollObject.GetComponent<RectTransform>();
+            scrollRectComp.anchorMin = new Vector2(0.04f, 0.18f);
+            scrollRectComp.anchorMax = new Vector2(0.96f, 0.84f);
+            scrollRectComp.offsetMin = Vector2.zero;
+            scrollRectComp.offsetMax = Vector2.zero;
+            scrollObject.GetComponent<Image>().color = new Color(0.02f, 0.05f, 0.1f, 0.85f);
+
+            var vpObj = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            vpObj.transform.SetParent(scrollObject.transform, false);
+            var vpRect = vpObj.GetComponent<RectTransform>();
+            vpRect.anchorMin = Vector2.zero;
+            vpRect.anchorMax = Vector2.one;
+            vpRect.offsetMin = new Vector2(10f, 10f);
+            vpRect.offsetMax = new Vector2(-10f, -10f);
+            vpObj.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.01f);
+            vpObj.GetComponent<Mask>().showMaskGraphic = false;
+
+            var contentObj = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            contentObj.transform.SetParent(vpObj.transform, false);
+            var contentRect = contentObj.GetComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0f, 1f);
+            contentRect.anchorMax = new Vector2(1f, 1f);
+            contentRect.pivot = new Vector2(0.5f, 1f);
+            contentRect.offsetMin = Vector2.zero;
+            contentRect.offsetMax = Vector2.zero;
+
+            var vlg = contentObj.GetComponent<VerticalLayoutGroup>();
+            vlg.spacing = 16f;
+            vlg.padding = new RectOffset(12, 12, 12, 12);
+            vlg.childControlHeight = false;
+            vlg.childForceExpandHeight = false;
+            vlg.childControlWidth = true;
+            vlg.childForceExpandWidth = true;
+            contentObj.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+
+            var scroll = scrollObject.GetComponent<ScrollRect>();
+            scroll.content = contentRect;
+            scroll.viewport = vpRect;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 30f;
+            _missionsContent = contentRect;
+
+            var backButton = CreateButton(_missionsPanel.transform, "Back", new Vector2(0f, 120f), HideMissions);
+            backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 110f);
+            backButton.GetComponent<Image>().color = new Color(0.12f, 0.18f, 0.28f, 0.95f);
+            _missionsPanel.SetActive(false);
         }
 
         private struct EnemyDeathSnapshot

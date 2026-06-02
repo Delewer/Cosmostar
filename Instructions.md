@@ -57,8 +57,8 @@ Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward dro
 - [x] ✅ 2026-06-02: Unity Main Menu screen (Play / Garage / Settings) as the entry point — game now opens on a "NEON SKY SURVIVORS" title screen with Play→Garage and Settings buttons; profile stats (best time, runs, coins) shown.
 - [x] ✅ 2026-06-02: Settings screen in Unity — music volume (0–100% in 25% steps), SFX volume, vibration toggle; persisted in NeonSaveProfile; wired to NeonAudioService MusicVolume/SfxVolume; accessible from both Main Menu and Garage.
 - [x] ✅ 2026-06-02: Pause menu with Resume / Restart / Quit-to-Garage — pressing the pause button during a run now shows a modal panel with three actions; pressing the pause button again while the panel is visible also resumes.
-- [ ] Garage layout polish toward Section 21 (plane preview in center, 6 slots arranged around it) while keeping the working inventory grid.
-- [ ] Missions/Daily objectives + meta progression: account level, upgrade materials, and boss cores from Section 20 feeding garage upgrades; restore a lightweight mission system.
+- [x] ✅ 2026-06-02: Garage layout polish — added a 3×2 slot arrangement panel (Wings/Weapon/Engine top row, Hull/Core/Radar bottom row) with rarity-colored interactive buttons; tapping a slot filters the inventory to that slot type; slot buttons show equipped item name and highlight when active. Stats line condensed and now shows Account Level.
+- [x] ✅ 2026-06-02: Daily missions + meta progression — 3 deterministic daily missions (6 templates: kill 30, kill 100, survive 3 min, survive 6 min, defeat boss, complete run); progress auto-tracked at run end; Claim button awards coins + account XP; account level-up loop with coin bonus; Missions panel accessible from Garage.
 - [x] ✅ 2026-06-02: Results screen shows actual items found — each dropped item is listed by name and rarity (e.g. "Twin Cannon [Rare]"); final-boss items are starred; replaces the previous "Item drops +N" count.
 - Acceptance: a player can navigate Menu→Garage→Run→Results→Garage entirely on touch, with settings and meta progression persisting.
 

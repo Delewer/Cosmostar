@@ -333,22 +333,39 @@ namespace NeonSkySurvivors.Core.Systems
             }
 
             var facing = run.Player.LastMoveDirection.SqrMagnitude > 0.0001f ? run.Player.LastMoveDirection.Normalized : NeonVector2.Up;
-            var damage = run.Player.Stats.AttackDamage * (0.5f + 0.1f * level) * DamageMultiplier(run);
-            var speed = level >= 3 ? 2.6f : 2.0f; // longer reach at level 3+
-            var life = level >= 3 ? 1.1f : 0.85f;
+            var isSolarSplitter = HasEvolution(run, "solar_splitter");
 
-            // Base beams fire perpendicular to facing (left and right wings).
+            // Solar Splitter: 50% crit bonus and triple beams (6 total) with extended reach.
+            var critBonus = isSolarSplitter ? 0.5f : 0f;
+            var isCritical = _random.NextDouble() <= Math.Min(1.0, run.Player.Stats.CriticalChance + critBonus);
+            var critMult = isCritical ? run.Player.Stats.CriticalDamage : 1f;
+            var damage = run.Player.Stats.AttackDamage * (0.5f + 0.1f * level) * DamageMultiplier(run) * critMult;
+            var speed = isSolarSplitter ? 3.2f : (level >= 3 ? 2.6f : 2.0f);
+            var life  = isSolarSplitter ? 1.4f : (level >= 3 ? 1.1f : 0.85f);
+
             const float halfPi = 1.5707964f;
-            FireLaserBolt(run, Rotate(facing, halfPi), damage, speed, life);
-            FireLaserBolt(run, Rotate(facing, -halfPi), damage, speed, life);
-            if (level >= 5)
+            if (isSolarSplitter)
             {
-                // Double beam: add a second pair angled slightly forward.
-                FireLaserBolt(run, Rotate(facing, halfPi + 0.35f), damage, speed, life);
-                FireLaserBolt(run, Rotate(facing, -halfPi - 0.35f), damage, speed, life);
+                // Six beams: perpendicular pair + two angled pairs (120° spread total)
+                for (var beam = 0; beam < 3; beam++)
+                {
+                    var spread = (beam - 1) * 0.42f;
+                    FireLaserBolt(run, Rotate(facing,  halfPi + spread), damage, speed, life);
+                    FireLaserBolt(run, Rotate(facing, -halfPi - spread), damage, speed, life);
+                }
+            }
+            else
+            {
+                FireLaserBolt(run, Rotate(facing,  halfPi), damage, speed, life);
+                FireLaserBolt(run, Rotate(facing, -halfPi), damage, speed, life);
+                if (level >= 5)
+                {
+                    FireLaserBolt(run, Rotate(facing,  halfPi + 0.35f), damage, speed, life);
+                    FireLaserBolt(run, Rotate(facing, -halfPi - 0.35f), damage, speed, life);
+                }
             }
 
-            run.Player.LaserCooldownRemaining = level >= 4 ? 0.8f : 1.2f;
+            run.Player.LaserCooldownRemaining = isSolarSplitter ? 0.6f : (level >= 4 ? 0.8f : 1.2f);
         }
 
         private void TickOrbitBlades(NeonRunState run, float deltaTime)
@@ -360,11 +377,15 @@ namespace NeonSkySurvivors.Core.Systems
                 return;
             }
 
-            var count = level >= 2 ? 2 : 1;
-            var radius = level >= 3 ? 0.34f : 0.26f;
-            var rotationSpeed = level >= 4 ? 3.5f : 2.2f;
-            var knockback = level >= 5;
-            var damagePerSecond = run.Player.Stats.AttackDamage * 2.5f * DamageMultiplier(run);
+            var isNeonBarrier = HasEvolution(run, "neon_barrier");
+            var count         = isNeonBarrier ? Math.Max(2, level >= 2 ? 2 : 1) : (level >= 2 ? 2 : 1);
+            var radius        = isNeonBarrier ? 0.55f : (level >= 3 ? 0.34f : 0.26f);
+            var rotationSpeed = isNeonBarrier ? 4.5f  : (level >= 4 ? 3.5f  : 2.2f);
+            var knockback     = level >= 5 || isNeonBarrier;
+
+            // Neon Barrier: blades act as a shield — deal reflective AoE damage in a wider radius
+            var bladeHitRadius  = isNeonBarrier ? 0.28f : 0.14f;
+            var damagePerSecond = run.Player.Stats.AttackDamage * (isNeonBarrier ? 4.0f : 2.5f) * DamageMultiplier(run);
 
             run.Player.OrbitAngle += rotationSpeed * deltaTime;
             const float twoPi = 6.2831855f;
@@ -376,7 +397,7 @@ namespace NeonSkySurvivors.Core.Systems
 
                 foreach (var enemy in run.Enemies)
                 {
-                    if (NeonVector2.Distance(enemy.Position, bladePosition) > 0.14f)
+                    if (NeonVector2.Distance(enemy.Position, bladePosition) > bladeHitRadius)
                     {
                         continue;
                     }
@@ -384,8 +405,22 @@ namespace NeonSkySurvivors.Core.Systems
                     enemy.HP -= damagePerSecond * deltaTime;
                     if (knockback)
                     {
-                        var push = (enemy.Position - run.Player.Position).Normalized * 0.02f;
+                        var push = (enemy.Position - run.Player.Position).Normalized * (isNeonBarrier ? 0.04f : 0.02f);
                         enemy.Position = ClampToArena(enemy.Position + push);
+                    }
+                }
+
+                // Neon Barrier: also block incoming projectiles that touch the blade orbit radius
+                if (isNeonBarrier)
+                {
+                    for (var pIndex = run.Projectiles.Count - 1; pIndex >= 0; pIndex--)
+                    {
+                        var proj = run.Projectiles[pIndex];
+                        if (proj.FromPlayer) continue;
+                        if (NeonVector2.Distance(proj.Position, bladePosition) <= bladeHitRadius)
+                        {
+                            run.Projectiles.RemoveAt(pIndex);
+                        }
                     }
                 }
             }

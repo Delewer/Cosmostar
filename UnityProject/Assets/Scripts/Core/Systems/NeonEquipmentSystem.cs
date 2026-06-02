@@ -175,7 +175,7 @@ namespace NeonSkySurvivors.Core.Systems
         public bool TryMergeDuplicates(NeonSaveProfile profile, string itemId, NeonEquipmentRarity rarity, out NeonOwnedEquipmentItem? mergedItem)
         {
             mergedItem = null;
-            if (rarity >= NeonEquipmentRarity.Legendary)
+            if (rarity >= NeonEquipmentRarity.Mythic)
             {
                 return false;
             }

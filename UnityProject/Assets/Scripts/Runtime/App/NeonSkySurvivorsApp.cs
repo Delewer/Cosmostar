@@ -97,6 +97,7 @@ namespace NeonSkySurvivors.Runtime.App
         private Text _resultsTitleText = null!;
         private Text _resultsStatsText = null!;
         private GameObject _upgradePanel = null!;
+        private readonly List<Image> _upgradeButtonIcons = new List<Image>();
         private bool _paused;
         private bool _resultApplied;
         private int _lastRewardCoins;
@@ -406,6 +407,7 @@ namespace NeonSkySurvivors.Runtime.App
                 view.gameObject.SetActive(true);
                 view.transform.position = ToWorld(enemy.Position);
                 view.transform.localScale = Vector3.one * ResolveEnemySize(enemy);
+                view.sprite = enemy.IsBoss ? NeonSpriteFactory.Boss : NeonSpriteFactory.GetEnemy(enemy.Behavior);
 
                 if (enemy.IsBoss)
                 {
@@ -462,6 +464,7 @@ namespace NeonSkySurvivors.Runtime.App
 
                 if (projectile.FromPlayer)
                 {
+                    view.sprite = NeonSpriteFactory.Projectile;
                     view.transform.localScale = Vector3.one * 0.12f;
                     view.color = new Color(0.38f, 1f, 0.52f);
                 }
@@ -469,11 +472,13 @@ namespace NeonSkySurvivors.Runtime.App
                 {
                     // Pulsing orange hazard so mines read as a telegraphed danger.
                     var pulse = 0.6f + 0.4f * Mathf.Sin(Time.time * 10f);
+                    view.sprite = NeonSpriteFactory.Mine;
                     view.transform.localScale = Vector3.one * 0.2f;
                     view.color = new Color(1f, 0.55f * pulse, 0.12f);
                 }
                 else
                 {
+                    view.sprite = NeonSpriteFactory.Projectile;
                     view.transform.localScale = Vector3.one * 0.14f;
                     view.color = new Color(1f, 0.4f, 0.25f);
                 }
@@ -670,6 +675,13 @@ namespace NeonSkySurvivors.Runtime.App
                 var categoryColor = ResolveUpgradeCategoryColor(choice.Category);
                 button.GetComponent<Image>().color = new Color(categoryColor.r * 0.28f, categoryColor.g * 0.28f, categoryColor.b * 0.28f, 0.98f);
 
+                if (index < _upgradeButtonIcons.Count)
+                {
+                    var icon = _upgradeButtonIcons[index];
+                    icon.sprite = NeonSpriteFactory.GetUpgradeIcon(choice.Category);
+                    icon.color  = categoryColor;
+                }
+
                 var label = button.GetComponentInChildren<Text>();
                 label.color = categoryColor;
                 label.text = choice.Name + "  [" + choice.Category + "]\n" + choice.Description + "\nLv " + (_run.Build.GetLevel(choice.Id) + 1) + "/" + choice.MaxLevel;
@@ -741,10 +753,10 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void CreatePools()
         {
-            CreateSpritePool("Enemies", MaxEnemyViews, _enemyViews, 1);
-            CreateSpritePool("Projectiles", MaxProjectileViews, _projectileViews, 2);
-            CreateSpritePool("XP", MaxXpViews, _xpViews, 3);
-            CreateSpritePool("Orbit", MaxOrbitViews, _orbitViews, 4);
+            CreateSpritePool("Enemies",    MaxEnemyViews,      _enemyViews,      1, null);
+            CreateSpritePool("Projectiles",MaxProjectileViews, _projectileViews, 2, null);
+            CreateSpritePool("XP",         MaxXpViews,         _xpViews,         3, NeonSpriteFactory.XpShard);
+            CreateSpritePool("Orbit",      MaxOrbitViews,      _orbitViews,      4, NeonSpriteFactory.OrbitBlade);
 
             var trailRoot = new GameObject("Dash Trail Pool");
             for (var index = 0; index < MaxTrailViews; index++)
@@ -763,7 +775,7 @@ namespace NeonSkySurvivors.Runtime.App
             }
         }
 
-        private void CreateSpritePool(string name, int count, List<SpriteRenderer> target, int sortingOrder)
+        private void CreateSpritePool(string name, int count, List<SpriteRenderer> target, int sortingOrder, Sprite? fixedSprite)
         {
             var root = new GameObject(name + " Pool");
             for (var index = 0; index < count; index++)
@@ -771,7 +783,7 @@ namespace NeonSkySurvivors.Runtime.App
                 var item = new GameObject(name + " " + index);
                 item.transform.SetParent(root.transform, false);
                 var renderer = item.AddComponent<SpriteRenderer>();
-                renderer.sprite = _sprite;
+                renderer.sprite = fixedSprite != null ? fixedSprite : _sprite;
                 renderer.sortingOrder = sortingOrder;
                 item.SetActive(false);
                 target.Add(renderer);
@@ -900,24 +912,24 @@ namespace NeonSkySurvivors.Runtime.App
             _playerRoot = rootObject.transform;
             _playerRoot.position = Vector3.zero;
 
-            _playerBody = CreatePlayerSprite("Body", new Vector3(0f, 0f, 0f), new Vector3(0.22f, 0.34f, 1f), 4);
-            _playerNose = CreatePlayerSprite("Nose", new Vector3(0f, 0.2f, 0f), new Vector3(0.12f, 0.16f, 1f), 5);
-            _playerWingLeft = CreatePlayerSprite("Wing Left", new Vector3(-0.17f, -0.05f, 0f), new Vector3(0.12f, 0.2f, 1f), 4);
-            _playerWingRight = CreatePlayerSprite("Wing Right", new Vector3(0.17f, -0.05f, 0f), new Vector3(0.12f, 0.2f, 1f), 4);
-            _playerWingLeft.transform.localRotation = Quaternion.Euler(0f, 0f, 28f);
+            _playerBody      = CreatePlayerSprite("Body",       new Vector3(0f,     0f,     0f), new Vector3(0.22f, 0.34f, 1f), 4, NeonSpriteFactory.PlayerBody);
+            _playerNose      = CreatePlayerSprite("Nose",       new Vector3(0f,     0.2f,   0f), new Vector3(0.12f, 0.16f, 1f), 5, NeonSpriteFactory.PlayerNose);
+            _playerWingLeft  = CreatePlayerSprite("Wing Left",  new Vector3(-0.17f,-0.05f,  0f), new Vector3(0.12f, 0.2f,  1f), 4, NeonSpriteFactory.PlayerWing);
+            _playerWingRight = CreatePlayerSprite("Wing Right", new Vector3( 0.17f,-0.05f,  0f), new Vector3(0.12f, 0.2f,  1f), 4, NeonSpriteFactory.PlayerWing);
+            _playerWingLeft.transform.localRotation  = Quaternion.Euler(0f, 0f,  28f);
             _playerWingRight.transform.localRotation = Quaternion.Euler(0f, 0f, -28f);
 
             rootObject.SetActive(false);
         }
 
-        private SpriteRenderer CreatePlayerSprite(string name, Vector3 localPosition, Vector3 localScale, int sortingOrder)
+        private SpriteRenderer CreatePlayerSprite(string name, Vector3 localPosition, Vector3 localScale, int sortingOrder, Sprite sprite)
         {
             var spriteObject = new GameObject(name);
             spriteObject.transform.SetParent(_playerRoot, false);
             spriteObject.transform.localPosition = localPosition;
-            spriteObject.transform.localScale = localScale;
+            spriteObject.transform.localScale    = localScale;
             var renderer = spriteObject.AddComponent<SpriteRenderer>();
-            renderer.sprite = _sprite;
+            renderer.sprite       = sprite;
             renderer.sortingOrder = sortingOrder;
             return renderer;
         }
@@ -1625,7 +1637,20 @@ namespace NeonSkySurvivors.Runtime.App
 
                 var label = button.GetComponentInChildren<Text>();
                 label.fontSize = 26;
-                label.alignment = TextAnchor.MiddleCenter;
+                label.alignment = TextAnchor.MiddleLeft;
+                label.rectTransform.offsetMin = new Vector2(64f, 8f);
+                label.rectTransform.offsetMax = new Vector2(-8f, -8f);
+
+                // Small category icon on the left side of each upgrade card
+                var iconObj = new GameObject("Upgrade Icon", typeof(RectTransform), typeof(Image));
+                iconObj.transform.SetParent(button.transform, false);
+                var iconRect = iconObj.GetComponent<RectTransform>();
+                iconRect.anchorMin = new Vector2(0f, 0.5f);
+                iconRect.anchorMax = new Vector2(0f, 0.5f);
+                iconRect.anchoredPosition = new Vector2(32f, 0f);
+                iconRect.sizeDelta = new Vector2(40f, 40f);
+                _upgradeButtonIcons.Add(iconObj.GetComponent<Image>());
+
                 _upgradeButtons.Add(button);
             }
 
@@ -1765,12 +1790,23 @@ namespace NeonSkySurvivors.Runtime.App
             var capturedId = owned.InstanceID;
             cardObject.GetComponent<Button>().onClick.AddListener(() => SelectInventoryItem(capturedId));
 
+            // Slot icon — top-right corner
+            var iconObj = new GameObject("Slot Icon", typeof(RectTransform), typeof(Image));
+            iconObj.transform.SetParent(cardObject.transform, false);
+            var iconRect = iconObj.GetComponent<RectTransform>();
+            iconRect.anchorMin = new Vector2(1f, 1f);
+            iconRect.anchorMax = new Vector2(1f, 1f);
+            iconRect.anchoredPosition = new Vector2(-16f, -16f);
+            iconRect.sizeDelta = new Vector2(30f, 30f);
+            var iconImg = iconObj.GetComponent<Image>();
+            iconImg.sprite = NeonSpriteFactory.GetIcon(definition.SlotType);
+            iconImg.color  = rarityColor * 0.85f;
+
             var label = CreateText(cardObject.transform, "Card Label", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 24, rarityColor);
             label.rectTransform.offsetMin = new Vector2(12f, 8f);
             label.rectTransform.offsetMax = new Vector2(-12f, -8f);
-            label.text = definition.Name + (isEquipped ? "  [EQUIPPED]" : string.Empty) + "\n"
-                + definition.SlotType + " · " + owned.Rarity + "\n"
-                + "Lv " + owned.Level + "/" + NeonEquipmentSystem.MvpMaxEquipmentLevel;
+            label.text = definition.Name + (isEquipped ? "  [E]" : string.Empty) + "\n"
+                + owned.Rarity + "  Lv " + owned.Level + "/" + NeonEquipmentSystem.MvpMaxEquipmentLevel;
 
             return cardObject;
         }
@@ -1798,7 +1834,7 @@ namespace NeonSkySurvivors.Runtime.App
             var definition = FindEquipmentDef(owned.ItemID);
             var isEquipped = definition != null && GetEquippedItemId(definition.SlotType) == owned.ItemID;
             var duplicates = _equipment.CountDuplicates(_profile, owned.ItemID, owned.Rarity);
-            var canMerge = owned.Rarity < NeonEquipmentRarity.Legendary && duplicates >= NeonEquipmentSystem.RequiredDuplicatesForMerge;
+            var canMerge = owned.Rarity < NeonEquipmentRarity.Mythic && duplicates >= NeonEquipmentSystem.RequiredDuplicatesForMerge;
             var hasUpgradeCost = _equipment.TryGetUpgradeCost(_profile, _catalog, owned.InstanceID, out var upgradeCost);
             var canUpgrade = hasUpgradeCost && _profile.PlayerCoins >= upgradeCost;
 

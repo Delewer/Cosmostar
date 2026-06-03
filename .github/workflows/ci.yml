@@ -1,0 +1,117 @@
+name: Neon Sky Survivors CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+env:
+  UNITY_VERSION: 6000.4.4f1
+  PROJECT_PATH: UnityProject
+
+jobs:
+  compile-and-verify:
+    name: Compile & Verify
+    runs-on: ubuntu-latest
+    container:
+      image: unityci/editor:ubuntu-${{ env.UNITY_VERSION }}-android-3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Activate Unity (personal license)
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          echo "$UNITY_LICENSE" > /root/unity_alf.ulf
+          unity-editor -quit -batchmode -nographics \
+            -manualLicenseFile /root/unity_alf.ulf \
+            -logFile /dev/stdout || true
+
+      - name: Compile (verify scripts build cleanly)
+        run: |
+          unity-editor -quit -batchmode -nographics \
+            -projectPath "$PROJECT_PATH" \
+            -executeMethod NeonSkySurvivors.Editor.NeonSkySurvivorsProjectSeeder.VerifyMobileBootScene \
+            -logFile - \
+            2>&1 | tee unity_compile.log
+          grep -q "Neon Sky Survivors mobile Boot scene verification passed" unity_compile.log
+
+  build-apk:
+    name: Build Android APK (smoke)
+    runs-on: ubuntu-latest
+    needs: compile-and-verify
+    container:
+      image: unityci/editor:ubuntu-${{ env.UNITY_VERSION }}-android-3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Activate Unity
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          echo "$UNITY_LICENSE" > /root/unity_alf.ulf
+          unity-editor -quit -batchmode -nographics \
+            -manualLicenseFile /root/unity_alf.ulf \
+            -logFile /dev/stdout || true
+
+      - name: Build smoke APK
+        run: |
+          unity-editor -quit -batchmode -nographics \
+            -projectPath "$PROJECT_PATH" \
+            -executeMethod NeonSkySurvivors.Editor.NeonSkySurvivorsProjectSeeder.BuildAndroidSmokeTest \
+            -logFile - \
+            2>&1 | tee unity_build.log
+          grep -q "Android smoke APK build passed" unity_build.log
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeonSkySurvivors-Smoke-APK
+          path: Builds/Android/NeonSkySurvivors-Smoke.apk
+          retention-days: 14
+
+  build-aab:
+    name: Build Android AAB (signed release)
+    runs-on: ubuntu-latest
+    needs: compile-and-verify
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/heads/release/')
+    container:
+      image: unityci/editor:ubuntu-${{ env.UNITY_VERSION }}-android-3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p KeyStore
+          echo "$KEYSTORE_BASE64" | base64 -d > KeyStore/neon-sky-release.keystore
+
+      - name: Activate Unity
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          echo "$UNITY_LICENSE" > /root/unity_alf.ulf
+          unity-editor -quit -batchmode -nographics \
+            -manualLicenseFile /root/unity_alf.ulf \
+            -logFile /dev/stdout || true
+
+      - name: Build release AAB
+        run: |
+          unity-editor -quit -batchmode -nographics \
+            -projectPath "$PROJECT_PATH" \
+            -executeMethod NeonSkySurvivors.Editor.NeonSkySurvivorsProjectSeeder.BuildAndroidRelease \
+            -logFile - \
+            2>&1 | tee unity_aab.log
+          grep -q "Android release AAB build passed" unity_aab.log
+
+      - name: Upload AAB artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NeonSkySurvivors-Release-AAB
+          path: Builds/Android/NeonSkySurvivors-Release.aab
+          retention-days: 30

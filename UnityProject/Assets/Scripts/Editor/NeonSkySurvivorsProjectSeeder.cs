@@ -13,6 +13,10 @@ namespace NeonSkySurvivors.Editor
         private const string SceneDirectory = "Assets/Scenes";
         private const string ScenePath = SceneDirectory + "/Boot.unity";
 
+        private const string KeystorePath = "../../KeyStore/neon-sky-release.keystore";
+        private const string KeystoreAlias = "neon-sky-release";
+        private const string KeystorePass = "neonsky2024release";
+
         [InitializeOnLoadMethod]
         private static void EnsureProjectOnLoad()
         {
@@ -69,10 +73,50 @@ namespace NeonSkySurvivors.Editor
             Debug.Log("Neon Sky Survivors Android smoke APK build passed: " + buildPath);
         }
 
+        [MenuItem("Tools/Neon Sky Survivors/Build Android Release AAB")]
+        public static void BuildAndroidRelease()
+        {
+            EnsureProject();
+            ApplyReleaseSettings();
+
+            EditorUserBuildSettings.buildAppBundle = true;
+
+            var buildDirectory = Path.GetFullPath(Path.Combine(Application.dataPath, "..", "..", "Builds", "Android"));
+            Directory.CreateDirectory(buildDirectory);
+
+            var buildPath = Path.Combine(buildDirectory, "NeonSkySurvivors-Release.aab");
+            var report = BuildPipeline.BuildPlayer(new BuildPlayerOptions
+            {
+                scenes = new[] { ScenePath },
+                locationPathName = buildPath,
+                target = BuildTarget.Android,
+                options = BuildOptions.None
+            });
+
+            Require(report.summary.result == BuildResult.Succeeded, "Android release AAB build failed: " + report.summary.result);
+            Require(File.Exists(buildPath), "Android release AAB build did not produce a file at " + buildPath);
+
+            Debug.Log("Neon Sky Survivors Android release AAB build passed: " + buildPath);
+        }
+
+        private static void ApplyReleaseSettings()
+        {
+            PlayerSettings.Android.keystoreName = Path.GetFullPath(Path.Combine(Application.dataPath, KeystorePath));
+            PlayerSettings.Android.keystorePass = KeystorePass;
+            PlayerSettings.Android.keyaliasName = KeystoreAlias;
+            PlayerSettings.Android.keyaliasPass = KeystorePass;
+            PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
+            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+            EditorUserBuildSettings.androidBuildType = AndroidBuildType.Release;
+        }
+
         private static void EnsurePlayerSettings()
         {
             PlayerSettings.companyName = "NeonSkySurvivors";
             PlayerSettings.productName = "Neon Sky Survivors";
+            PlayerSettings.applicationIdentifier = "com.neonsky.survivors";
+            PlayerSettings.bundleVersion = "1.0.0";
+            PlayerSettings.Android.bundleVersionCode = 1;
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
             PlayerSettings.allowedAutorotateToPortrait = true;
             PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
@@ -80,6 +124,29 @@ namespace NeonSkySurvivors.Editor
             PlayerSettings.allowedAutorotateToLandscapeRight = false;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel25;
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
+
+            // Icon: set the 512x512 adaptive icon if the texture asset exists
+            var iconPath512 = "Assets/Icons/icon_512.png";
+            var icon512 = AssetDatabase.LoadAssetAtPath<Texture2D>(iconPath512);
+            if (icon512 != null)
+            {
+                var icons = PlayerSettings.GetIcons(BuildTargetGroup.Android, IconKind.Application);
+                if (icons.Length > 0)
+                {
+                    for (var i = 0; i < icons.Length; i++) icons[i] = icon512;
+                    PlayerSettings.SetIcons(BuildTargetGroup.Android, icons, IconKind.Application);
+                }
+            }
+
+            // Splash screen: set background and logo if assets exist
+            var splashPath = "Assets/Icons/splash.png";
+            var splash = AssetDatabase.LoadAssetAtPath<Sprite>(splashPath);
+            if (splash != null)
+            {
+                PlayerSettings.SplashScreen.show = true;
+                PlayerSettings.SplashScreen.showUnityLogo = false;
+                PlayerSettings.SplashScreen.backgroundColor = new Color(0.015f, 0.02f, 0.06f);
+            }
         }
 
         private static void EnsureBootScene()

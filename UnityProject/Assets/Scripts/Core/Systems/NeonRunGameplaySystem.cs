@@ -13,6 +13,11 @@ namespace NeonSkySurvivors.Core.Systems
         private readonly Random _random;
         private float _spawnAccumulator;
 
+        // Allocation-free enemy lookup: built once per catalog so high-spawn-rate late
+        // waves do not allocate a LINQ closure + linear scan on every spawn (GC pressure).
+        private readonly Dictionary<string, NeonEnemyDef> _enemyLookup = new Dictionary<string, NeonEnemyDef>();
+        private NeonSkySurvivorsCatalog? _enemyLookupSource;
+
         public NeonRunGameplaySystem(int seed = 1337)
         {
             _random = new Random(seed);
@@ -771,9 +776,24 @@ namespace NeonSkySurvivors.Core.Systems
             }
         }
 
+        private NeonEnemyDef? GetEnemyDefinition(NeonSkySurvivorsCatalog catalog, string enemyId)
+        {
+            if (!ReferenceEquals(_enemyLookupSource, catalog))
+            {
+                _enemyLookup.Clear();
+                foreach (var enemy in catalog.Enemies)
+                {
+                    _enemyLookup[enemy.EnemyID] = enemy;
+                }
+                _enemyLookupSource = catalog;
+            }
+
+            return _enemyLookup.TryGetValue(enemyId, out var definition) ? definition : null;
+        }
+
         private void SpawnEnemy(NeonRunState run, NeonSkySurvivorsCatalog catalog, string enemyId)
         {
-            var definition = catalog.Enemies.FirstOrDefault(enemy => enemy.EnemyID == enemyId);
+            var definition = GetEnemyDefinition(catalog, enemyId);
             if (definition == null)
             {
                 return;

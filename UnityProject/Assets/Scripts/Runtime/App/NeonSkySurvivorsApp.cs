@@ -35,6 +35,11 @@ namespace NeonSkySurvivors.Runtime.App
         // Hit-stop state
         private float _hitStopRemaining;
 
+        // Double-tap dash detection (optional input mode)
+        private const float DoubleTapWindow = 0.28f;
+        private float _lastTapTime = -1f;
+        private bool _pointerWasDown;
+
         // Boss telegraph circles (danger zone rings)
         private readonly List<LineRenderer> _telegraphCircles = new List<LineRenderer>();
         private readonly List<float> _telegraphRadii = new List<float>();
@@ -108,6 +113,7 @@ namespace NeonSkySurvivors.Runtime.App
         private Text _settingsMusicText = null!;
         private Text _settingsSfxText = null!;
         private Text _settingsVibrationText = null!;
+        private Text _settingsDashModeText = null!;
         private bool _settingsFromMainMenu;
         private GameObject _pauseMenuPanel = null!;
         private readonly List<string> _lastRewardItemList = new List<string>();
@@ -275,6 +281,7 @@ namespace NeonSkySurvivors.Runtime.App
             _settingsMusicText.text = "Music  " + Mathf.RoundToInt(_profile.MusicVolume * 100f) + "%";
             _settingsSfxText.text = "SFX  " + Mathf.RoundToInt(_profile.SfxVolume * 100f) + "%";
             _settingsVibrationText.text = "Vibration  " + (_profile.VibrationEnabled ? "ON" : "OFF");
+            _settingsDashModeText.text = "Dash  " + (_profile.DoubleTapDashEnabled ? "DOUBLE-TAP" : "BUTTON");
         }
 
         private void ApplyAudioSettings()
@@ -298,6 +305,11 @@ namespace NeonSkySurvivors.Runtime.App
                     return;
                 }
 
+                if (touch.phase == TouchPhase.Began)
+                {
+                    RegisterTapForDoubleTapDash();
+                }
+
                 if (touch.phase != TouchPhase.Ended && touch.phase != TouchPhase.Canceled)
                 {
                     SetMovementTarget(touch.position);
@@ -308,12 +320,40 @@ namespace NeonSkySurvivors.Runtime.App
 
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
             {
+                _pointerWasDown = Input.GetMouseButton(0);
                 return;
             }
 
-            if (Input.GetMouseButton(0))
+            // Editor / mouse fallback: rising edge of the pointer counts as a tap.
+            var pointerDown = Input.GetMouseButton(0);
+            if (pointerDown && !_pointerWasDown)
+            {
+                RegisterTapForDoubleTapDash();
+            }
+            _pointerWasDown = pointerDown;
+
+            if (pointerDown)
             {
                 SetMovementTarget(Input.mousePosition);
+            }
+        }
+
+        private void RegisterTapForDoubleTapDash()
+        {
+            if (!_profile.DoubleTapDashEnabled)
+            {
+                return;
+            }
+
+            var now = Time.unscaledTime;
+            if (_lastTapTime >= 0f && now - _lastTapTime <= DoubleTapWindow)
+            {
+                TryDash();
+                _lastTapTime = -1f;
+            }
+            else
+            {
+                _lastTapTime = now;
             }
         }
 
@@ -1035,15 +1075,27 @@ namespace NeonSkySurvivors.Runtime.App
             scaler.referenceResolution = new Vector2(1080f, 1920f);
             scaler.matchWidthOrHeight = 1f;
 
-            _hpBarFill = CreateBar(canvasObject.transform, "HP Bar", -44f, 26f, new Color(0.3f, 1f, 0.6f));
-            _xpBarFill = CreateBar(canvasObject.transform, "XP Bar", -76f, 16f, new Color(0.23f, 1f, 0.78f));
-            _hudText = CreateText(canvasObject.transform, "HUD", new Vector2(32f, -100f), new Vector2(0f, 1f), new Vector2(0f, 1f), TextAnchor.UpperLeft, 34, new Color(0.75f, 1f, 1f));
-            _messageText = CreateText(canvasObject.transform, "Message", new Vector2(0f, -205f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, new Color(1f, 0.82f, 0.28f));
+            // Safe-area root: edge-anchored run HUD lives here so notches / punch-holes /
+            // gesture bars never clip the timer, bars, or touch buttons. Full-screen modal
+            // panels stay on the raw canvas (they are centered and notch-safe by design).
+            var safeAreaObject = new GameObject("Safe Area", typeof(RectTransform), typeof(NeonSafeArea));
+            safeAreaObject.transform.SetParent(canvasObject.transform, false);
+            var safeRect = safeAreaObject.GetComponent<RectTransform>();
+            safeRect.anchorMin = Vector2.zero;
+            safeRect.anchorMax = Vector2.one;
+            safeRect.offsetMin = Vector2.zero;
+            safeRect.offsetMax = Vector2.zero;
+            var safeArea = safeAreaObject.transform;
+
+            _hpBarFill = CreateBar(safeArea, "HP Bar", -44f, 26f, new Color(0.3f, 1f, 0.6f));
+            _xpBarFill = CreateBar(safeArea, "XP Bar", -76f, 16f, new Color(0.23f, 1f, 0.78f));
+            _hudText = CreateText(safeArea, "HUD", new Vector2(32f, -100f), new Vector2(0f, 1f), new Vector2(0f, 1f), TextAnchor.UpperLeft, 34, new Color(0.75f, 1f, 1f));
+            _messageText = CreateText(safeArea, "Message", new Vector2(0f, -205f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, new Color(1f, 0.82f, 0.28f));
             _statusText = CreateText(canvasObject.transform, "Status", new Vector2(0f, 0f), new Vector2(0f, 0.48f), new Vector2(1f, 0.48f), TextAnchor.MiddleCenter, 42, Color.white);
-            _dashButton = CreateButton(canvasObject.transform, "Dash", new Vector2(-210f, 150f), TryDash);
-            CreateSpecialButton(canvasObject.transform);
-            CreatePauseButton(canvasObject.transform);
-            CreateBossBar(canvasObject.transform);
+            _dashButton = CreateButton(safeArea, "Dash", new Vector2(-210f, 150f), TryDash);
+            CreateSpecialButton(safeArea);
+            CreatePauseButton(safeArea);
+            CreateBossBar(safeArea);
             CreateUpgradePanel(canvasObject.transform);
             CreateGaragePanel(canvasObject.transform);
             CreateResultsPanel(canvasObject.transform);
@@ -2375,14 +2427,22 @@ namespace NeonSkySurvivors.Runtime.App
             CreateSmallButton(_settingsPanel.transform, "+", new Vector2(260f, 140f), () => AdjustSfxVolume(0.25f));
 
             // Vibration row
-            _settingsVibrationText = CreateText(_settingsPanel.transform, "Vibration Label", new Vector2(0f, 20f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), TextAnchor.MiddleCenter, 34, Color.white);
+            _settingsVibrationText = CreateText(_settingsPanel.transform, "Vibration Label", new Vector2(0f, 30f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), TextAnchor.MiddleCenter, 34, Color.white);
             _settingsVibrationText.rectTransform.sizeDelta = new Vector2(500f, 70f);
-            _settingsVibrationText.rectTransform.anchoredPosition = new Vector2(0f, 20f);
+            _settingsVibrationText.rectTransform.anchoredPosition = new Vector2(0f, 30f);
 
-            CreateSmallButton(_settingsPanel.transform, "Toggle", new Vector2(0f, -100f), ToggleVibration)
-                .GetComponent<RectTransform>().sizeDelta = new Vector2(300f, 90f);
+            CreateSmallButton(_settingsPanel.transform, "Toggle", new Vector2(0f, -40f), ToggleVibration)
+                .GetComponent<RectTransform>().sizeDelta = new Vector2(300f, 80f);
 
-            var backButton = CreateButton(_settingsPanel.transform, "Back", new Vector2(0f, -300f), HideSettings);
+            // Dash mode row (button vs. double-tap)
+            _settingsDashModeText = CreateText(_settingsPanel.transform, "Dash Mode Label", new Vector2(0f, -150f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), TextAnchor.MiddleCenter, 34, Color.white);
+            _settingsDashModeText.rectTransform.sizeDelta = new Vector2(560f, 70f);
+            _settingsDashModeText.rectTransform.anchoredPosition = new Vector2(0f, -150f);
+
+            CreateSmallButton(_settingsPanel.transform, "Toggle", new Vector2(0f, -220f), ToggleDashMode)
+                .GetComponent<RectTransform>().sizeDelta = new Vector2(300f, 80f);
+
+            var backButton = CreateButton(_settingsPanel.transform, "Back", new Vector2(0f, -360f), HideSettings);
             backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 110f);
             backButton.GetComponent<Image>().color = new Color(0.12f, 0.18f, 0.28f, 0.95f);
 
@@ -2426,6 +2486,14 @@ namespace NeonSkySurvivors.Runtime.App
         private void ToggleVibration()
         {
             _profile.VibrationEnabled = !_profile.VibrationEnabled;
+            NeonSaveService.Save(_profile);
+            UpdateSettingsPanel();
+        }
+
+        private void ToggleDashMode()
+        {
+            _profile.DoubleTapDashEnabled = !_profile.DoubleTapDashEnabled;
+            _lastTapTime = -1f;
             NeonSaveService.Save(_profile);
             UpdateSettingsPanel();
         }

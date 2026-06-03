@@ -139,6 +139,7 @@ namespace NeonSkySurvivors.Core.Models
         public float MusicVolume = 0.8f;
         public float SfxVolume = 1.0f;
         public bool VibrationEnabled = true;
+        public bool DoubleTapDashEnabled = false;
         public int AccountLevel = 1;
         public int AccountXP = 0;
         public List<NeonActiveMission> ActiveMissions = new List<NeonActiveMission>();

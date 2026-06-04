@@ -111,6 +111,8 @@ namespace NeonSkySurvivors.Runtime.App
         private GameObject _upgradePanel = null!;
         private readonly List<Image> _upgradeButtonIcons = new List<Image>();
         private readonly List<NeonPolyGraphic> _upgradeMedallions = new List<NeonPolyGraphic>();
+        private readonly List<Button> _upgradeBanishButtons = new List<Button>();
+        private Button _rerollButton = null!;
         private Text _menuCoinsChip = null!;
         private Text _menuRankChip = null!;
         private readonly List<GameObject> _buffChips = new List<GameObject>();
@@ -760,6 +762,16 @@ namespace NeonSkySurvivors.Runtime.App
                 label.color = categoryColor;
                 label.text = choice.Name + "  [" + choice.Category + "]\n" + choice.Description + "\nLv " + (_run.Build.GetLevel(choice.Id) + 1) + "/" + choice.MaxLevel;
             }
+
+            // Reroll / banish charges (matches the design's REROLL·N / BANISH buttons).
+            for (var i = 0; i < _upgradeBanishButtons.Count; i++)
+            {
+                var active = i < _run.DraftChoices.Count && _run.BanishesRemaining > 0;
+                _upgradeBanishButtons[i].gameObject.SetActive(active);
+            }
+            _rerollButton.interactable = _run.RerollsRemaining > 0;
+            var rerollLabel = _rerollButton.GetComponentInChildren<Text>();
+            if (rerollLabel != null) rerollLabel.text = "REROLL · " + _run.RerollsRemaining;
         }
 
         private static Color ResolveUpgradeCategoryColor(NeonUpgradeCategory category)
@@ -1901,10 +1913,48 @@ namespace NeonSkySurvivors.Runtime.App
                 iconImage.raycastTarget = false;
                 _upgradeButtonIcons.Add(iconImage);
 
+                // Per-card banish button (top-right ✕).
+                var banishBtn = CreateButton(button.transform, "Banish " + (index + 1), Vector2.zero, () => BanishUpgradeChoice(capturedIndex));
+                var banishRect = banishBtn.GetComponent<RectTransform>();
+                banishRect.anchorMin = new Vector2(1f, 1f);
+                banishRect.anchorMax = new Vector2(1f, 1f);
+                banishRect.pivot = new Vector2(1f, 1f);
+                banishRect.anchoredPosition = new Vector2(-8f, -8f);
+                banishRect.sizeDelta = new Vector2(56f, 56f);
+                DangerButton(banishBtn);
+                var banishLabel = banishBtn.GetComponentInChildren<Text>();
+                banishLabel.text = "✕";
+                banishLabel.fontSize = 30;
+                _upgradeBanishButtons.Add(banishBtn);
+
                 _upgradeButtons.Add(button);
             }
 
+            // Reroll button at the bottom of the panel.
+            _rerollButton = CreateButton(_upgradePanel.transform, "Reroll", new Vector2(0f, -270f), RerollDraftChoices);
+            _rerollButton.GetComponent<RectTransform>().sizeDelta = new Vector2(420f, 96f);
+            GhostButton(_rerollButton);
+
             _upgradePanel.SetActive(false);
+        }
+
+        private void RerollDraftChoices()
+        {
+            if (_run != null && _gameplay.RerollDraft(_run, _catalog))
+            {
+                _audio.PlayLevelUp();
+                UpdateUpgradeChoices(true);
+            }
+        }
+
+        private void BanishUpgradeChoice(int index)
+        {
+            if (_run == null || index >= _run.DraftChoices.Count) return;
+            if (_gameplay.BanishUpgrade(_run, _catalog, _run.DraftChoices[index]))
+            {
+                _audio.PlayLevelUp();
+                UpdateUpgradeChoices(true);
+            }
         }
 
         private static Text CreateText(Transform parent, string name, Vector2 anchoredPosition, Vector2 anchorMin, Vector2 anchorMax, TextAnchor alignment, int fontSize, Color color, Font? font = null)

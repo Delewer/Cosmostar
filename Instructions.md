@@ -135,7 +135,7 @@ Ordered by leverage. §0 unblocks everything else — until the project provably
 - [ ] Chest/boss evolution trigger (the catalog-driven evolution exists; add the in-run chest pickup path noted as TODO in M2).
 - [ ] Remaining equipment special effects (e.g. Quantum Sensor boss-reward boost) and a couple of Mythic-tier build-defining items.
 - [ ] Run modifiers / difficulty tiers (e.g. "Sector 8+") for post-victory replay, scaling rewards.
-- [ ] Reroll/Banish on the level-up draft (the design shows these — wire currency + logic).
+- [x] ✅ 2026-06-04: Reroll/Banish on the level-up draft — Core RerollDraft (redraw, respects banned) + BanishUpgrade (remove forever, refill slot), seeded 2 rerolls / 1 banish per run; UI reroll button (REROLL·N) + per-card ✕ banish buttons; covered by 6 new EditMode tests.
 
 ### §4 — Meta progression & retention
 - [ ] Pilot/account-level reward track with unlock milestones.

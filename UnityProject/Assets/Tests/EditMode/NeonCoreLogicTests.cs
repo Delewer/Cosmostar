@@ -16,12 +16,14 @@ namespace NeonSkySurvivors.Tests
     {
         private NeonSkySurvivorsCatalog _catalog = null!;
         private NeonEquipmentSystem _equipment = null!;
+        private NeonRunGameplaySystem _gameplay = null!;
 
         [SetUp]
         public void SetUp()
         {
             _catalog = NeonSkySurvivorsBlueprints.CreateMvpCatalog();
             _equipment = new NeonEquipmentSystem();
+            _gameplay = new NeonRunGameplaySystem(1234);
         }
 
         // ── Catalog integrity ────────────────────────────────────────────
@@ -206,7 +208,91 @@ namespace NeonSkySurvivors.Tests
             Assert.AreEqual(a.Player.Stats.AttackDamage, b.Player.Stats.AttackDamage, 0.001f);
         }
 
+        // ── Level-up draft: reroll / banish ──────────────────────────────
+
+        [Test]
+        public void StartRun_SeedsRerollAndBanishCharges()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            var run = _gameplay.StartRun(profile, _catalog);
+            Assert.AreEqual(2, run.RerollsRemaining);
+            Assert.AreEqual(1, run.BanishesRemaining);
+        }
+
+        [Test]
+        public void Reroll_DecrementsAndRedrawsDraft()
+        {
+            var run = DraftRun();
+            run.RerollsRemaining = 2;
+            Assert.IsTrue(_gameplay.RerollDraft(run, _catalog));
+            Assert.AreEqual(1, run.RerollsRemaining);
+            Assert.Greater(run.DraftChoices.Count, 0);
+            Assert.LessOrEqual(run.DraftChoices.Count, 3);
+        }
+
+        [Test]
+        public void Reroll_FailsWithNoChargesOrWhenNotDrafting()
+        {
+            var run = DraftRun();
+            run.RerollsRemaining = 0;
+            Assert.IsFalse(_gameplay.RerollDraft(run, _catalog));
+
+            run.RerollsRemaining = 1;
+            run.Status = NeonRunStatus.Running;
+            Assert.IsFalse(_gameplay.RerollDraft(run, _catalog));
+        }
+
+        [Test]
+        public void Banish_RemovesUpgradeAndSpendsCharge()
+        {
+            var run = DraftRun();
+            run.BanishesRemaining = 1;
+            var target = run.DraftChoices[0];
+
+            Assert.IsTrue(_gameplay.BanishUpgrade(run, _catalog, target));
+            Assert.AreEqual(0, run.BanishesRemaining);
+            Assert.IsTrue(run.BannedUpgradeIds.Contains(target.Id));
+            Assert.IsFalse(run.DraftChoices.Contains(target), "Banished card removed from the draft.");
+        }
+
+        [Test]
+        public void Banish_BannedUpgradeNeverReappearsAfterRerolls()
+        {
+            var run = DraftRun();
+            run.BanishesRemaining = 1;
+            var target = run.DraftChoices[0];
+            _gameplay.BanishUpgrade(run, _catalog, target);
+
+            run.RerollsRemaining = 50;
+            for (var i = 0; i < 30; i++)
+            {
+                _gameplay.RerollDraft(run, _catalog);
+                Assert.IsFalse(run.DraftChoices.Any(c => c.Id == target.Id),
+                    "A banished upgrade must never be drafted again.");
+            }
+        }
+
+        [Test]
+        public void Banish_FailsWithNoChargesOrUnknownCard()
+        {
+            var run = DraftRun();
+            run.BanishesRemaining = 0;
+            Assert.IsFalse(_gameplay.BanishUpgrade(run, _catalog, run.DraftChoices[0]));
+
+            run.BanishesRemaining = 1;
+            var notShown = _catalog.Upgrades.First(u => !run.DraftChoices.Contains(u));
+            Assert.IsFalse(_gameplay.BanishUpgrade(run, _catalog, notShown));
+        }
+
         // ── Helpers ──────────────────────────────────────────────────────
+
+        private NeonRunState DraftRun(int choices = 3)
+        {
+            var run = new NeonRunState { Status = NeonRunStatus.LevelUpDraft };
+            run.DraftChoices.AddRange(_catalog.Upgrades.Take(choices));
+            return run;
+        }
 
         private static void AddDuplicates(NeonSaveProfile profile, string itemId, NeonEquipmentRarity rarity, int count)
         {

@@ -29,6 +29,8 @@ namespace NeonSkySurvivors.Core.Systems
             equipmentSystem.EnsureStartingProfile(profile, catalog);
 
             var run = new NeonRunState();
+            run.RerollsRemaining = 2;
+            run.BanishesRemaining = 1;
             run.Player.Stats = equipmentSystem.CalculateStats(profile, catalog);
             run.Player.Stats.CurrentHP = run.Player.Stats.MaxHP;
             run.Player.SpecialCharge = Math.Min(run.Player.Stats.StartingEnergy, run.Player.SpecialChargeMax);
@@ -905,16 +907,61 @@ namespace NeonSkySurvivors.Core.Systems
                 run.Player.DamageBoostRemaining = 6f;
             }
 
-            run.DraftChoices.Clear();
+            PopulateDraft(run, catalog);
+        }
 
+        /// <summary>Fills DraftChoices with up to 3 eligible (un-maxed, un-banned) upgrades.</summary>
+        private void PopulateDraft(NeonRunState run, NeonSkySurvivorsCatalog catalog)
+        {
+            run.DraftChoices.Clear();
             var eligible = catalog.Upgrades
-                .Where(upgrade => run.Build.GetLevel(upgrade.Id) < upgrade.MaxLevel)
+                .Where(upgrade => !run.BannedUpgradeIds.Contains(upgrade.Id)
+                                  && run.Build.GetLevel(upgrade.Id) < upgrade.MaxLevel)
                 .OrderBy(_ => _random.Next())
                 .Take(3)
                 .ToList();
 
             run.DraftChoices.AddRange(eligible);
             run.Status = run.DraftChoices.Count > 0 ? NeonRunStatus.LevelUpDraft : NeonRunStatus.Running;
+        }
+
+        /// <summary>Spend a reroll to redraw the whole draft (respects banned upgrades).</summary>
+        public bool RerollDraft(NeonRunState run, NeonSkySurvivorsCatalog catalog)
+        {
+            if (run.Status != NeonRunStatus.LevelUpDraft || run.RerollsRemaining <= 0)
+            {
+                return false;
+            }
+
+            run.RerollsRemaining -= 1;
+            PopulateDraft(run, catalog);
+            return true;
+        }
+
+        /// <summary>Spend a banish to remove an upgrade from this run forever; refill its slot.</summary>
+        public bool BanishUpgrade(NeonRunState run, NeonSkySurvivorsCatalog catalog, NeonUpgradeDef upgrade)
+        {
+            if (run.Status != NeonRunStatus.LevelUpDraft || run.BanishesRemaining <= 0
+                || upgrade == null || !run.DraftChoices.Contains(upgrade))
+            {
+                return false;
+            }
+
+            run.BanishesRemaining -= 1;
+            run.BannedUpgradeIds.Add(upgrade.Id);
+            run.DraftChoices.Remove(upgrade);
+
+            var replacement = catalog.Upgrades
+                .Where(u => !run.BannedUpgradeIds.Contains(u.Id)
+                            && run.Build.GetLevel(u.Id) < u.MaxLevel
+                            && !run.DraftChoices.Contains(u))
+                .OrderBy(_ => _random.Next())
+                .FirstOrDefault();
+            if (replacement != null)
+            {
+                run.DraftChoices.Add(replacement);
+            }
+            return true;
         }
 
         private void ApplyUpgradeStats(NeonRunState run, NeonUpgradeDef upgrade)

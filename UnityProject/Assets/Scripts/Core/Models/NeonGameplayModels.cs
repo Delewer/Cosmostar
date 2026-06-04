@@ -174,6 +174,9 @@ namespace NeonSkySurvivors.Core.Models
         public List<NeonUpgradeDef> DraftChoices = new List<NeonUpgradeDef>();
         public HashSet<string> SpawnedBossIDs = new HashSet<string>();
         public HashSet<string> ActiveEquipmentEffects = new HashSet<string>();
+        public HashSet<string> BannedUpgradeIds = new HashSet<string>();
+        public int RerollsRemaining;
+        public int BanishesRemaining;
         public int EnemiesKilled;
         public int BossesKilled;
         public int MiniBossesKilled;

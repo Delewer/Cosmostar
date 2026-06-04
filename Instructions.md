@@ -26,7 +26,9 @@ Codex Agent Instruction: Build Neon Plane Survivor Game MVP
 - ✅ 2026-06-02 (M5): Fully implemented rarity rules across all 26 items: proper rarity tiers (Common→Uncommon→Rare→Epic→Legendary) with rarity-scaled upgrade coin costs (20/30/50/80/130 coins). Added Mythic rarity tier with 2 Mythic items (Void Engine: instant dash + reset on kill; Storm Reactor: auto-charging special + double Nova). Added Solar Splitter evolution (Laser Wings L5 + Critical Chance Boost → 6-beam high-crit spread) and Neon Barrier evolution (Orbit Blades L5 + Armor Boost → 3× blade damage, wider hit radius, projectile blocking). Legendary→Mythic merge now allowed (3× Legendary → 1 Mythic). Balance pass: boss HP retuned (Sky Reaper 1800, Neon Hydra 4500, Viper Ace 1400, Bombardier 2200, Eclipse Core 10000); elite enemy HP/speed increased; late-wave spawn rates pushed higher for stronger 7–10 min pressure.
 - ✅ 2026-06-03 (M6): Release engineering complete. App icon (512×512 + adaptive fg/bg) and splash screen PNG assets generated in Assets/Icons/. Product name/package (com.neonsky.survivors) and version (1.0.0/versionCode 1) set in EnsurePlayerSettings(). Android release keystore generated at KeyStore/neon-sky-release.keystore. BuildAndroidRelease() method added to NeonSkySurvivorsProjectSeeder — produces a signed AAB with IL2CPP + ARM64 release settings and keystore wired. NeonCrashReporter.cs added (lightweight crash/error logger to app-private crash_log.txt via Application.logMessageReceived). privacy_policy.html created (fully offline, no data collected). .github/workflows/ci.yml added — compile+verify job on every push, smoke APK build job, signed AAB job on main/release branches. StoreAssets/store_listing.md written with short/long descriptions, keywords, screenshot list, and icon references.
 - ✅ 2026-06-03 (M1 code-side): Closed out the code-doable portions of on-device hardening ahead of having a device. (1) Double-tap dash option — Settings now toggles Dash BUTTON/DOUBLE-TAP, persisted in NeonSaveProfile, detected in HandleTouchInput with a 0.28s window. (2) Notch/cutout safety — new NeonSafeArea.cs resizes a Safe Area root to Screen.safeArea; the run HUD (HP/XP bars, timer, dash/special/pause buttons, boss bar) is now parented under it while centered modal panels stay full-screen. (3) GC pressure — replaced the per-spawn LINQ FirstOrDefault closure in SpawnEnemy with a catalog-cached Dictionary lookup so late-wave high-spawn bursts allocate nothing. (4) IL2CPP + ARM64 release config confirmed wired in BuildAndroidRelease().
-- ⏳ Next step: the remaining M1 items (device install, 10-minute FPS profiling, on-touchscreen feel tuning, audio-glitch checks) require a physical Android phone via adb/device install. M7 (closed beta, final balance, promote to 1.0) requires testers + Play Console access. (Editor-side compile, scene verify, and Android APK build are confirmed passing in Unity 6000.4.4f1.)
+- ✅ 2026-06-04 (M8 UI redesign): Implemented the Claude Design "Neon Sky Survivors" synthwave UI across all screens in the procedural Unity UI. Foundation: Orbitron+Rajdhani fonts (Resources/Fonts), NeonUITheme palette tokens mirroring the design's neon.css, and NeonShapeGraphics (NeonCutRect cut-corner + NeonPolyGraphic hexagon mesh graphics, since uGUI Image can't do clip-path). Screens: cut-corner neon buttons everywhere (Ghost/Primary/Magenta/Danger/Accent); round dash/special/pause HUD buttons with radial charge/cooldown rings; magenta cut-corner boss bar; Orbitron glow titles on all screens; main-menu plane hero + glow title + translucent backdrop; garage slot cells with slot-type icons + rarity neon borders; inventory/mission cards with rarity/state borders. Also fixed a pre-existing CS0111 compile blocker (13 duplicate methods in NeonSkySurvivorsApp.cs from a bad merge).
+- ⚠️ 2026-06-04 (validation gap): The M8 UI redesign was written without a local Unity install, so it is verified only structurally (brace/paren balance, no duplicate members, API-overload + namespace checks). It has NOT been compiled or run. Getting CI to actually compile it is the top priority (see Next Improvements §0).
+- ⏳ Next step: wire the Unity license secret so CI compiles the redesign (Next Improvements §0), then the remaining M1 items (device install, 10-minute FPS profiling, on-touchscreen feel tuning, audio-glitch checks) and M7 (closed beta, final balance, promote to 1.0) which require a physical Android phone + Play Console access.
 
 ## Roadmap to v1.0 (Post-MVP Plan)
 
@@ -93,8 +95,62 @@ Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward dro
 - [ ] Fix top issues, run a final balance pass, lock content.
 - [ ] Promote to production as v1.0.
 
+### Milestone 8 — UI redesign (Neon Sky Survivors design bundle)
+- [x] ✅ 2026-06-04: Foundation — Orbitron/Rajdhani fonts, NeonUITheme tokens, NeonCutRect/NeonPolyGraphic mesh graphics, UiDisc/UiRing/UiCutPanel sprites.
+- [x] ✅ 2026-06-04: All screens restyled — cut-corner neon buttons, round HUD action buttons with radial rings, cut-corner panels/cards with rarity/state borders, Orbitron glow titles, menu plane hero, garage slot icons + rarity borders.
+- [ ] Compile the redesign in Unity and fix any errors it surfaces (blocked on CI/Unity — see Next Improvements §0).
+- [ ] Remaining screen polish to fully match the mockups: HUD top-bar layout (timer centered, kills top-right, buff chips top-left), level-up icon-medallion cards, results/pause stat-grid cards with cut corners, live combat scene behind the menu screens, top resource counters (coins/gems) + daily-drop strip on the menu.
+- Acceptance: every screen reads like the design mockups on a portrait device, compiles clean, and runs at 60 FPS.
+
 ### Definition of v1.0 Done
 The game ships when, on a physical mid-range Android device, a player can: open the game from a real menu, build a plane in a polished garage, play a stable-60-FPS 10-minute run with all enemy/weapon/boss/special systems working and real art/audio, win or lose, receive rewards and meta progression that persist, adjust settings, and reinstall from a signed Play Store testing track without crashes.
+
+## Next Improvements (prioritized plan)
+
+Ordered by leverage. §0 unblocks everything else — until the project provably compiles, all new code (including the M8 redesign) is unverified.
+
+### §0 — Make the build provably green (TOP PRIORITY, blocking)
+- [ ] Add the `UNITY_LICENSE` secret (and `UNITY_EMAIL`/`UNITY_PASSWORD` if using Unity serial) to the GitHub repo so `.github/workflows/ci.yml` can run. Without it the compile/verify/build jobs are skipped and nothing is validated.
+- [ ] Get the `compile-and-verify` CI job green; fix any errors the M8 redesign surfaces (it was authored without a local Unity).
+- [ ] Add the keystore as `KEYSTORE_BASE64` secret so the signed-AAB job runs on `main`/`release/*`.
+- Why first: this repo already shipped a non-compiling file once (the CS0111 duplicate-method bug) precisely because there was no compile gate. Close that gap before adding more code.
+
+### §1 — Finish the UI redesign polish (M8 remaining)
+- [ ] HUD top bar: dedicated centered timer (Orbitron), wave/level under it, kills + multiplier top-right, buff chips top-left.
+- [ ] Level-up cards: hex icon-medallion on the left, category label + name + level + description, featured-card glow (matches levelup.jsx).
+- [ ] Results & Pause: convert the stat readouts into cut-corner stat-grid cards with rarity/accent borders.
+- [ ] Menu: top resource counters (coins/gems chips), daily-drop strip, and a live (dimmed) combat scene behind the menu/garage like the design's ambient backdrop.
+- [ ] Chips/labels: add a reusable cut-corner chip helper for HUD/garage tags.
+
+### §2 — On-device hardening (M1 finish, needs a physical Android phone)
+- [ ] `adb install -r` the smoke APK; run a full 10-minute session.
+- [ ] Profile via `adb logcat`/Unity Profiler: confirm ~60 FPS with ~100 enemies / ~200 projectiles; fix GC spikes and audio glitches.
+- [ ] Tune touch movement dead-zone/responsiveness and dash feel on a real touchscreen.
+- [ ] Validate notch/safe-area layout and UI scaling across aspect ratios (3:2 → 21:9).
+
+### §3 — Gameplay depth & replayability
+- [ ] More content: 2–3 additional in-run weapons + their evolutions, more passives, and a 4th/5th evolution to round out builds.
+- [ ] Chest/boss evolution trigger (the catalog-driven evolution exists; add the in-run chest pickup path noted as TODO in M2).
+- [ ] Remaining equipment special effects (e.g. Quantum Sensor boss-reward boost) and a couple of Mythic-tier build-defining items.
+- [ ] Run modifiers / difficulty tiers (e.g. "Sector 8+") for post-victory replay, scaling rewards.
+- [ ] Reroll/Banish on the level-up draft (the design shows these — wire currency + logic).
+
+### §4 — Meta progression & retention
+- [ ] Pilot/account-level reward track with unlock milestones.
+- [ ] Weekly/event missions (templates beyond the 3 dailies).
+- [ ] Achievements + a simple stats/codex screen (enemies seen, bosses beaten, best builds).
+- [ ] Second soft currency or upgrade-material economy ONLY if it earns its keep (MVP rule: avoid currency bloat).
+
+### §5 — Audio/VFX production pass
+- [ ] Replace procedural SFX/music with authored synthwave tracks + mixed SFX (normal/boss/final-boss stems).
+- [ ] Per-weapon and per-evolution VFX polish; richer death/level-up/special feedback.
+- [ ] Settings: master/music/SFX sliders with finer steps, plus a reduced-motion / reduced-bloom accessibility toggle.
+
+### §6 — Tech health & live-ops readiness
+- [ ] Unit tests for the new UI helpers' pure logic and for balance math; keep the existing system tests green in CI.
+- [ ] Opt-in, privacy-preserving analytics (retention/FPS/crash) — currently the app is fully offline (privacy_policy.html); revisit only if a backend is added, and update the policy.
+- [ ] Localization scaffolding (string table) before adding more copy.
+- [ ] Performance budget pass: object-pool audit, draw-call/overdraw check from the neon glow/bloom, texture atlas for procedural sprites.
 
 
 You are building a mobile-friendly roguelite survival shooter prototype.

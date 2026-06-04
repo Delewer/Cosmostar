@@ -1,3 +1,4 @@
+using NeonSkySurvivors.Core.Models;
 using UnityEngine;
 
 namespace NeonSkySurvivors.Runtime.App

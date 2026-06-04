@@ -109,6 +109,8 @@ namespace NeonSkySurvivors.Runtime.App
         private GameObject _upgradePanel = null!;
         private readonly List<Image> _upgradeButtonIcons = new List<Image>();
         private readonly List<NeonPolyGraphic> _upgradeMedallions = new List<NeonPolyGraphic>();
+        private Text _menuCoinsChip = null!;
+        private Text _menuRankChip = null!;
         private bool _paused;
         private bool _resultApplied;
         private int _lastRewardCoins;
@@ -255,9 +257,11 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void UpdateMainMenuPanel()
         {
-            _mainMenuStatsText.text = "Best Run: " + FormatTime(_profile.BestSurvivalTime)
-                + "   Runs: " + _profile.CompletedRuns
-                + "   Coins: " + _profile.PlayerCoins;
+            _menuCoinsChip.text = "◎ " + _profile.PlayerCoins;
+            _menuRankChip.text = "LV " + _profile.AccountLevel;
+            _mainMenuStatsText.text = "BEST " + FormatTime(_profile.BestSurvivalTime)
+                + "   ·   RUNS " + _profile.CompletedRuns
+                + "   ·   BOSSES " + _profile.BossesDefeated;
         }
 
         private void ShowSettings(bool fromMainMenu)
@@ -1727,6 +1731,7 @@ namespace NeonSkySurvivors.Runtime.App
 
             var image = _resultsPanel.GetComponent<Image>();
             image.color = new Color(0.015f, 0.035f, 0.07f, 0.97f);
+            StylePanelCut(_resultsPanel, NeonUITheme.Mix(NeonUITheme.Cyan, 0.5f, NeonUITheme.Line2), 2f);
 
             _resultsTitleText = CreateDisplayText(_resultsPanel.transform, "Results Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 44, NeonUITheme.TextRed);
             AddTextGlow(_resultsTitleText, NeonUITheme.Red, 3f);
@@ -1752,6 +1757,7 @@ namespace NeonSkySurvivors.Runtime.App
 
             var image = _upgradePanel.GetComponent<Image>();
             image.color = new Color(0.015f, 0.035f, 0.07f, 0.96f);
+            StylePanelCut(_upgradePanel, NeonUITheme.Mix(NeonUITheme.Cyan, 0.5f, NeonUITheme.Line2), 2f);
 
             var title = CreateDisplayText(_upgradePanel.transform, "Upgrade Title", new Vector2(0f, -38f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 32, NeonUITheme.TextCyan);
             title.text = "LEVEL UP";
@@ -1850,6 +1856,30 @@ namespace NeonSkySurvivors.Runtime.App
             text.rectTransform.sizeDelta = Vector2.zero;
             text.text = label;
             return button;
+        }
+
+        /// <summary>Small cut-corner neon chip (resource counter / tag). Returns the label Text for updates.</summary>
+        private Text CreateChip(Transform parent, string name, string text, Vector2 anchoredPosition, Vector2 anchor, Color accent, float width = 170f)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(NeonCutRect));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = anchor;
+            rect.pivot = anchor;
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = new Vector2(width, 50f);
+            var cut = go.GetComponent<NeonCutRect>();
+            cut.CutSize = 6f;
+            cut.BorderThickness = 1.5f;
+            cut.color = NeonUITheme.Mix(accent, 0.12f, NeonUITheme.Bg2);
+            cut.BorderColor = NeonUITheme.Mix(accent, 0.55f, NeonUITheme.Line2);
+
+            var label = CreateText(go.transform, name + " Lbl", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 24, accent);
+            label.rectTransform.offsetMin = new Vector2(8f, 0f);
+            label.rectTransform.offsetMax = new Vector2(-8f, 0f);
+            label.text = text;
+            label.raycastTarget = false;
+            return label;
         }
 
         /// <summary>Approximate neon glow on legacy Text via a soft Outline in the accent color.</summary>
@@ -2682,6 +2712,10 @@ namespace NeonSkySurvivors.Runtime.App
             rect.offsetMax = Vector2.zero;
             // Translucent so the live neon grid/starfield reads through, per the design.
             _mainMenuPanel.GetComponent<Image>().color = NeonUITheme.Alpha(NeonUITheme.Bg, 0.82f);
+
+            // Top resource counters (coins left, account rank right).
+            _menuCoinsChip = CreateChip(_mainMenuPanel.transform, "Coins Chip", "◎ 0", new Vector2(20f, -20f), new Vector2(0f, 1f), NeonUITheme.Legendary);
+            _menuRankChip = CreateChip(_mainMenuPanel.transform, "Rank Chip", "LV 1", new Vector2(-20f, -20f), new Vector2(1f, 1f), NeonUITheme.Cyan, 130f);
 
             var kicker = CreateText(_mainMenuPanel.transform, "Menu Kicker", new Vector2(0f, -96f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 22, NeonUITheme.Cyan);
             kicker.text = "ENDLESS · WAVE 0";

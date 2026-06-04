@@ -2083,12 +2083,31 @@ namespace NeonSkySurvivors.Runtime.App
             var rarityColor = ResolveRarityColor(owned.Rarity);
 
             var image = cardObject.GetComponent<Image>();
+            image.sprite = NeonSpriteFactory.UiCutPanel;
+            image.type = Image.Type.Sliced;
+            image.pixelsPerUnitMultiplier = 1f;
             image.color = isSelected
-                ? new Color(rarityColor.r * 0.5f + 0.1f, rarityColor.g * 0.5f + 0.1f, rarityColor.b * 0.5f + 0.1f, 0.98f)
-                : new Color(rarityColor.r * 0.22f, rarityColor.g * 0.22f, rarityColor.b * 0.22f, 0.92f);
+                ? NeonUITheme.Mix(rarityColor, 0.34f, NeonUITheme.Bg1)
+                : NeonUITheme.Mix(rarityColor, 0.14f, NeonUITheme.Bg1);
 
             var capturedId = owned.InstanceID;
             cardObject.GetComponent<Button>().onClick.AddListener(() => SelectInventoryItem(capturedId));
+
+            // rarity neon border (brighter when selected)
+            var cardBorderObj = new GameObject("Card Border", typeof(RectTransform), typeof(NeonCutRect));
+            cardBorderObj.transform.SetParent(cardObject.transform, false);
+            var cbRect = cardBorderObj.GetComponent<RectTransform>();
+            cbRect.anchorMin = Vector2.zero;
+            cbRect.anchorMax = Vector2.one;
+            cbRect.offsetMin = Vector2.zero;
+            cbRect.offsetMax = Vector2.zero;
+            var cardBorder = cardBorderObj.GetComponent<NeonCutRect>();
+            cardBorder.CutSize = NeonSpriteFactory.CutPanelCorner;
+            cardBorder.CutTL = cardBorder.CutTR = cardBorder.CutBR = cardBorder.CutBL = true;
+            cardBorder.color = new Color(0f, 0f, 0f, 0f);
+            cardBorder.BorderColor = rarityColor;
+            cardBorder.BorderThickness = isSelected ? 2.5f : 1.5f;
+            cardBorder.raycastTarget = false;
 
             // Slot icon — top-right corner
             var iconObj = new GameObject("Slot Icon", typeof(RectTransform), typeof(Image));

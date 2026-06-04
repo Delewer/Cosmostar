@@ -1709,7 +1709,7 @@ namespace NeonSkySurvivors.Runtime.App
             _upgradePanel.SetActive(false);
         }
 
-        private static Text CreateText(Transform parent, string name, Vector2 anchoredPosition, Vector2 anchorMin, Vector2 anchorMax, TextAnchor alignment, int fontSize, Color color)
+        private static Text CreateText(Transform parent, string name, Vector2 anchoredPosition, Vector2 anchorMin, Vector2 anchorMax, TextAnchor alignment, int fontSize, Color color, Font? font = null)
         {
             var textObject = new GameObject(name, typeof(RectTransform), typeof(Text));
             textObject.transform.SetParent(parent, false);
@@ -1720,13 +1720,19 @@ namespace NeonSkySurvivors.Runtime.App
             rect.sizeDelta = new Vector2(-64f, 140f);
 
             var text = textObject.GetComponent<Text>();
-            text.font = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            text.font = font != null ? font : NeonUITheme.Ui;
             text.fontSize = fontSize;
             text.alignment = alignment;
             text.color = color;
             text.horizontalOverflow = HorizontalWrapMode.Wrap;
             text.verticalOverflow = VerticalWrapMode.Overflow;
             return text;
+        }
+
+        /// <summary>Orbitron display title — used for logo/headline text per the design.</summary>
+        private static Text CreateDisplayText(Transform parent, string name, Vector2 anchoredPosition, Vector2 anchorMin, Vector2 anchorMax, TextAnchor alignment, int fontSize, Color color)
+        {
+            return CreateText(parent, name, anchoredPosition, anchorMin, anchorMax, alignment, fontSize, color, NeonUITheme.Display);
         }
 
         private static Button CreateButton(Transform parent, string label, Vector2 anchoredPosition, UnityEngine.Events.UnityAction action)

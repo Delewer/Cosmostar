@@ -105,7 +105,9 @@ namespace NeonSkySurvivors.Runtime.App
         private readonly Dictionary<NeonEquipmentSlot, Image> _slotIcons = new Dictionary<NeonEquipmentSlot, Image>();
         private GameObject _resultsPanel = null!;
         private Text _resultsTitleText = null!;
-        private Text _resultsStatsText = null!;
+        private Text _resultsStatsText = null!;   // repurposed: items-found list
+        private Text _resultsTimeText = null!;    // hero TIME SURVIVED value
+        private readonly Text[] _resultsStatValues = new Text[6];
         private GameObject _upgradePanel = null!;
         private readonly List<Image> _upgradeButtonIcons = new List<Image>();
         private readonly List<NeonPolyGraphic> _upgradeMedallions = new List<NeonPolyGraphic>();
@@ -656,14 +658,16 @@ namespace NeonSkySurvivors.Runtime.App
             SetRunHudVisible(false);
             _resultsPanel.SetActive(true);
             _resultsTitleText.text = title;
-            var itemsText = _lastRewardItemList.Count > 0
-                ? "\nItems Found:\n" + string.Join("\n", _lastRewardItemList)
-                : "\nNo items dropped.";
-            _resultsStatsText.text = "Time " + FormatTime(_run.ElapsedSeconds) + "  Best " + FormatTime(_profile.BestSurvivalTime) + "\n"
-                + "Kills " + _run.EnemiesKilled + "  Bosses " + (_run.BossesKilled + _run.MiniBossesKilled) + "\n"
-                + "Coins +" + _lastRewardCoins + "  Total " + _profile.PlayerCoins + "\n"
-                + "Runs " + _profile.CompletedRuns
-                + itemsText;
+            _resultsTimeText.text = FormatTime(_run.ElapsedSeconds);
+            _resultsStatValues[0].text = _run.EnemiesKilled.ToString();
+            _resultsStatValues[1].text = (_run.BossesKilled + _run.MiniBossesKilled).ToString();
+            _resultsStatValues[2].text = "+" + _lastRewardCoins;
+            _resultsStatValues[3].text = _profile.PlayerCoins.ToString();
+            _resultsStatValues[4].text = FormatTime(_profile.BestSurvivalTime);
+            _resultsStatValues[5].text = _profile.CompletedRuns.ToString();
+            _resultsStatsText.text = _lastRewardItemList.Count > 0
+                ? "SALVAGE: " + string.Join(" · ", _lastRewardItemList)
+                : "No items recovered.";
         }
 
         private int GrantRunRewardItems(NeonRunState run)
@@ -1811,8 +1815,28 @@ namespace NeonSkySurvivors.Runtime.App
 
             _resultsTitleText = CreateDisplayText(_resultsPanel.transform, "Results Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 44, NeonUITheme.TextRed);
             AddTextGlow(_resultsTitleText, NeonUITheme.Red, 3f);
-            _resultsStatsText = CreateText(_resultsPanel.transform, "Results Stats", new Vector2(0f, -190f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, Color.white);
-            _resultsStatsText.rectTransform.sizeDelta = new Vector2(-120f, 420f);
+
+            // Hero TIME SURVIVED card.
+            var heroVal = CreateStatCell(_resultsPanel.transform, new Vector2(0f, 220f), new Vector2(640f, 130f), "TIME SURVIVED", NeonUITheme.TextCyan);
+            heroVal.fontSize = 56;
+            AddTextGlow(heroVal, NeonUITheme.Cyan, 2.5f);
+            _resultsTimeText = heroVal;
+
+            // 2×3 stat grid.
+            string[] labels = { "KILLS", "BOSSES", "COINS +", "TOTAL", "BEST", "RUNS" };
+            Color[] accents = { NeonUITheme.Teal, NeonUITheme.Magenta, NeonUITheme.Legendary, NeonUITheme.Legendary, NeonUITheme.Cyan, NeonUITheme.Text };
+            for (var i = 0; i < 6; i++)
+            {
+                var col = i % 2;
+                var row = i / 2;
+                var x = col == 0 ? -218f : 218f;
+                var y = 100f - row * 104f;
+                _resultsStatValues[i] = CreateStatCell(_resultsPanel.transform, new Vector2(x, y), new Vector2(420f, 92f), labels[i], accents[i]);
+            }
+
+            // Items-found list (salvage).
+            _resultsStatsText = CreateText(_resultsPanel.transform, "Results Items", new Vector2(0f, 198f), new Vector2(0f, 0f), new Vector2(1f, 0f), TextAnchor.LowerCenter, 22, NeonUITheme.Legendary);
+            _resultsStatsText.rectTransform.sizeDelta = new Vector2(-120f, 44f);
 
             var garageButton = CreateButton(_resultsPanel.transform, "Garage", new Vector2(0f, 70f), ShowGarage);
             garageButton.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 112f);
@@ -1956,6 +1980,27 @@ namespace NeonSkySurvivors.Runtime.App
             label.text = text;
             label.raycastTarget = false;
             return label;
+        }
+
+        /// <summary>Cut-corner stat cell (label on top, big value below). Returns the value Text.</summary>
+        private Text CreateStatCell(Transform parent, Vector2 center, Vector2 size, string label, Color accent)
+        {
+            var go = new GameObject("Stat " + label, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = center;
+            rect.sizeDelta = size;
+            go.GetComponent<Image>().color = NeonUITheme.Bg1;
+            StylePanelCut(go, NeonUITheme.Line2);
+
+            var lab = CreateText(go.transform, label + " L", new Vector2(0f, -10f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 18, NeonUITheme.TextMute);
+            lab.rectTransform.sizeDelta = new Vector2(-12f, 30f);
+            lab.text = label;
+            var val = CreateText(go.transform, label + " V", new Vector2(0f, 8f), new Vector2(0f, 0f), new Vector2(1f, 0f), TextAnchor.LowerCenter, 30, accent);
+            val.rectTransform.sizeDelta = new Vector2(-12f, size.y * 0.6f);
+            val.font = NeonUITheme.UiBold;
+            return val;
         }
 
         /// <summary>Approximate neon glow on legacy Text via a soft Outline in the accent color.</summary>

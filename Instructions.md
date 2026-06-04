@@ -120,7 +120,7 @@ Ordered by leverage. §0 unblocks everything else — until the project provably
 - [x] ✅ 2026-06-04: Level-up cards — hex icon-medallion (NeonPolyGraphic) tinted by category, with the text block offset to clear it.
 - [x] ✅ 2026-06-04: Results / Level-Up / Pause modal panels given cut-corner fill + cyan neon border. (Stat readouts are still single text blocks; a true per-stat grid of cut cards is still TODO.)
 - [x] ✅ 2026-06-04: Reusable cut-corner chip helper (CreateChip); main menu now shows coins + account-rank chips.
-- [ ] Results/Pause: break the stat readouts into an actual grid of small cut-corner stat cards with accent borders (currently plain multiline text).
+- [x] ✅ 2026-06-04: Results screen rebuilt as a hero TIME-SURVIVED card + 2×3 cut-corner stat-cell grid (kills/bosses/coins/total/best/runs) + salvage line. (Pause snapshot still a text block.)
 - [ ] Menu/Garage: daily-drop strip and a live (dimmed) combat scene behind the menus like the design's ambient backdrop (needs a lightweight non-run combat sim or a looping capture).
 - [x] ✅ 2026-06-04: Buff chips — top-left HUD stack of hex chips showing active in-run upgrades (category icon + color), rebuilt only when the owned-upgrade set changes.
 

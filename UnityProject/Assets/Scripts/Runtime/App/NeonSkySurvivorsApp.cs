@@ -111,6 +111,11 @@ namespace NeonSkySurvivors.Runtime.App
         private readonly List<NeonPolyGraphic> _upgradeMedallions = new List<NeonPolyGraphic>();
         private Text _menuCoinsChip = null!;
         private Text _menuRankChip = null!;
+        private readonly List<GameObject> _buffChips = new List<GameObject>();
+        private readonly List<NeonPolyGraphic> _buffChipBgs = new List<NeonPolyGraphic>();
+        private readonly List<Image> _buffChipIcons = new List<Image>();
+        private int _lastBuffSignature = -1;
+        private Dictionary<string, NeonUpgradeCategory>? _upgradeCatById;
         private bool _paused;
         private bool _resultApplied;
         private int _lastRewardCoins;
@@ -589,6 +594,7 @@ namespace NeonSkySurvivors.Runtime.App
             var wave = Mathf.FloorToInt(_run.ElapsedSeconds / 60f) + 1;
             _waveText.text = "WAVE " + wave + " · LV " + player.Level;
             _killsText.text = "☠ " + _run.EnemiesKilled + "\n◎ " + player.CoinsCollected;
+            UpdateBuffChips();
 
             if (!string.IsNullOrWhiteSpace(_run.LastWarning))
             {
@@ -1127,6 +1133,7 @@ namespace NeonSkySurvivors.Runtime.App
             _dashButton = CreateRoundButton(safeArea, "Dash", NeonUITheme.Cyan, "»", "DASH", new Vector2(-34f, 44f), 150f, TryDash, out _dashRing);
             CreateSpecialButton(safeArea);
             CreatePauseButton(safeArea);
+            CreateBuffChipPool(safeArea);
             CreateBossBar(safeArea);
             CreateUpgradePanel(canvasObject.transform);
             CreateGaragePanel(canvasObject.transform);
@@ -1183,6 +1190,75 @@ namespace NeonSkySurvivors.Runtime.App
             _pauseLabel.rectTransform.offsetMax = Vector2.zero;
             _pauseLabel.raycastTarget = false;
             _pauseLabel.text = "II";
+        }
+
+        private void CreateBuffChipPool(Transform parent)
+        {
+            // Vertical stack of active-upgrade chips, top-left under the pause button.
+            for (var i = 0; i < 5; i++)
+            {
+                var go = new GameObject("Buff " + i, typeof(RectTransform), typeof(NeonPolyGraphic));
+                go.transform.SetParent(parent, false);
+                var rect = go.GetComponent<RectTransform>();
+                rect.anchorMin = rect.anchorMax = new Vector2(0f, 1f);
+                rect.pivot = new Vector2(0f, 1f);
+                rect.anchoredPosition = new Vector2(22f, -100f - i * 60f);
+                rect.sizeDelta = new Vector2(50f, 50f);
+                var bg = go.GetComponent<NeonPolyGraphic>();
+                bg.BorderThickness = 1.5f;
+                bg.raycastTarget = false;
+
+                var iconObj = new GameObject("Icon", typeof(RectTransform), typeof(Image));
+                iconObj.transform.SetParent(go.transform, false);
+                var iconRect = iconObj.GetComponent<RectTransform>();
+                iconRect.anchorMin = iconRect.anchorMax = new Vector2(0.5f, 0.5f);
+                iconRect.sizeDelta = new Vector2(28f, 28f);
+                var icon = iconObj.GetComponent<Image>();
+                icon.raycastTarget = false;
+
+                go.SetActive(false);
+                _buffChips.Add(go);
+                _buffChipBgs.Add(bg);
+                _buffChipIcons.Add(icon);
+            }
+        }
+
+        private void UpdateBuffChips()
+        {
+            var levels = _run.Build.UpgradeLevels;
+            if (levels.Count == _lastBuffSignature)
+            {
+                return; // only rebuild when the set of owned upgrades changes
+            }
+            _lastBuffSignature = levels.Count;
+
+            if (_upgradeCatById == null)
+            {
+                _upgradeCatById = new Dictionary<string, NeonUpgradeCategory>();
+                foreach (var def in _catalog.Upgrades) _upgradeCatById[def.Id] = def.Category;
+            }
+
+            var slot = 0;
+            foreach (var kv in levels)
+            {
+                if (slot >= _buffChips.Count) break;
+                if (!_upgradeCatById.TryGetValue(kv.Key, out var category)) continue;
+                var color = ResolveUpgradeCategoryColor(category);
+                _buffChipBgs[slot].color = NeonUITheme.Mix(color, 0.16f, NeonUITheme.Bg1);
+                _buffChipBgs[slot].BorderColor = color;
+                _buffChipBgs[slot].Refresh();
+                _buffChipIcons[slot].sprite = NeonSpriteFactory.GetUpgradeIcon(category);
+                _buffChipIcons[slot].color = color;
+                _buffChips[slot].SetActive(true);
+                slot++;
+            }
+            for (; slot < _buffChips.Count; slot++) _buffChips[slot].SetActive(false);
+        }
+
+        private void HideBuffChips()
+        {
+            _lastBuffSignature = -1;
+            foreach (var chip in _buffChips) chip.SetActive(false);
         }
 
         private Image CreateBar(Transform parent, string name, float topOffset, float height, Color fillColor)
@@ -2087,6 +2163,7 @@ namespace NeonSkySurvivors.Runtime.App
             {
                 _bossBarRoot.SetActive(false);
                 _pauseMenuPanel.SetActive(false);
+                HideBuffChips();
             }
         }
 

@@ -122,7 +122,7 @@ Ordered by leverage. §0 unblocks everything else — until the project provably
 - [x] ✅ 2026-06-04: Reusable cut-corner chip helper (CreateChip); main menu now shows coins + account-rank chips.
 - [ ] Results/Pause: break the stat readouts into an actual grid of small cut-corner stat cards with accent borders (currently plain multiline text).
 - [ ] Menu/Garage: daily-drop strip and a live (dimmed) combat scene behind the menus like the design's ambient backdrop (needs a lightweight non-run combat sim or a looping capture).
-- [ ] Buff chips top-left of the HUD showing active in-run weapons/passives.
+- [x] ✅ 2026-06-04: Buff chips — top-left HUD stack of hex chips showing active in-run upgrades (category icon + color), rebuilt only when the owned-upgrade set changes.
 
 ### §2 — On-device hardening (M1 finish, needs a physical Android phone)
 - [ ] `adb install -r` the smoke APK; run a full 10-minute session.

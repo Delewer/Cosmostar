@@ -108,6 +108,7 @@ namespace NeonSkySurvivors.Runtime.App
         private Text _resultsStatsText = null!;
         private GameObject _upgradePanel = null!;
         private readonly List<Image> _upgradeButtonIcons = new List<Image>();
+        private readonly List<NeonPolyGraphic> _upgradeMedallions = new List<NeonPolyGraphic>();
         private bool _paused;
         private bool _resultApplied;
         private int _lastRewardCoins;
@@ -725,6 +726,14 @@ namespace NeonSkySurvivors.Runtime.App
                 var choice = _run.DraftChoices[index];
                 var categoryColor = ResolveUpgradeCategoryColor(choice.Category);
                 AccentButton(button, categoryColor);
+
+                if (index < _upgradeMedallions.Count)
+                {
+                    var medallion = _upgradeMedallions[index];
+                    medallion.color = NeonUITheme.Mix(categoryColor, 0.16f, NeonUITheme.Bg1);
+                    medallion.BorderColor = categoryColor;
+                    medallion.Refresh();
+                }
 
                 if (index < _upgradeButtonIcons.Count)
                 {
@@ -1759,18 +1768,32 @@ namespace NeonSkySurvivors.Runtime.App
                 var label = button.GetComponentInChildren<Text>();
                 label.fontSize = 26;
                 label.alignment = TextAnchor.MiddleLeft;
-                label.rectTransform.offsetMin = new Vector2(64f, 8f);
-                label.rectTransform.offsetMax = new Vector2(-8f, -8f);
+                label.rectTransform.offsetMin = new Vector2(120f, 8f);
+                label.rectTransform.offsetMax = new Vector2(-12f, -8f);
 
-                // Small category icon on the left side of each upgrade card
+                // Hex icon-medallion on the left (color set per choice in UpdateUpgradeChoices)
+                var medallionObj = new GameObject("Upgrade Medallion", typeof(RectTransform), typeof(NeonPolyGraphic));
+                medallionObj.transform.SetParent(button.transform, false);
+                var medRect = medallionObj.GetComponent<RectTransform>();
+                medRect.anchorMin = new Vector2(0f, 0.5f);
+                medRect.anchorMax = new Vector2(0f, 0.5f);
+                medRect.anchoredPosition = new Vector2(64f, 0f);
+                medRect.sizeDelta = new Vector2(84f, 84f);
+                var medallion = medallionObj.GetComponent<NeonPolyGraphic>();
+                medallion.BorderThickness = 2f;
+                medallion.raycastTarget = false;
+                _upgradeMedallions.Add(medallion);
+
                 var iconObj = new GameObject("Upgrade Icon", typeof(RectTransform), typeof(Image));
                 iconObj.transform.SetParent(button.transform, false);
                 var iconRect = iconObj.GetComponent<RectTransform>();
                 iconRect.anchorMin = new Vector2(0f, 0.5f);
                 iconRect.anchorMax = new Vector2(0f, 0.5f);
-                iconRect.anchoredPosition = new Vector2(32f, 0f);
+                iconRect.anchoredPosition = new Vector2(64f, 0f);
                 iconRect.sizeDelta = new Vector2(40f, 40f);
-                _upgradeButtonIcons.Add(iconObj.GetComponent<Image>());
+                var iconImage = iconObj.GetComponent<Image>();
+                iconImage.raycastTarget = false;
+                _upgradeButtonIcons.Add(iconImage);
 
                 _upgradeButtons.Add(button);
             }

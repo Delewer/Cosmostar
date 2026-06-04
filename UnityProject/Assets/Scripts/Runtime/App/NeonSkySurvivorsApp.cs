@@ -99,6 +99,8 @@ namespace NeonSkySurvivors.Runtime.App
         private string _selectedInstanceId = string.Empty;
         private NeonEquipmentSlot? _selectedSlotFilter;
         private readonly Dictionary<NeonEquipmentSlot, Button> _slotFilterButtons = new Dictionary<NeonEquipmentSlot, Button>();
+        private readonly Dictionary<NeonEquipmentSlot, NeonCutRect> _slotBorders = new Dictionary<NeonEquipmentSlot, NeonCutRect>();
+        private readonly Dictionary<NeonEquipmentSlot, Image> _slotIcons = new Dictionary<NeonEquipmentSlot, Image>();
         private GameObject _resultsPanel = null!;
         private Text _resultsTitleText = null!;
         private Text _resultsStatsText = null!;
@@ -1513,12 +1515,46 @@ namespace NeonSkySurvivors.Runtime.App
                 rect.offsetMax = Vector2.zero;
 
                 var image = btnObject.GetComponent<Image>();
-                image.color = new Color(0.06f, 0.14f, 0.2f, 0.95f);
+                image.sprite = NeonSpriteFactory.UiCutPanel;
+                image.type = Image.Type.Sliced;
+                image.pixelsPerUnitMultiplier = 1f;
+                image.color = NeonUITheme.Mix(NeonUITheme.Cyan, 0.10f, NeonUITheme.Bg1);
                 btnObject.GetComponent<Button>().onClick.AddListener(() => FilterInventoryBySlot(capturedSlot));
 
-                var label = CreateText(btnObject.transform, slot + " Lbl", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 20, Color.white);
-                label.rectTransform.offsetMin = new Vector2(4f, 2f);
-                label.rectTransform.offsetMax = new Vector2(-4f, -2f);
+                // hexagonal slot-type icon (top), name label (bottom)
+                var iconObj = new GameObject(slot + " Icon", typeof(RectTransform), typeof(Image));
+                iconObj.transform.SetParent(btnObject.transform, false);
+                var iconRect = iconObj.GetComponent<RectTransform>();
+                iconRect.anchorMin = new Vector2(0.5f, 1f);
+                iconRect.anchorMax = new Vector2(0.5f, 1f);
+                iconRect.pivot = new Vector2(0.5f, 1f);
+                iconRect.anchoredPosition = new Vector2(0f, -10f);
+                iconRect.sizeDelta = new Vector2(40f, 40f);
+                var iconImg = iconObj.GetComponent<Image>();
+                iconImg.sprite = NeonSpriteFactory.GetIcon(slot);
+                iconImg.raycastTarget = false;
+                _slotIcons[slot] = iconImg;
+
+                var label = CreateText(btnObject.transform, slot + " Lbl", new Vector2(0f, 8f), new Vector2(0f, 0f), new Vector2(1f, 0f), TextAnchor.LowerCenter, 18, Color.white);
+                label.rectTransform.sizeDelta = new Vector2(-6f, 56f);
+                label.raycastTarget = false;
+
+                // rarity-colored neon border overlay
+                var borderObj = new GameObject("Slot Border", typeof(RectTransform), typeof(NeonCutRect));
+                borderObj.transform.SetParent(btnObject.transform, false);
+                var borderRect = borderObj.GetComponent<RectTransform>();
+                borderRect.anchorMin = Vector2.zero;
+                borderRect.anchorMax = Vector2.one;
+                borderRect.offsetMin = Vector2.zero;
+                borderRect.offsetMax = Vector2.zero;
+                var borderCut = borderObj.GetComponent<NeonCutRect>();
+                borderCut.CutSize = NeonSpriteFactory.CutPanelCorner;
+                borderCut.CutTL = borderCut.CutTR = borderCut.CutBR = borderCut.CutBL = true;
+                borderCut.color = new Color(0f, 0f, 0f, 0f);
+                borderCut.BorderColor = NeonUITheme.Line2;
+                borderCut.BorderThickness = 1.5f;
+                borderCut.raycastTarget = false;
+                _slotBorders[slot] = borderCut;
 
                 _slotFilterButtons[slot] = btnObject.GetComponent<Button>();
             }
@@ -1551,18 +1587,29 @@ namespace NeonSkySurvivors.Runtime.App
                 var def = FindEquipmentDef(equippedId);
                 var isFiltered = _selectedSlotFilter == slot;
 
-                var rarityColor = ownedItem != null ? ResolveRarityColor(ownedItem.Rarity) : new Color(0.4f, 0.45f, 0.5f);
+                var rarityColor = ownedItem != null ? ResolveRarityColor(ownedItem.Rarity) : NeonUITheme.Line2;
                 var bg = isFiltered
-                    ? new Color(rarityColor.r * 0.45f + 0.08f, rarityColor.g * 0.45f + 0.08f, rarityColor.b * 0.45f + 0.08f, 0.98f)
-                    : new Color(rarityColor.r * 0.15f + 0.03f, rarityColor.g * 0.15f + 0.03f, rarityColor.b * 0.15f + 0.03f, 0.92f);
+                    ? NeonUITheme.Mix(rarityColor, 0.30f, NeonUITheme.Bg1)
+                    : NeonUITheme.Mix(rarityColor, 0.10f, NeonUITheme.Bg1);
                 button.GetComponent<Image>().color = bg;
+
+                if (_slotBorders.TryGetValue(slot, out var border))
+                {
+                    border.BorderColor = isFiltered ? rarityColor : NeonUITheme.Mix(rarityColor, 0.7f, NeonUITheme.Line2);
+                    border.BorderThickness = isFiltered ? 2.5f : 1.5f;
+                    border.Refresh();
+                }
+                if (_slotIcons.TryGetValue(slot, out var icon))
+                {
+                    icon.color = ownedItem != null ? rarityColor : NeonUITheme.TextMute;
+                }
 
                 var label = button.GetComponentInChildren<Text>();
                 if (label != null)
                 {
                     var itemName = def != null ? TruncateName(def.Name, 10) : "Empty";
                     label.text = slot.ToString() + "\n" + itemName + (isFiltered ? " ▼" : "");
-                    label.color = ownedItem != null ? rarityColor : new Color(0.5f, 0.55f, 0.6f);
+                    label.color = ownedItem != null ? rarityColor : NeonUITheme.TextMute;
                 }
             }
         }

@@ -72,7 +72,9 @@ namespace NeonSkySurvivors.Runtime.App
         private SpriteRenderer _playerNose = null!;
         private SpriteRenderer _playerWingLeft = null!;
         private SpriteRenderer _playerWingRight = null!;
-        private Text _hudText = null!;
+        private Text _timerText = null!;
+        private Text _waveText = null!;
+        private Text _killsText = null!;
         private Text _messageText = null!;
         private Text _statusText = null!;
         private Image _hpBarFill = null!;
@@ -578,9 +580,10 @@ namespace NeonSkySurvivors.Runtime.App
             _hpBarFill.fillAmount = hpPercent;
             _hpBarFill.color = Color.Lerp(new Color(1f, 0.28f, 0.3f), new Color(0.3f, 1f, 0.6f), hpPercent);
             _xpBarFill.fillAmount = xpPercent;
-            _hudText.text = FormatTime(_run.ElapsedSeconds) + "   Lv " + player.Level + "\n"
-                + "HP " + Mathf.CeilToInt(player.Stats.CurrentHP) + "/" + Mathf.CeilToInt(player.Stats.MaxHP) + "   Coins " + player.CoinsCollected + "\n"
-                + "Dash " + (player.DashCooldownRemaining <= 0f ? "READY" : player.DashCooldownRemaining.ToString("0.0"));
+            _timerText.text = FormatTime(_run.ElapsedSeconds);
+            var wave = Mathf.FloorToInt(_run.ElapsedSeconds / 60f) + 1;
+            _waveText.text = "WAVE " + wave + " · LV " + player.Level;
+            _killsText.text = "☠ " + _run.EnemiesKilled + "\n◎ " + player.CoinsCollected;
 
             if (!string.IsNullOrWhiteSpace(_run.LastWarning))
             {
@@ -1095,10 +1098,18 @@ namespace NeonSkySurvivors.Runtime.App
             safeRect.offsetMax = Vector2.zero;
             var safeArea = safeAreaObject.transform;
 
-            _hpBarFill = CreateBar(safeArea, "HP Bar", -44f, 26f, new Color(0.3f, 1f, 0.6f));
-            _xpBarFill = CreateBar(safeArea, "XP Bar", -76f, 16f, new Color(0.23f, 1f, 0.78f));
-            _hudText = CreateText(safeArea, "HUD", new Vector2(32f, -100f), new Vector2(0f, 1f), new Vector2(0f, 1f), TextAnchor.UpperLeft, 34, new Color(0.75f, 1f, 1f));
-            _messageText = CreateText(safeArea, "Message", new Vector2(0f, -205f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, new Color(1f, 0.82f, 0.28f));
+            // Top tactical row: timer centered, wave/level beneath, kills top-right.
+            _timerText = CreateDisplayText(safeArea, "Timer", new Vector2(0f, -14f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 44, NeonUITheme.TextCyan);
+            _timerText.rectTransform.sizeDelta = new Vector2(-220f, 60f);
+            AddTextGlow(_timerText, NeonUITheme.Cyan, 3f);
+            _waveText = CreateText(safeArea, "Wave", new Vector2(0f, -74f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 20, NeonUITheme.TextMute);
+            _killsText = CreateText(safeArea, "Kills", new Vector2(-22f, -22f), new Vector2(1f, 1f), new Vector2(1f, 1f), TextAnchor.UpperRight, 24, NeonUITheme.Teal);
+            _killsText.rectTransform.pivot = new Vector2(1f, 1f);
+            _killsText.rectTransform.sizeDelta = new Vector2(260f, 70f);
+
+            _hpBarFill = CreateBar(safeArea, "HP Bar", -116f, 26f, new Color(0.3f, 1f, 0.6f));
+            _xpBarFill = CreateBar(safeArea, "XP Bar", -148f, 14f, new Color(0.23f, 1f, 0.78f));
+            _messageText = CreateText(safeArea, "Message", new Vector2(0f, -188f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 30, new Color(1f, 0.82f, 0.28f));
             _statusText = CreateText(canvasObject.transform, "Status", new Vector2(0f, 0f), new Vector2(0f, 0.48f), new Vector2(1f, 0.48f), TextAnchor.MiddleCenter, 42, Color.white);
             _dashButton = CreateRoundButton(safeArea, "Dash", NeonUITheme.Cyan, "»", "DASH", new Vector2(-34f, 44f), 150f, TryDash, out _dashRing);
             CreateSpecialButton(safeArea);
@@ -1141,8 +1152,8 @@ namespace NeonSkySurvivors.Runtime.App
             rect.anchorMin = new Vector2(0f, 1f);
             rect.anchorMax = new Vector2(0f, 1f);
             rect.pivot = new Vector2(0f, 1f);
-            rect.anchoredPosition = new Vector2(24f, -34f);
-            rect.sizeDelta = new Vector2(82f, 82f);
+            rect.anchoredPosition = new Vector2(20f, -20f);
+            rect.sizeDelta = new Vector2(64f, 64f);
 
             var disc = go.GetComponent<Image>();
             disc.sprite = NeonSpriteFactory.UiDisc;
@@ -2009,7 +2020,9 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void SetRunHudVisible(bool visible)
         {
-            _hudText.gameObject.SetActive(visible);
+            _timerText.gameObject.SetActive(visible);
+            _waveText.gameObject.SetActive(visible);
+            _killsText.gameObject.SetActive(visible);
             _messageText.gameObject.SetActive(visible);
             _statusText.gameObject.SetActive(visible);
             _hpBarFill.transform.parent.gameObject.SetActive(visible);

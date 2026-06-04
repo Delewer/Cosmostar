@@ -79,7 +79,8 @@ namespace NeonSkySurvivors.Runtime.App
         private Image _xpBarFill = null!;
         private Button _dashButton = null!;
         private Button _specialButton = null!;
-        private Image _specialFill = null!;
+        private Image _specialRing = null!;
+        private Image _dashRing = null!;
         private Button _pauseButton = null!;
         private Text _pauseLabel = null!;
         private GameObject _bossBarRoot = null!;
@@ -609,10 +610,15 @@ namespace NeonSkySurvivors.Runtime.App
 
             UpdateBossBar();
             var specialReady = player.SpecialCharge >= player.SpecialChargeMax;
-            _specialFill.fillAmount = Mathf.Clamp01(player.SpecialCharge / player.SpecialChargeMax);
-            _specialFill.color = specialReady ? new Color(0.4f, 1f, 1f, 0.95f) : new Color(1f, 0.3f, 0.85f, 0.7f);
+            _specialRing.fillAmount = Mathf.Clamp01(player.SpecialCharge / player.SpecialChargeMax);
+            _specialRing.color = specialReady ? NeonUITheme.CyanSoft : NeonUITheme.Magenta;
             _specialButton.interactable = specialReady && !_paused && _run.Status == NeonRunStatus.Running;
-            _dashButton.interactable = !_paused && _run.Status == NeonRunStatus.Running && player.DashCooldownRemaining <= 0f;
+
+            var dashMax = player.Stats.DashCooldown;
+            var dashReady = player.DashCooldownRemaining <= 0f;
+            _dashRing.fillAmount = dashMax > 0.01f ? Mathf.Clamp01(1f - player.DashCooldownRemaining / dashMax) : 1f;
+            _dashRing.color = dashReady ? NeonUITheme.Cyan : NeonUITheme.Alpha(NeonUITheme.Cyan, 0.5f);
+            _dashButton.interactable = !_paused && _run.Status == NeonRunStatus.Running && dashReady;
             _pauseButton.interactable = _run.Status == NeonRunStatus.Running;
         }
 
@@ -1092,7 +1098,7 @@ namespace NeonSkySurvivors.Runtime.App
             _hudText = CreateText(safeArea, "HUD", new Vector2(32f, -100f), new Vector2(0f, 1f), new Vector2(0f, 1f), TextAnchor.UpperLeft, 34, new Color(0.75f, 1f, 1f));
             _messageText = CreateText(safeArea, "Message", new Vector2(0f, -205f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, new Color(1f, 0.82f, 0.28f));
             _statusText = CreateText(canvasObject.transform, "Status", new Vector2(0f, 0f), new Vector2(0f, 0.48f), new Vector2(1f, 0.48f), TextAnchor.MiddleCenter, 42, Color.white);
-            _dashButton = CreateButton(safeArea, "Dash", new Vector2(-210f, 150f), TryDash);
+            _dashButton = CreateRoundButton(safeArea, "Dash", NeonUITheme.Cyan, "»", "DASH", new Vector2(-34f, 44f), 150f, TryDash, out _dashRing);
             CreateSpecialButton(safeArea);
             CreatePauseButton(safeArea);
             CreateBossBar(safeArea);
@@ -1107,27 +1113,9 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void CreateSpecialButton(Transform parent)
         {
-            _specialButton = CreateButton(parent, "SPECIAL", new Vector2(210f, 150f), ActivateSpecial);
-            MagentaButton(_specialButton);
-
-            // Charge fill behind the label acts as the "Special ability charge" indicator.
-            var fillObject = new GameObject("Special Fill", typeof(RectTransform), typeof(Image));
-            fillObject.transform.SetParent(_specialButton.transform, false);
-            var fillRect = fillObject.GetComponent<RectTransform>();
-            fillRect.anchorMin = Vector2.zero;
-            fillRect.anchorMax = Vector2.one;
-            fillRect.offsetMin = new Vector2(4f, 4f);
-            fillRect.offsetMax = new Vector2(-4f, -4f);
-            fillRect.pivot = new Vector2(0f, 0.5f);
-
-            _specialFill = fillObject.GetComponent<Image>();
-            _specialFill.sprite = _sprite;
-            _specialFill.type = Image.Type.Filled;
-            _specialFill.fillMethod = Image.FillMethod.Horizontal;
-            _specialFill.fillOrigin = (int)Image.OriginHorizontal.Left;
-            _specialFill.fillAmount = 0f;
-            _specialFill.color = new Color(1f, 0.3f, 0.85f, 0.85f);
-            fillObject.transform.SetSiblingIndex(0); // render behind the label
+            // Special "NOVA" — round magenta button; the radial ring is the charge meter.
+            _specialButton = CreateRoundButton(parent, "Special", NeonUITheme.Magenta, "NOVA", string.Empty, new Vector2(-34f, 218f), 150f, ActivateSpecial, out _specialRing);
+            _specialRing.fillAmount = 0f;
         }
 
         private void ActivateSpecial()
@@ -1144,15 +1132,30 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void CreatePauseButton(Transform parent)
         {
-            _pauseButton = CreateButton(parent, "Pause", new Vector2(0f, 0f), ShowPauseMenu);
-            var rect = _pauseButton.GetComponent<RectTransform>();
-            rect.anchorMin = new Vector2(1f, 1f);
-            rect.anchorMax = new Vector2(1f, 1f);
-            rect.pivot = new Vector2(1f, 1f);
-            rect.anchoredPosition = new Vector2(-28f, -28f);
-            rect.sizeDelta = new Vector2(150f, 96f);
-            GhostButton(_pauseButton);
-            _pauseLabel = _pauseButton.GetComponentInChildren<Text>();
+            // Small round ghost button, top-left of the tactical HUD.
+            var go = new GameObject("Pause", typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0f, 1f);
+            rect.anchorMax = new Vector2(0f, 1f);
+            rect.pivot = new Vector2(0f, 1f);
+            rect.anchoredPosition = new Vector2(24f, -34f);
+            rect.sizeDelta = new Vector2(82f, 82f);
+
+            var disc = go.GetComponent<Image>();
+            disc.sprite = NeonSpriteFactory.UiDisc;
+            disc.color = NeonUITheme.Mix(NeonUITheme.TextDim, 0.12f, NeonUITheme.Bg1);
+
+            _pauseButton = go.GetComponent<Button>();
+            _pauseButton.targetGraphic = disc;
+            _pauseButton.onClick.AddListener(ShowPauseMenu);
+
+            AddRingChild(go.transform, "Border", NeonUITheme.Alpha(NeonUITheme.TextDim, 0.5f), false, out _);
+
+            _pauseLabel = CreateText(go.transform, "Pause Glyph", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 30, NeonUITheme.TextDim, NeonUITheme.UiBold);
+            _pauseLabel.rectTransform.offsetMin = Vector2.zero;
+            _pauseLabel.rectTransform.offsetMax = Vector2.zero;
+            _pauseLabel.raycastTarget = false;
             _pauseLabel.text = "II";
         }
 
@@ -1793,6 +1796,74 @@ namespace NeonSkySurvivors.Runtime.App
 
         private static void AccentButton(Button b, Color accent) =>
             StyleButtonColors(b, NeonUITheme.Mix(accent, 0.18f, NeonUITheme.Bg2), accent, NeonUITheme.Text);
+
+        /// <summary>
+        /// Round neon HUD action button (dash / special): a dark disc, a dim full
+        /// border ring, a bright radial charge/cooldown ring, and a centered glyph.
+        /// Returns the Button; the radial ring Image is emitted via <paramref name="ring"/>.
+        /// </summary>
+        private Button CreateRoundButton(Transform parent, string name, Color accent, string glyph, string subLabel, Vector2 anchoredPosition, float size, UnityEngine.Events.UnityAction action, out Image ring)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(parent, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(1f, 0f);
+            rect.anchorMax = new Vector2(1f, 0f);
+            rect.pivot = new Vector2(1f, 0f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = new Vector2(size, size);
+
+            var disc = go.GetComponent<Image>();
+            disc.sprite = NeonSpriteFactory.UiDisc;
+            disc.color = NeonUITheme.Mix(accent, 0.20f, NeonUITheme.Bg1);
+
+            var button = go.GetComponent<Button>();
+            button.targetGraphic = disc;
+            button.onClick.AddListener(action);
+
+            AddRingChild(go.transform, "Border", NeonUITheme.Alpha(accent, 0.35f), false, out _);
+            AddRingChild(go.transform, "Charge", accent, true, out ring);
+
+            var glyphSize = Mathf.RoundToInt(size * (string.IsNullOrEmpty(subLabel) ? 0.42f : 0.34f));
+            var label = CreateText(go.transform, name + " Glyph", new Vector2(0f, string.IsNullOrEmpty(subLabel) ? 0f : size * 0.08f), Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, glyphSize, accent, NeonUITheme.UiBold);
+            label.rectTransform.offsetMin = Vector2.zero;
+            label.rectTransform.offsetMax = Vector2.zero;
+            label.text = glyph;
+            label.raycastTarget = false;
+
+            if (!string.IsNullOrEmpty(subLabel))
+            {
+                var sub = CreateText(go.transform, name + " Sub", new Vector2(0f, -size * 0.20f), Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, Mathf.RoundToInt(size * 0.13f), accent);
+                sub.rectTransform.offsetMin = Vector2.zero;
+                sub.rectTransform.offsetMax = Vector2.zero;
+                sub.text = subLabel;
+                sub.raycastTarget = false;
+            }
+            return button;
+        }
+
+        private static void AddRingChild(Transform parent, string name, Color color, bool radial, out Image ring)
+        {
+            var obj = new GameObject(name, typeof(RectTransform), typeof(Image));
+            obj.transform.SetParent(parent, false);
+            var r = obj.GetComponent<RectTransform>();
+            r.anchorMin = Vector2.zero;
+            r.anchorMax = Vector2.one;
+            r.offsetMin = Vector2.zero;
+            r.offsetMax = Vector2.zero;
+            ring = obj.GetComponent<Image>();
+            ring.sprite = NeonSpriteFactory.UiRing;
+            ring.color = color;
+            ring.raycastTarget = false;
+            if (radial)
+            {
+                ring.type = Image.Type.Filled;
+                ring.fillMethod = Image.FillMethod.Radial360;
+                ring.fillOrigin = (int)Image.Origin360.Top;
+                ring.fillClockwise = true;
+                ring.fillAmount = 1f;
+            }
+        }
 
         private static Sprite CreateSprite()
         {

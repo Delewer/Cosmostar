@@ -25,6 +25,9 @@ namespace NeonSkySurvivors.Runtime.App
         private static Sprite? _xpShard;
         private static Sprite? _mine;
         private static Sprite? _orbitBlade;
+        private const int US = 96;
+        private static Sprite? _uiDisc;
+        private static Sprite? _uiRing;
         private static readonly Sprite?[] EnemyCache = new Sprite?[7];
         private static readonly Sprite?[] IconCache = new Sprite?[6];
         private static readonly Sprite?[] UpgradeCache = new Sprite?[5];
@@ -38,6 +41,11 @@ namespace NeonSkySurvivors.Runtime.App
         public static Sprite XpShard   => _xpShard    ??= Make(S,  XpShardFn);
         public static Sprite Mine      => _mine       ??= Make(S,  MineFn);
         public static Sprite OrbitBlade => _orbitBlade ??= Make(S,  (u, v) => Edge(0.92f - Mathf.Sqrt(u * u * 0.1f + v * v)));
+
+        // Filled disc — round HUD action button background.
+        public static Sprite UiDisc => _uiDisc ??= MakeUi(US, (u, v) => EdgeUi(0.97f - Mathf.Sqrt(u * u + v * v)));
+        // Thin annulus — round button border + radial charge ring (swept by Image radial fill).
+        public static Sprite UiRing => _uiRing ??= MakeUi(US, (u, v) => EdgeUi(0.075f - Mathf.Abs(Mathf.Sqrt(u * u + v * v) - 0.875f)));
 
         public static Sprite GetEnemy(NeonEnemyBehaviorType t)
         {
@@ -246,5 +254,29 @@ namespace NeonSkySurvivors.Runtime.App
 
         // d > 0 = inside, d < 0 = outside; returns 0→1 over ~1-2 pixels
         private static float Edge(float d) => Mathf.Clamp01(d * 7f + 0.5f);
+
+        // High-resolution UI sprite renderer (crisp edges for round buttons / rings).
+        private static Sprite MakeUi(int size, Func<float, float, float> fn)
+        {
+            var pixels = new Color[size * size];
+            var half = size * 0.5f;
+            for (var y = 0; y < size; y++)
+            {
+                for (var x = 0; x < size; x++)
+                {
+                    var u = (x + 0.5f - half) / half;
+                    var v = (y + 0.5f - half) / half;
+                    pixels[y * size + x] = new Color(1f, 1f, 1f, Mathf.Clamp01(fn(u, v)));
+                }
+            }
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), size);
+        }
+
+        private static float EdgeUi(float d) => Mathf.Clamp01(d * 40f + 0.5f);
     }
 }

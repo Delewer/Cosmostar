@@ -2871,6 +2871,7 @@ namespace NeonSkySurvivors.Runtime.App
             rect.anchoredPosition = Vector2.zero;
             rect.sizeDelta = new Vector2(860f, 680f);
             _pauseMenuPanel.GetComponent<Image>().color = new Color(0.01f, 0.03f, 0.07f, 0.97f);
+            StylePanelCut(_pauseMenuPanel, NeonUITheme.Mix(NeonUITheme.Cyan, 0.5f, NeonUITheme.Line2), 2f);
 
             var title = CreateDisplayText(_pauseMenuPanel.transform, "Pause Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 44, NeonUITheme.TextCyan);
             title.text = "PAUSED";

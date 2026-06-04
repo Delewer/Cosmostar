@@ -116,11 +116,13 @@ Ordered by leverage. §0 unblocks everything else — until the project provably
 - Why first: this repo already shipped a non-compiling file once (the CS0111 duplicate-method bug) precisely because there was no compile gate. Close that gap before adding more code.
 
 ### §1 — Finish the UI redesign polish (M8 remaining)
-- [ ] HUD top bar: dedicated centered timer (Orbitron), wave/level under it, kills + multiplier top-right, buff chips top-left.
-- [ ] Level-up cards: hex icon-medallion on the left, category label + name + level + description, featured-card glow (matches levelup.jsx).
-- [ ] Results & Pause: convert the stat readouts into cut-corner stat-grid cards with rarity/accent borders.
-- [ ] Menu: top resource counters (coins/gems chips), daily-drop strip, and a live (dimmed) combat scene behind the menu/garage like the design's ambient backdrop.
-- [ ] Chips/labels: add a reusable cut-corner chip helper for HUD/garage tags.
+- [x] ✅ 2026-06-04: HUD top bar — centered Orbitron timer, WAVE/LV line beneath, kills+coins top-right, smaller round pause button top-left, HP/XP bars moved below the row.
+- [x] ✅ 2026-06-04: Level-up cards — hex icon-medallion (NeonPolyGraphic) tinted by category, with the text block offset to clear it.
+- [x] ✅ 2026-06-04: Results / Level-Up / Pause modal panels given cut-corner fill + cyan neon border. (Stat readouts are still single text blocks; a true per-stat grid of cut cards is still TODO.)
+- [x] ✅ 2026-06-04: Reusable cut-corner chip helper (CreateChip); main menu now shows coins + account-rank chips.
+- [ ] Results/Pause: break the stat readouts into an actual grid of small cut-corner stat cards with accent borders (currently plain multiline text).
+- [ ] Menu/Garage: daily-drop strip and a live (dimmed) combat scene behind the menus like the design's ambient backdrop (needs a lightweight non-run combat sim or a looping capture).
+- [ ] Buff chips top-left of the HUD showing active in-run weapons/passives.
 
 ### §2 — On-device hardening (M1 finish, needs a physical Android phone)
 - [ ] `adb install -r` the smoke APK; run a full 10-minute session.

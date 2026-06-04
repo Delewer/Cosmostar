@@ -38,6 +38,42 @@ jobs:
             2>&1 | tee unity_compile.log
           grep -q "Neon Sky Survivors mobile Boot scene verification passed" unity_compile.log
 
+  edit-mode-tests:
+    name: EditMode unit tests (Core logic)
+    runs-on: ubuntu-latest
+    needs: compile-and-verify
+    container:
+      image: unityci/editor:ubuntu-${{ env.UNITY_VERSION }}-android-3
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Activate Unity
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          echo "$UNITY_LICENSE" > /root/unity_alf.ulf
+          unity-editor -quit -batchmode -nographics \
+            -manualLicenseFile /root/unity_alf.ulf \
+            -logFile /dev/stdout || true
+
+      - name: Run EditMode tests
+        run: |
+          unity-editor -batchmode -nographics \
+            -projectPath "$PROJECT_PATH" \
+            -runTests -testPlatform EditMode \
+            -testResults "$GITHUB_WORKSPACE/editmode-results.xml" \
+            -logFile - \
+            2>&1 | tee unity_tests.log
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: EditMode-Test-Results
+          path: editmode-results.xml
+          retention-days: 14
+
   build-apk:
     name: Build Android APK (smoke)
     runs-on: ubuntu-latest

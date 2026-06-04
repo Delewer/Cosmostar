@@ -85,7 +85,7 @@ namespace NeonSkySurvivors.Runtime.App
 
         private static void AddVert(VertexHelper vh, Vector2 pos, Color color)
         {
-            vh.AddVert(new Vector3(pos.x, pos.y), color, new Vector4(0.5f, 0.5f, 0f, 0f));
+            vh.AddVert(new Vector3(pos.x, pos.y), color, new Vector2(0.5f, 0.5f));
         }
     }
 
@@ -94,7 +94,7 @@ namespace NeonSkySurvivors.Runtime.App
     /// default, matching .ns-cut / .ns-btn). Fill color is the Graphic color; border is
     /// drawn separately so the thin neon stroke reads at any size.
     /// </summary>
-    public sealed class NeonCutRect : Graphic
+    public sealed class NeonCutRect : MaskableGraphic
     {
         public float CutSize = 12f;
         public bool CutTL = false;
@@ -136,7 +136,7 @@ namespace NeonSkySurvivors.Runtime.App
     /// Proportional polygon (points in normalized 0..1 space, CSS y-down). Used for the
     /// hexagonal equipment slots (.ns-slot) and any other shape that scales with its box.
     /// </summary>
-    public sealed class NeonPolyGraphic : Graphic
+    public sealed class NeonPolyGraphic : MaskableGraphic
     {
         // Default: vertical hexagon (50% 0,100% 25%,100% 75%,50% 100%,0 75%,0 25%).
         public Vector2[] NormalizedPoints =

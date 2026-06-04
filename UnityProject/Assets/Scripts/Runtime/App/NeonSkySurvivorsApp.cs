@@ -1199,8 +1199,9 @@ namespace NeonSkySurvivors.Runtime.App
             rootRect.anchorMax = new Vector2(0.5f, 1f);
             rootRect.pivot = new Vector2(0.5f, 1f);
             rootRect.anchoredPosition = new Vector2(0f, -285f);
-            rootRect.sizeDelta = new Vector2(760f, 44f);
-            _bossBarRoot.GetComponent<Image>().color = new Color(0.05f, 0.02f, 0.08f, 0.85f);
+            rootRect.sizeDelta = new Vector2(760f, 60f);
+            _bossBarRoot.GetComponent<Image>().color = NeonUITheme.Alpha(NeonUITheme.Mix(NeonUITheme.Magenta, 0.10f, NeonUITheme.Bg1), 0.92f);
+            StylePanelCut(_bossBarRoot, NeonUITheme.Magenta, 2f);
 
             var fillObject = new GameObject("Boss Bar Fill", typeof(RectTransform), typeof(Image));
             fillObject.transform.SetParent(_bossBarRoot.transform, false);
@@ -1483,7 +1484,8 @@ namespace NeonSkySurvivors.Runtime.App
             panelRect.anchorMax = new Vector2(0.96f, 0.895f);
             panelRect.offsetMin = Vector2.zero;
             panelRect.offsetMax = Vector2.zero;
-            panel.GetComponent<Image>().color = new Color(0.02f, 0.05f, 0.1f, 0.6f);
+            panel.GetComponent<Image>().color = NeonUITheme.Alpha(NeonUITheme.Bg1, 0.6f);
+            StylePanelCut(panel, NeonUITheme.Line2);
 
             NeonEquipmentSlot[] row0 = { NeonEquipmentSlot.Wings, NeonEquipmentSlot.Weapon, NeonEquipmentSlot.Engine };
             NeonEquipmentSlot[] row1 = { NeonEquipmentSlot.Hull, NeonEquipmentSlot.Core, NeonEquipmentSlot.Radar };
@@ -1764,6 +1766,38 @@ namespace NeonSkySurvivors.Runtime.App
             text.rectTransform.sizeDelta = Vector2.zero;
             text.text = label;
             return button;
+        }
+
+        // ── Panel styling ───────────────────────────────────────────────
+        /// <summary>
+        /// Give an existing Image-backed panel cut corners (9-sliced octagon fill) plus a
+        /// neon border overlay, without disturbing call sites that set the Image color.
+        /// </summary>
+        private static void StylePanelCut(GameObject panel, Color border, float borderThickness = 1.5f)
+        {
+            var image = panel.GetComponent<Image>();
+            if (image != null)
+            {
+                image.sprite = NeonSpriteFactory.UiCutPanel;
+                image.type = Image.Type.Sliced;
+                image.pixelsPerUnitMultiplier = 1f;
+            }
+
+            var b = new GameObject("Border", typeof(RectTransform), typeof(NeonCutRect));
+            b.transform.SetParent(panel.transform, false);
+            var br = b.GetComponent<RectTransform>();
+            br.anchorMin = Vector2.zero;
+            br.anchorMax = Vector2.one;
+            br.offsetMin = Vector2.zero;
+            br.offsetMax = Vector2.zero;
+            var cut = b.GetComponent<NeonCutRect>();
+            cut.CutSize = NeonSpriteFactory.CutPanelCorner;
+            cut.CutTL = cut.CutTR = cut.CutBR = cut.CutBL = true;
+            cut.color = new Color(0f, 0f, 0f, 0f); // border only
+            cut.BorderColor = border;
+            cut.BorderThickness = borderThickness;
+            cut.raycastTarget = false;
+            b.transform.SetAsLastSibling();
         }
 
         // ── Neon button styling ─────────────────────────────────────────
@@ -2341,6 +2375,7 @@ namespace NeonSkySurvivors.Runtime.App
                     ? new Color(0.04f, 0.3f, 0.12f, 0.95f)
                     : new Color(0.05f, 0.1f, 0.14f, 0.92f);
             card.GetComponent<Image>().color = cardColor;
+            StylePanelCut(card, complete ? NeonUITheme.Uncommon : NeonUITheme.Line2);
 
             var progressText = mission.TargetCount > 1
                 ? Mathf.Min(mission.CurrentCount, mission.TargetCount) + "/" + mission.TargetCount

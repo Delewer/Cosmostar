@@ -47,6 +47,11 @@ namespace NeonSkySurvivors.Runtime.App
         // Thin annulus — round button border + radial charge ring (swept by Image radial fill).
         public static Sprite UiRing => _uiRing ??= MakeUi(US, (u, v) => EdgeUi(0.075f - Mathf.Abs(Mathf.Sqrt(u * u + v * v) - 0.875f)));
 
+        // 9-sliceable octagon panel (all four corners cut) — fill for cut-corner panels.
+        private static Sprite? _uiCutPanel;
+        public const int CutPanelCorner = 14;
+        public static Sprite UiCutPanel => _uiCutPanel ??= MakeCutPanelSprite(48, CutPanelCorner);
+
         public static Sprite GetEnemy(NeonEnemyBehaviorType t)
         {
             var i = (int)t;
@@ -278,5 +283,31 @@ namespace NeonSkySurvivors.Runtime.App
         }
 
         private static float EdgeUi(float d) => Mathf.Clamp01(d * 40f + 0.5f);
+
+        // Octagonal panel sprite with fixed-size corner cuts, exported with a 9-slice
+        // border equal to the cut so corners stay constant when the panel scales.
+        private static Sprite MakeCutPanelSprite(int size, int cut)
+        {
+            var pixels = new Color[size * size];
+            for (var y = 0; y < size; y++)
+            {
+                for (var x = 0; x < size; x++)
+                {
+                    var a = 1f;
+                    a = Mathf.Min(a, Mathf.Clamp01((x + y - cut) * 1.4f + 0.5f));                       // bottom-left
+                    a = Mathf.Min(a, Mathf.Clamp01(((size - x) + y - cut) * 1.4f + 0.5f));              // bottom-right
+                    a = Mathf.Min(a, Mathf.Clamp01((x + (size - y) - cut) * 1.4f + 0.5f));              // top-left
+                    a = Mathf.Min(a, Mathf.Clamp01(((size - x) + (size - y) - cut) * 1.4f + 0.5f));     // top-right
+                    pixels[y * size + x] = new Color(1f, 1f, 1f, a);
+                }
+            }
+            var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
+            tex.filterMode = FilterMode.Bilinear;
+            tex.wrapMode = TextureWrapMode.Clamp;
+            tex.SetPixels(pixels);
+            tex.Apply();
+            return Sprite.Create(tex, new Rect(0, 0, size, size), new Vector2(0.5f, 0.5f), 100f, 0,
+                SpriteMeshType.FullRect, new Vector4(cut, cut, cut, cut));
+        }
     }
 }

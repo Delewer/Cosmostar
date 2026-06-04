@@ -1432,8 +1432,9 @@ namespace NeonSkySurvivors.Runtime.App
             var image = _garagePanel.GetComponent<Image>();
             image.color = new Color(0.01f, 0.025f, 0.055f, 0.98f);
 
-            _garageTitleText = CreateText(_garagePanel.transform, "Garage Title", new Vector2(0f, -40f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 46, new Color(0.68f, 1f, 1f));
+            _garageTitleText = CreateDisplayText(_garagePanel.transform, "Garage Title", new Vector2(0f, -40f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 36, NeonUITheme.TextCyan);
             _garageTitleText.rectTransform.sizeDelta = new Vector2(-80f, 120f);
+            AddTextGlow(_garageTitleText, NeonUITheme.Cyan);
 
             _garageStatsText = CreateText(_garagePanel.transform, "Garage Stats", new Vector2(0f, -170f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 26, Color.white);
             _garageStatsText.rectTransform.sizeDelta = new Vector2(-100f, 80f);
@@ -1660,7 +1661,8 @@ namespace NeonSkySurvivors.Runtime.App
             var image = _resultsPanel.GetComponent<Image>();
             image.color = new Color(0.015f, 0.035f, 0.07f, 0.97f);
 
-            _resultsTitleText = CreateText(_resultsPanel.transform, "Results Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 48, new Color(1f, 0.82f, 0.28f));
+            _resultsTitleText = CreateDisplayText(_resultsPanel.transform, "Results Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 44, NeonUITheme.TextRed);
+            AddTextGlow(_resultsTitleText, NeonUITheme.Red, 3f);
             _resultsStatsText = CreateText(_resultsPanel.transform, "Results Stats", new Vector2(0f, -190f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, Color.white);
             _resultsStatsText.rectTransform.sizeDelta = new Vector2(-120f, 420f);
 
@@ -1684,8 +1686,9 @@ namespace NeonSkySurvivors.Runtime.App
             var image = _upgradePanel.GetComponent<Image>();
             image.color = new Color(0.015f, 0.035f, 0.07f, 0.96f);
 
-            var title = CreateText(_upgradePanel.transform, "Upgrade Title", new Vector2(0f, -38f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 38, new Color(0.72f, 1f, 1f));
-            title.text = "Choose upgrade";
+            var title = CreateDisplayText(_upgradePanel.transform, "Upgrade Title", new Vector2(0f, -38f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 32, NeonUITheme.TextCyan);
+            title.text = "LEVEL UP";
+            AddTextGlow(title, NeonUITheme.Cyan);
 
             for (var index = 0; index < 3; index++)
             {
@@ -1766,6 +1769,56 @@ namespace NeonSkySurvivors.Runtime.App
             text.rectTransform.sizeDelta = Vector2.zero;
             text.text = label;
             return button;
+        }
+
+        /// <summary>Approximate neon glow on legacy Text via a soft Outline in the accent color.</summary>
+        private static void AddTextGlow(Text text, Color color, float distance = 2.5f)
+        {
+            var outline = text.gameObject.AddComponent<UnityEngine.UI.Outline>();
+            outline.effectColor = new Color(color.r, color.g, color.b, 0.85f);
+            outline.effectDistance = new Vector2(distance, distance);
+            outline.useGraphicAlpha = false;
+        }
+
+        /// <summary>Builds a cyan vector plane (body + nose + wings) from the sprite factory for menu/garage heroes.</summary>
+        private void CreatePlaneHero(Transform parent, Vector2 anchoredPosition, float size, Color tint)
+        {
+            var root = new GameObject("Plane Hero", typeof(RectTransform));
+            root.transform.SetParent(parent, false);
+            var rect = root.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = anchoredPosition;
+            rect.sizeDelta = new Vector2(size, size);
+
+            void Part(string n, Sprite sprite, Vector2 anchor, Vector2 sz, Color c)
+            {
+                var go = new GameObject(n, typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(root.transform, false);
+                var r = go.GetComponent<RectTransform>();
+                r.anchorMin = r.anchorMax = new Vector2(0.5f, 0.5f);
+                r.anchoredPosition = anchor;
+                r.sizeDelta = sz;
+                var img = go.GetComponent<Image>();
+                img.sprite = sprite;
+                img.color = c;
+                img.raycastTarget = false;
+            }
+
+            var wing = NeonSpriteFactory.PlayerWing;
+            Part("WingL", wing, new Vector2(-size * 0.24f, -size * 0.04f), new Vector2(size * 0.5f, size * 0.5f), NeonUITheme.Alpha(tint, 0.9f));
+            var wr = new GameObject("WingR", typeof(RectTransform), typeof(Image));
+            wr.transform.SetParent(root.transform, false);
+            var wrr = wr.GetComponent<RectTransform>();
+            wrr.anchorMin = wrr.anchorMax = new Vector2(0.5f, 0.5f);
+            wrr.anchoredPosition = new Vector2(size * 0.24f, -size * 0.04f);
+            wrr.sizeDelta = new Vector2(size * 0.5f, size * 0.5f);
+            wrr.localScale = new Vector3(-1f, 1f, 1f);
+            var wri = wr.GetComponent<Image>();
+            wri.sprite = wing; wri.color = NeonUITheme.Alpha(tint, 0.9f); wri.raycastTarget = false;
+
+            Part("Body", NeonSpriteFactory.PlayerBody, Vector2.zero, new Vector2(size * 0.62f, size * 0.92f), tint);
+            Part("Nose", NeonSpriteFactory.PlayerNose, new Vector2(0f, size * 0.18f), new Vector2(size * 0.5f, size * 0.6f), NeonUITheme.CyanSoft);
         }
 
         // ── Panel styling ───────────────────────────────────────────────
@@ -2168,7 +2221,7 @@ namespace NeonSkySurvivors.Runtime.App
             panelRect.offsetMax = Vector2.zero;
             _missionsPanel.GetComponent<Image>().color = new Color(0.01f, 0.025f, 0.055f, 0.98f);
 
-            CreateText(_missionsPanel.transform, "Missions Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 48, new Color(0.5f, 1f, 0.6f))
+            CreateDisplayText(_missionsPanel.transform, "Missions Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 38, NeonUITheme.Uncommon)
                 .text = "DAILY MISSIONS";
 
             // Scrollable list
@@ -2525,15 +2578,34 @@ namespace NeonSkySurvivors.Runtime.App
             rect.anchorMax = Vector2.one;
             rect.offsetMin = Vector2.zero;
             rect.offsetMax = Vector2.zero;
-            _mainMenuPanel.GetComponent<Image>().color = new Color(0.01f, 0.025f, 0.055f, 0.98f);
+            // Translucent so the live neon grid/starfield reads through, per the design.
+            _mainMenuPanel.GetComponent<Image>().color = NeonUITheme.Alpha(NeonUITheme.Bg, 0.82f);
 
-            var titleText = CreateText(_mainMenuPanel.transform, "Menu Title", new Vector2(0f, -120f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 64, new Color(0.5f, 1f, 1f));
-            titleText.text = "NEON SKY\nSURVIVORS";
+            var kicker = CreateText(_mainMenuPanel.transform, "Menu Kicker", new Vector2(0f, -96f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 22, NeonUITheme.Cyan);
+            kicker.text = "ENDLESS · WAVE 0";
 
-            var taglineText = CreateText(_mainMenuPanel.transform, "Menu Tagline", new Vector2(0f, -310f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 30, new Color(0.6f, 0.9f, 1f, 0.7f));
-            taglineText.text = "Survive. Upgrade. Evolve.";
+            var titleNeon = CreateDisplayText(_mainMenuPanel.transform, "Menu Title", new Vector2(0f, -120f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 78, NeonUITheme.TextCyan);
+            titleNeon.text = "NEON SKY";
+            AddTextGlow(titleNeon, NeonUITheme.Cyan, 3f);
 
-            _mainMenuStatsText = CreateText(_mainMenuPanel.transform, "Menu Stats", new Vector2(0f, -400f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 26, new Color(0.65f, 0.75f, 0.85f));
+            var titleSub = CreateText(_mainMenuPanel.transform, "Menu Title Sub", new Vector2(0f, -218f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 34, NeonUITheme.TextDim);
+            titleSub.text = "S U R V I V O R S";
+            titleSub.font = NeonUITheme.UiBold;
+
+            // Plane hero with a cyan→purple trail behind it.
+            var trail = new GameObject("Hero Trail", typeof(RectTransform), typeof(Image));
+            trail.transform.SetParent(_mainMenuPanel.transform, false);
+            var trailRect = trail.GetComponent<RectTransform>();
+            trailRect.anchorMin = trailRect.anchorMax = new Vector2(0.5f, 0.5f);
+            trailRect.anchoredPosition = new Vector2(0f, -70f);
+            trailRect.sizeDelta = new Vector2(16f, 180f);
+            var trailImg = trail.GetComponent<Image>();
+            trailImg.sprite = NeonSpriteFactory.Blank;
+            trailImg.color = NeonUITheme.Alpha(NeonUITheme.Purple, 0.5f);
+            trailImg.raycastTarget = false;
+            CreatePlaneHero(_mainMenuPanel.transform, new Vector2(0f, 10f), 230f, NeonUITheme.Cyan);
+
+            _mainMenuStatsText = CreateText(_mainMenuPanel.transform, "Menu Stats", new Vector2(0f, 150f), new Vector2(0f, 0f), new Vector2(1f, 0f), TextAnchor.LowerCenter, 26, NeonUITheme.TextMute);
 
             var playButton = CreateButton(_mainMenuPanel.transform, "PLAY", new Vector2(0f, 400f), ShowGarage);
             playButton.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 130f);
@@ -2558,7 +2630,8 @@ namespace NeonSkySurvivors.Runtime.App
             rect.offsetMax = Vector2.zero;
             _settingsPanel.GetComponent<Image>().color = new Color(0.01f, 0.025f, 0.055f, 0.98f);
 
-            var titleText = CreateText(_settingsPanel.transform, "Settings Title", new Vector2(0f, -80f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 52, new Color(0.68f, 1f, 1f));
+            var titleText = CreateDisplayText(_settingsPanel.transform, "Settings Title", new Vector2(0f, -80f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 40, NeonUITheme.TextCyan);
+            AddTextGlow(titleText, NeonUITheme.Cyan);
             titleText.text = "SETTINGS";
 
             // Music volume row
@@ -2663,8 +2736,9 @@ namespace NeonSkySurvivors.Runtime.App
             rect.sizeDelta = new Vector2(860f, 680f);
             _pauseMenuPanel.GetComponent<Image>().color = new Color(0.01f, 0.03f, 0.07f, 0.97f);
 
-            var title = CreateText(_pauseMenuPanel.transform, "Pause Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 52, new Color(0.72f, 1f, 1f));
+            var title = CreateDisplayText(_pauseMenuPanel.transform, "Pause Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 44, NeonUITheme.TextCyan);
             title.text = "PAUSED";
+            AddTextGlow(title, NeonUITheme.Cyan, 3f);
 
             var resumeButton = CreateButton(_pauseMenuPanel.transform, "RESUME", new Vector2(0f, 150f), ResumePausedRun);
             resumeButton.GetComponent<RectTransform>().sizeDelta = new Vector2(660f, 120f);

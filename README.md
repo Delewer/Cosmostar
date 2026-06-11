@@ -50,5 +50,5 @@ dotnet test .\tests\NeonSkySurvivors.Core.Tests\NeonSkySurvivors.Core.Tests.cspr
 ## Notes
 
 - The previous vertical-slice implementation has been removed.
-- Runtime visuals are code-driven placeholder neon UI/gameplay art designed to be replaced by authored assets without changing the gameplay architecture.
+- Gameplay art is procedurally generated neon (soft-glow shapes built at runtime — no imported image assets): distinct shapes/colors per entity, screen shake, hit-stop, and normal/boss/final-boss music. Equipment and upgrade-card icon art is the remaining authored-asset gap. The architecture lets authored assets drop in without gameplay changes.
 - Follow `Instructions.md` step by step for Neon Sky Survivors work. When a requirement is completed, add a progress mark near the relevant instruction before committing.

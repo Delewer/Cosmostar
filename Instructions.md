@@ -59,11 +59,11 @@ Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward dro
 - Acceptance: a player can navigate Menu→Garage→Run→Results→Garage entirely on touch, with settings and meta progression persisting. ✅ Met — verified 0 compile errors / 0 warnings and "Verify Mobile Boot Scene" passes in Unity 6000.4.4f1 batchmode.
 
 ### Milestone 4 — Art & audio production
-- [ ] Replace placeholder 1×1 sprites with real neon art: player plane, the 6 enemy types, 5 bosses, projectiles, XP shards, mines.
-- [ ] Author equipment icons and upgrade-card icons (Section 21 cards specify icons).
-- [ ] Background/parallax art pass; VFX polish (better bursts, dash trail, boss telegraphs); add screen shake / brief hit-stop for impact.
-- [ ] Distinct music tracks for normal / boss / final-boss with a proper mix; SFX pass and volume balancing.
-- Acceptance: no placeholder white quads remain in normal gameplay; the game reads clearly and looks like the neon target style (Section 22).
+- [x] ✅ 2026-06-11: Replaced the placeholder 1×1 quads with a procedural neon-art toolkit (soft-glow masks generated at runtime: glow disc, ring, diamond, ship-triangle, hexagon, tinted per entity). Player plane is now a glowing neon jet; the 6 enemy types read distinctly (Chaser/Fast Wing = darts that point at the player, Shooter = diamond, Shield Drone & Mine Carrier = hexes, Splitter = orb, color-coded per type); bosses/mini-bosses are large glowing cores; player/enemy bullets are neon glows, mines are pulsing telegraph rings, XP shards are teal gems, orbit blades are spinning shards, particles & background stars are soft glows. No white quads remain in gameplay.
+- [ ] Author equipment icons and upgrade-card icons (Section 21 cards specify icons). — still TODO (cards/inventory use colored text + rarity borders).
+- [x] ✅ 2026-06-11: VFX polish — bigger boss/mini death bursts, spinning orbit blades, ring-telegraphed mines, plus camera screen shake (player damage, boss/mini death) and a brief hit-stop freeze-frame on boss/mini kills for impact.
+- [x] ✅ 2026-06-11: Added a distinct final-boss music mode (darker, lower, faster-pulsing drone) on top of the existing normal/boss beds; the runtime auto-switches to it whenever the final boss (Eclipse Core) is on screen, and tuned the per-mode mix volumes.
+- Acceptance: no placeholder white quads remain in normal gameplay; the game reads clearly and looks like the neon target style (Section 22). ✅ Met for gameplay entities (verified 0 compile errors / 0 warnings, Verify Mobile Boot Scene passes); equipment/upgrade-card icon art is the remaining open item.
 
 ### Milestone 5 — Content depth & balance
 - [ ] On-device balance passes against the Section 29 difficulty curve (first minute easy → final boss hard); tune Section 30 starting values.

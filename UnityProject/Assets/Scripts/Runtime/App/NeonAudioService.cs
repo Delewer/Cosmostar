@@ -35,6 +35,7 @@ namespace NeonSkySurvivors.Runtime.App
         private AudioClip _special = null!;
         private AudioClip _musicNormal = null!;
         private AudioClip _musicBoss = null!;
+        private AudioClip _musicFinal = null!;
 
         public bool Enabled
         {
@@ -85,6 +86,7 @@ namespace NeonSkySurvivors.Runtime.App
 
             _musicNormal = CreateDrone("music_normal", 110f, 0.25f, 1f);
             _musicBoss = CreateDrone("music_boss", 130f, 0.5f, 1.5f);
+            _musicFinal = CreateDrone("music_final", 87f, 0.85f, 2.2f);
         }
 
         public void PlayShoot() => PlayOneShot(_shoot, 0.22f);
@@ -138,8 +140,22 @@ namespace NeonSkySurvivors.Runtime.App
                 return;
             }
 
-            _musicSource.clip = mode == "boss" ? _musicBoss : _musicNormal;
-            _musicSource.volume = mode == "boss" ? 0.4f : 0.32f;
+            switch (mode)
+            {
+                case "final":
+                    _musicSource.clip = _musicFinal;
+                    _musicSource.volume = 0.46f;
+                    break;
+                case "boss":
+                    _musicSource.clip = _musicBoss;
+                    _musicSource.volume = 0.4f;
+                    break;
+                default:
+                    _musicSource.clip = _musicNormal;
+                    _musicSource.volume = 0.32f;
+                    break;
+            }
+
             _musicSource.Play();
         }
 

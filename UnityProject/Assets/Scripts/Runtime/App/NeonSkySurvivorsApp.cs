@@ -49,6 +49,11 @@ namespace NeonSkySurvivors.Runtime.App
         private NeonRunState _run = null!;
         private Camera _camera = null!;
         private Sprite _sprite = null!;
+        private Sprite _glowSprite = null!;
+        private Sprite _ringSprite = null!;
+        private Sprite _diamondSprite = null!;
+        private Sprite _shipSprite = null!;
+        private Sprite _hexSprite = null!;
         private Transform _playerRoot = null!;
         private SpriteRenderer _playerBody = null!;
         private SpriteRenderer _playerNose = null!;
@@ -114,6 +119,13 @@ namespace NeonSkySurvivors.Runtime.App
         private float _xpSoundCooldown;
         private float _damageSoundCooldown;
 
+        private Vector3 _cameraBasePosition;
+        private float _shakeRemaining;
+        private float _shakeDuration;
+        private float _shakeMagnitude;
+        private float _hitStopRemaining;
+        private string _finalBossId = string.Empty;
+
         private void Awake()
         {
             QualitySettings.vSyncCount = 0;
@@ -126,6 +138,8 @@ namespace NeonSkySurvivors.Runtime.App
             ApplyPerformanceMode();
             NeonSaveService.Save(_profile);
             _sprite = CreateSprite();
+            CreateNeonSprites();
+            _finalBossId = ResolveFinalBossId();
 
             EnsureCamera();
             EnsureEventSystem();
@@ -157,12 +171,21 @@ namespace NeonSkySurvivors.Runtime.App
 
             if (!_paused && _run.Status == NeonRunStatus.Running)
             {
-                CapturePreTickEnemies();
-                _gameplay.Tick(_run, _catalog, Mathf.Min(Time.deltaTime, 0.05f));
-                SpawnDeathBursts();
+                if (_hitStopRemaining > 0f)
+                {
+                    // Brief freeze-frame on heavy impacts for punch.
+                    _hitStopRemaining -= Time.unscaledDeltaTime;
+                }
+                else
+                {
+                    CapturePreTickEnemies();
+                    _gameplay.Tick(_run, _catalog, Mathf.Min(Time.deltaTime, 0.05f));
+                    SpawnDeathBursts();
+                }
             }
 
             RenderRun();
+            UpdateScreenShake(Time.deltaTime);
             UpdateNeonBackground(Time.deltaTime);
             UpdateParticles(Time.deltaTime);
             UpdateAudio(Time.deltaTime);
@@ -177,6 +200,8 @@ namespace NeonSkySurvivors.Runtime.App
             _resultApplied = false;
             _lastRewardCoins = 0;
             _lastRewardItemNames.Clear();
+            _shakeRemaining = 0f;
+            _hitStopRemaining = 0f;
             HideAllScreens();
             SetRunHudVisible(true);
             _statusText.text = string.Empty;
@@ -305,8 +330,10 @@ namespace NeonSkySurvivors.Runtime.App
                 var view = _orbitViews[index];
                 view.gameObject.SetActive(true);
                 view.transform.position = ToWorld(_run.OrbitBlades[index]);
-                view.transform.localScale = Vector3.one * 0.16f;
-                view.color = new Color(0.7f, 0.5f, 1f);
+                view.transform.localScale = Vector3.one * 0.22f;
+                view.transform.rotation = Quaternion.Euler(0f, 0f, Time.time * 540f);
+                view.sprite = _diamondSprite;
+                view.color = new Color(0.8f, 0.55f, 1f);
             }
         }
 
@@ -355,7 +382,66 @@ namespace NeonSkySurvivors.Runtime.App
                 view.gameObject.SetActive(true);
                 view.transform.position = ToWorld(enemy.Position);
                 view.transform.localScale = Vector3.one * ResolveEnemySize(enemy);
-                view.color = enemy.IsBoss ? (enemy.IsMiniBoss ? new Color(1f, 0.62f, 0.18f) : new Color(1f, 0.18f, 0.82f)) : new Color(1f, 0.24f, 0.36f);
+                view.sprite = SpriteForEnemy(enemy);
+                view.color = ColorForEnemy(enemy);
+
+                // Darts (Chaser/Fast Wing) point at the player; symmetric shapes stay upright.
+                if (!enemy.IsBoss && (enemy.Behavior == NeonEnemyBehaviorType.Chaser || enemy.Behavior == NeonEnemyBehaviorType.FastChaser))
+                {
+                    var toPlayer = _run.Player.Position - enemy.Position;
+                    view.transform.rotation = toPlayer.SqrMagnitude > 0.0001f
+                        ? Quaternion.Euler(0f, 0f, Mathf.Atan2(toPlayer.Y, toPlayer.X) * Mathf.Rad2Deg - 90f)
+                        : Quaternion.identity;
+                }
+                else
+                {
+                    view.transform.rotation = Quaternion.identity;
+                }
+            }
+        }
+
+        private Sprite SpriteForEnemy(NeonRunEnemyState enemy)
+        {
+            if (enemy.IsBoss)
+            {
+                return _glowSprite;
+            }
+
+            switch (enemy.Behavior)
+            {
+                case NeonEnemyBehaviorType.Shooter:
+                    return _diamondSprite;
+                case NeonEnemyBehaviorType.Tank:
+                case NeonEnemyBehaviorType.MineCarrier:
+                    return _hexSprite;
+                case NeonEnemyBehaviorType.Splitter:
+                    return _glowSprite;
+                default:
+                    return _shipSprite;
+            }
+        }
+
+        private static Color ColorForEnemy(NeonRunEnemyState enemy)
+        {
+            if (enemy.IsBoss)
+            {
+                return enemy.IsMiniBoss ? new Color(1f, 0.62f, 0.18f) : new Color(1f, 0.2f, 0.85f);
+            }
+
+            switch (enemy.Behavior)
+            {
+                case NeonEnemyBehaviorType.FastChaser:
+                    return new Color(1f, 0.85f, 0.25f);
+                case NeonEnemyBehaviorType.Shooter:
+                    return new Color(0.85f, 0.4f, 1f);
+                case NeonEnemyBehaviorType.Tank:
+                    return new Color(0.4f, 0.7f, 1f);
+                case NeonEnemyBehaviorType.MineCarrier:
+                    return new Color(1f, 0.5f, 0.15f);
+                case NeonEnemyBehaviorType.Splitter:
+                    return new Color(0.3f, 1f, 0.7f);
+                default:
+                    return new Color(1f, 0.28f, 0.4f);
             }
         }
 
@@ -372,20 +458,23 @@ namespace NeonSkySurvivors.Runtime.App
 
                 if (projectile.FromPlayer)
                 {
-                    view.transform.localScale = Vector3.one * 0.12f;
-                    view.color = new Color(0.38f, 1f, 0.52f);
+                    view.sprite = _glowSprite;
+                    view.transform.localScale = Vector3.one * 0.16f;
+                    view.color = new Color(0.4f, 1f, 0.55f);
                 }
                 else if (projectile.IsMine)
                 {
-                    // Pulsing orange hazard so mines read as a telegraphed danger.
+                    // Pulsing orange ring so mines read as a telegraphed danger.
                     var pulse = 0.6f + 0.4f * Mathf.Sin(Time.time * 10f);
-                    view.transform.localScale = Vector3.one * 0.2f;
-                    view.color = new Color(1f, 0.55f * pulse, 0.12f);
+                    view.sprite = _ringSprite;
+                    view.transform.localScale = Vector3.one * (0.26f + 0.04f * pulse);
+                    view.color = new Color(1f, 0.55f * pulse + 0.2f, 0.12f);
                 }
                 else
                 {
-                    view.transform.localScale = Vector3.one * 0.14f;
-                    view.color = new Color(1f, 0.4f, 0.25f);
+                    view.sprite = _glowSprite;
+                    view.transform.localScale = Vector3.one * 0.18f;
+                    view.color = new Color(1f, 0.4f, 0.22f);
                 }
             }
         }
@@ -400,7 +489,8 @@ namespace NeonSkySurvivors.Runtime.App
                 var view = _xpViews[index];
                 view.gameObject.SetActive(true);
                 view.transform.position = ToWorld(shard.Position);
-                view.transform.localScale = Vector3.one * 0.11f;
+                view.transform.localScale = Vector3.one * 0.17f;
+                view.sprite = _diamondSprite;
                 view.color = new Color(0.23f, 1f, 0.78f);
             }
         }
@@ -645,6 +735,40 @@ namespace NeonSkySurvivors.Runtime.App
             _camera.transform.position = new Vector3(0f, 0f, -10f);
             _camera.backgroundColor = new Color(0.015f, 0.02f, 0.06f);
             _camera.clearFlags = CameraClearFlags.SolidColor;
+            _cameraBasePosition = _camera.transform.position;
+        }
+
+        private void TriggerShake(float magnitude, float duration)
+        {
+            // A new weaker shake should not cut short a stronger ongoing one.
+            if (_shakeRemaining > 0f && magnitude < _shakeMagnitude)
+            {
+                _shakeRemaining = Mathf.Max(_shakeRemaining, duration * 0.5f);
+                return;
+            }
+
+            _shakeMagnitude = magnitude;
+            _shakeDuration = duration;
+            _shakeRemaining = duration;
+        }
+
+        private void UpdateScreenShake(float deltaTime)
+        {
+            if (_camera == null)
+            {
+                return;
+            }
+
+            if (_shakeRemaining <= 0f)
+            {
+                _camera.transform.position = _cameraBasePosition;
+                return;
+            }
+
+            _shakeRemaining -= deltaTime;
+            var fade = _shakeDuration > 0f ? Mathf.Clamp01(_shakeRemaining / _shakeDuration) : 0f;
+            var jitter = UnityEngine.Random.insideUnitCircle * (_shakeMagnitude * fade);
+            _camera.transform.position = _cameraBasePosition + new Vector3(jitter.x, jitter.y, 0f);
         }
 
         private static void EnsureEventSystem()
@@ -706,7 +830,7 @@ namespace NeonSkySurvivors.Runtime.App
                 var particleObject = new GameObject("Particle " + index);
                 particleObject.transform.SetParent(root.transform, false);
                 var renderer = particleObject.AddComponent<SpriteRenderer>();
-                renderer.sprite = _sprite;
+                renderer.sprite = _glowSprite;
                 renderer.sortingOrder = 6;
                 particleObject.SetActive(false);
                 _particles.Add(new NeonParticleView
@@ -801,11 +925,15 @@ namespace NeonSkySurvivors.Runtime.App
                 var snapshot = pair.Value;
                 if (snapshot.IsBoss && !snapshot.IsMiniBoss)
                 {
-                    SpawnBurst(snapshot.Position, new Color(1f, 0.3f, 0.85f, 0.95f), 22, 4.2f, 0.16f, 0.6f);
+                    SpawnBurst(snapshot.Position, new Color(1f, 0.3f, 0.85f, 0.95f), 34, 4.6f, 0.18f, 0.7f);
+                    TriggerShake(0.24f, 0.45f);
+                    _hitStopRemaining = 0.07f;
                 }
                 else if (snapshot.IsMiniBoss)
                 {
-                    SpawnBurst(snapshot.Position, new Color(1f, 0.65f, 0.2f, 0.95f), 16, 3.6f, 0.13f, 0.5f);
+                    SpawnBurst(snapshot.Position, new Color(1f, 0.65f, 0.2f, 0.95f), 22, 3.8f, 0.14f, 0.55f);
+                    TriggerShake(0.15f, 0.3f);
+                    _hitStopRemaining = 0.05f;
                 }
                 else
                 {
@@ -820,24 +948,24 @@ namespace NeonSkySurvivors.Runtime.App
             _playerRoot = rootObject.transform;
             _playerRoot.position = Vector3.zero;
 
-            _playerBody = CreatePlayerSprite("Body", new Vector3(0f, 0f, 0f), new Vector3(0.22f, 0.34f, 1f), 4);
-            _playerNose = CreatePlayerSprite("Nose", new Vector3(0f, 0.2f, 0f), new Vector3(0.12f, 0.16f, 1f), 5);
-            _playerWingLeft = CreatePlayerSprite("Wing Left", new Vector3(-0.17f, -0.05f, 0f), new Vector3(0.12f, 0.2f, 1f), 4);
-            _playerWingRight = CreatePlayerSprite("Wing Right", new Vector3(0.17f, -0.05f, 0f), new Vector3(0.12f, 0.2f, 1f), 4);
+            _playerBody = CreatePlayerSprite("Body", new Vector3(0f, 0f, 0f), new Vector3(0.34f, 0.5f, 1f), 4, _shipSprite);
+            _playerNose = CreatePlayerSprite("Nose", new Vector3(0f, 0.16f, 0f), new Vector3(0.18f, 0.18f, 1f), 5, _glowSprite);
+            _playerWingLeft = CreatePlayerSprite("Wing Left", new Vector3(-0.18f, -0.08f, 0f), new Vector3(0.16f, 0.22f, 1f), 3, _shipSprite);
+            _playerWingRight = CreatePlayerSprite("Wing Right", new Vector3(0.18f, -0.08f, 0f), new Vector3(0.16f, 0.22f, 1f), 3, _shipSprite);
             _playerWingLeft.transform.localRotation = Quaternion.Euler(0f, 0f, 28f);
             _playerWingRight.transform.localRotation = Quaternion.Euler(0f, 0f, -28f);
 
             rootObject.SetActive(false);
         }
 
-        private SpriteRenderer CreatePlayerSprite(string name, Vector3 localPosition, Vector3 localScale, int sortingOrder)
+        private SpriteRenderer CreatePlayerSprite(string name, Vector3 localPosition, Vector3 localScale, int sortingOrder, Sprite sprite)
         {
             var spriteObject = new GameObject(name);
             spriteObject.transform.SetParent(_playerRoot, false);
             spriteObject.transform.localPosition = localPosition;
             spriteObject.transform.localScale = localScale;
             var renderer = spriteObject.AddComponent<SpriteRenderer>();
-            renderer.sprite = _sprite;
+            renderer.sprite = sprite;
             renderer.sortingOrder = sortingOrder;
             return renderer;
         }
@@ -872,7 +1000,7 @@ namespace NeonSkySurvivors.Runtime.App
                 var size = UnityEngine.Random.Range(0.03f, 0.09f);
                 star.transform.localScale = new Vector3(size, size, 1f);
                 var renderer = star.AddComponent<SpriteRenderer>();
-                renderer.sprite = _sprite;
+                renderer.sprite = _glowSprite;
                 renderer.sortingOrder = -9;
                 var shade = UnityEngine.Random.Range(0.5f, 1f);
                 renderer.color = new Color(0.6f * shade, 0.95f * shade, shade, UnityEngine.Random.Range(0.35f, 0.85f));
@@ -1240,6 +1368,7 @@ namespace NeonSkySurvivors.Runtime.App
             {
                 _audio.PlayPlayerDamage();
                 SpawnBurst(player.Position, new Color(1f, 0.3f, 0.3f, 0.95f), 10, 3.2f, 0.1f, 0.4f);
+                TriggerShake(0.12f, 0.2f);
                 _damageSoundCooldown = 0.25f;
             }
 
@@ -1254,11 +1383,17 @@ namespace NeonSkySurvivors.Runtime.App
             _prevXP = player.XP;
 
             var bossCount = 0;
+            var finalBossActive = false;
             for (var index = 0; index < _run.Enemies.Count; index++)
             {
-                if (_run.Enemies[index].IsBoss)
+                var enemy = _run.Enemies[index];
+                if (enemy.IsBoss)
                 {
                     bossCount++;
+                    if (!string.IsNullOrEmpty(_finalBossId) && enemy.EnemyID == _finalBossId)
+                    {
+                        finalBossActive = true;
+                    }
                 }
             }
 
@@ -1275,7 +1410,7 @@ namespace NeonSkySurvivors.Runtime.App
                 _prevWarning = _run.LastWarning;
             }
 
-            _audio.SetMusic(bossCount > 0 ? "boss" : "normal");
+            _audio.SetMusic(finalBossActive ? "final" : (bossCount > 0 ? "boss" : "normal"));
         }
 
         private void CreateGaragePanel(Transform parent)
@@ -1800,13 +1935,14 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void CreateGaragePlanePreview(Transform parent)
         {
-            CreateGarageShape(parent, "Preview Body", new Vector2(0f, 0f), new Vector2(46f, 98f), new Color(0.2f, 0.9f, 1f, 0.95f), 0f);
-            CreateGarageShape(parent, "Preview Nose", new Vector2(0f, 60f), new Vector2(26f, 42f), new Color(0.65f, 1f, 1f, 0.95f), 0f);
-            CreateGarageShape(parent, "Preview Wing Left", new Vector2(-34f, -10f), new Vector2(28f, 56f), new Color(0.15f, 0.7f, 1f, 0.9f), 28f);
-            CreateGarageShape(parent, "Preview Wing Right", new Vector2(34f, -10f), new Vector2(28f, 56f), new Color(0.15f, 0.7f, 1f, 0.9f), -28f);
+            CreateGarageShape(parent, "Preview Glow", new Vector2(0f, 6f), new Vector2(220f, 220f), new Color(0.1f, 0.7f, 1f, 0.18f), 0f, _glowSprite);
+            CreateGarageShape(parent, "Preview Body", new Vector2(0f, 0f), new Vector2(96f, 150f), new Color(0.2f, 0.9f, 1f, 0.95f), 0f, _shipSprite);
+            CreateGarageShape(parent, "Preview Nose", new Vector2(0f, 30f), new Vector2(48f, 48f), new Color(0.65f, 1f, 1f, 0.95f), 0f, _glowSprite);
+            CreateGarageShape(parent, "Preview Wing Left", new Vector2(-44f, -18f), new Vector2(46f, 64f), new Color(0.15f, 0.7f, 1f, 0.9f), 28f, _shipSprite);
+            CreateGarageShape(parent, "Preview Wing Right", new Vector2(44f, -18f), new Vector2(46f, 64f), new Color(0.15f, 0.7f, 1f, 0.9f), -28f, _shipSprite);
         }
 
-        private void CreateGarageShape(Transform parent, string name, Vector2 position, Vector2 size, Color color, float rotation)
+        private void CreateGarageShape(Transform parent, string name, Vector2 position, Vector2 size, Color color, float rotation, Sprite sprite)
         {
             var shape = new GameObject(name, typeof(RectTransform), typeof(Image));
             shape.transform.SetParent(parent, false);
@@ -1818,7 +1954,7 @@ namespace NeonSkySurvivors.Runtime.App
             rect.sizeDelta = size;
             rect.localRotation = Quaternion.Euler(0f, 0f, rotation);
             var image = shape.GetComponent<Image>();
-            image.sprite = _sprite;
+            image.sprite = sprite;
             image.color = color;
         }
 
@@ -1971,6 +2107,126 @@ namespace NeonSkySurvivors.Runtime.App
             texture.SetPixel(0, 0, Color.white);
             texture.Apply();
             return Sprite.Create(texture, new Rect(0f, 0f, 1f, 1f), new Vector2(0.5f, 0.5f), 1f);
+        }
+
+        // Procedural neon art: soft-glow white masks tinted per entity at render time.
+        // Replaces the 1x1 placeholder quads so gameplay reads as the neon target style.
+        private void CreateNeonSprites()
+        {
+            _glowSprite = BuildShapeSprite(NeonShape.Glow);
+            _ringSprite = BuildShapeSprite(NeonShape.Ring);
+            _diamondSprite = BuildShapeSprite(NeonShape.Diamond);
+            _shipSprite = BuildShapeSprite(NeonShape.Ship);
+            _hexSprite = BuildShapeSprite(NeonShape.Hex);
+        }
+
+        private enum NeonShape
+        {
+            Glow,
+            Ring,
+            Diamond,
+            Ship,
+            Hex
+        }
+
+        private static Sprite BuildShapeSprite(NeonShape shape)
+        {
+            const int res = 64;
+            var texture = new Texture2D(res, res, TextureFormat.RGBA32, false)
+            {
+                wrapMode = TextureWrapMode.Clamp,
+                filterMode = FilterMode.Bilinear
+            };
+
+            var pixels = new Color32[res * res];
+            for (var y = 0; y < res; y++)
+            {
+                var v = (y + 0.5f) / res * 2f - 1f;
+                for (var x = 0; x < res; x++)
+                {
+                    var u = (x + 0.5f) / res * 2f - 1f;
+                    var alpha = Mathf.Clamp01(ShapeAlpha(shape, u, v));
+                    pixels[y * res + x] = new Color32(255, 255, 255, (byte)(alpha * 255f));
+                }
+            }
+
+            texture.SetPixels32(pixels);
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0f, 0f, res, res), new Vector2(0.5f, 0.5f), res);
+        }
+
+        private static float ShapeAlpha(NeonShape shape, float u, float v)
+        {
+            switch (shape)
+            {
+                case NeonShape.Glow:
+                {
+                    var r = Mathf.Sqrt(u * u + v * v);
+                    var halo = Mathf.Clamp01(1f - r);
+                    return Mathf.Clamp01(halo * halo + Mathf.Clamp01(0.5f - r) * 1.3f);
+                }
+                case NeonShape.Ring:
+                {
+                    var r = Mathf.Sqrt(u * u + v * v);
+                    return Mathf.Clamp01(1f - Mathf.Abs(r - 0.68f) / 0.26f);
+                }
+                case NeonShape.Diamond:
+                {
+                    var d = Mathf.Abs(u) + Mathf.Abs(v);
+                    return Mathf.Clamp01((1f - d) / 0.3f);
+                }
+                case NeonShape.Hex:
+                {
+                    var p0 = Mathf.Abs(u);
+                    var p1 = Mathf.Abs(u * 0.5f + v * 0.8660254f);
+                    var p2 = Mathf.Abs(u * 0.5f - v * 0.8660254f);
+                    var m = Mathf.Max(p0, Mathf.Max(p1, p2));
+                    return Mathf.Clamp01((0.92f - m) / 0.22f);
+                }
+                case NeonShape.Ship:
+                {
+                    // Upward triangle (apex +v) so it aligns with the plane's facing.
+                    var d0 = EdgeDistance(u, v, 0f, 0.92f, -0.82f, -0.82f);
+                    var d1 = EdgeDistance(u, v, -0.82f, -0.82f, 0.82f, -0.82f);
+                    var d2 = EdgeDistance(u, v, 0.82f, -0.82f, 0f, 0.92f);
+                    var inside = Mathf.Min(d0, Mathf.Min(d1, d2));
+                    return Mathf.Clamp01(inside / 0.12f);
+                }
+                default:
+                    return 0f;
+            }
+        }
+
+        // Signed distance from point (u,v) to the half-plane left of edge a->b (positive inside a CCW triangle).
+        private static float EdgeDistance(float u, float v, float ax, float ay, float bx, float by)
+        {
+            var ex = bx - ax;
+            var ey = by - ay;
+            var length = Mathf.Sqrt(ex * ex + ey * ey);
+            if (length <= 0.0001f)
+            {
+                return 0f;
+            }
+
+            return (ex * (v - ay) - ey * (u - ax)) / length;
+        }
+
+        private string ResolveFinalBossId()
+        {
+            // The final boss is the latest-spawning boss in the catalog (matches the gameplay system).
+            var bestId = string.Empty;
+            var bestSpawn = float.MinValue;
+            for (var index = 0; index < _catalog.Bosses.Count; index++)
+            {
+                var boss = _catalog.Bosses[index];
+                if (!boss.IsMiniBoss && boss.SpawnSecond > bestSpawn)
+                {
+                    bestSpawn = boss.SpawnSecond;
+                    bestId = boss.BossID;
+                }
+            }
+
+            return bestId;
         }
 
         private void SetRunHudVisible(bool visible)
@@ -2288,10 +2544,22 @@ namespace NeonSkySurvivors.Runtime.App
         {
             if (enemy.IsBoss)
             {
-                return enemy.IsMiniBoss ? 0.48f : 0.78f;
+                return enemy.IsMiniBoss ? 0.62f : 1.0f;
             }
 
-            return 0.22f;
+            switch (enemy.Behavior)
+            {
+                case NeonEnemyBehaviorType.FastChaser:
+                    return 0.22f;
+                case NeonEnemyBehaviorType.Tank:
+                    return 0.36f;
+                case NeonEnemyBehaviorType.MineCarrier:
+                    return 0.32f;
+                case NeonEnemyBehaviorType.Shooter:
+                    return 0.28f;
+                default:
+                    return 0.27f;
+            }
         }
 
         private static string FormatTime(float seconds)

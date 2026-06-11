@@ -136,7 +136,40 @@ namespace NeonSkySurvivors.Core.Models
         public int CompletedRuns;
         public float BestSurvivalTime;
         public int BossesDefeated;
+        public bool MusicEnabled = true;
+        public bool SfxEnabled = true;
+        public bool VibrationEnabled = true;
+        public bool PerformanceMode;
+        public NeonMetaProgress Meta = new NeonMetaProgress();
         public Dictionary<string, string> Settings = new Dictionary<string, string>();
+    }
+
+    /// <summary>
+    /// Persistent meta progression earned across runs: account level/XP, materials' sibling
+    /// resources (boss cores), and the lightweight daily mission set (Section 20 / Milestone 3).
+    /// </summary>
+    [Serializable]
+    public sealed class NeonMetaProgress
+    {
+        public int AccountLevel = 1;
+        public int AccountXP;
+        public int BossCores;
+        public string DailyMissionDate = string.Empty;
+        public List<NeonMissionState> DailyMissions = new List<NeonMissionState>();
+    }
+
+    [Serializable]
+    public sealed class NeonMissionState
+    {
+        public string Id = string.Empty;
+        public string Description = string.Empty;
+        // Metric the run reports against: kills | survive | bosses | runs | coins.
+        public string Metric = string.Empty;
+        public int Target = 1;
+        public int Progress;
+        public bool Claimed;
+        public int RewardCoins;
+        public int RewardMaterials;
     }
 
     [Serializable]

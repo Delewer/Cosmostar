@@ -18,6 +18,8 @@ namespace NeonSkySurvivors.Runtime.App
         private AudioSource _musicSource = null!;
         private int _sfxIndex;
         private bool _enabled = true;
+        private bool _musicEnabled = true;
+        private bool _sfxEnabled = true;
         private string _musicMode = string.Empty;
 
         private AudioClip _shoot = null!;
@@ -107,9 +109,24 @@ namespace NeonSkySurvivors.Runtime.App
 
         public void PlaySpecial() => PlayOneShot(_special, 0.9f);
 
+        public void SetSfxEnabled(bool enabled)
+        {
+            _sfxEnabled = enabled;
+        }
+
+        public void SetMusicEnabled(bool enabled)
+        {
+            _musicEnabled = enabled;
+            if (!enabled)
+            {
+                _musicSource.Stop();
+                _musicMode = "off";
+            }
+        }
+
         public void SetMusic(string mode)
         {
-            if (!_enabled || mode == _musicMode)
+            if (!_enabled || !_musicEnabled || mode == _musicMode)
             {
                 return;
             }
@@ -134,7 +151,7 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void PlayOneShot(AudioClip clip, float volume)
         {
-            if (!_enabled || clip == null || _sfxSources.Count == 0)
+            if (!_enabled || !_sfxEnabled || clip == null || _sfxSources.Count == 0)
             {
                 return;
             }

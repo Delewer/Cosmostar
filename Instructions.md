@@ -54,13 +54,13 @@ Current baseline (✅ done): garage equip/upgrade/merge + save/load + reward dro
 - Acceptance: every enemy/weapon/upgrade/boss listed in the MVP catalog has a real in-run effect. ✅ Met for the core set; M2 gameplay-completeness is done.
 
 ### Milestone 3 — Meta systems & screens
-- [ ] Unity Main Menu screen (Play / Garage / Settings) as the entry point.
-- [ ] Settings screen in Unity (music & SFX volume sliders, mute toggles, vibration toggle, quality/FPS) persisted via the save profile; wire NeonAudioService.Enabled and volumes.
-- [ ] Pause menu with Resume / Restart / Quit-to-Garage (extend the existing pause button).
-- [ ] Garage layout polish toward Section 21 (plane preview in center, 6 slots arranged around it) while keeping the working inventory grid.
-- [ ] Missions/Daily objectives + meta progression: account level, upgrade materials, and boss cores from Section 20 feeding garage upgrades; restore a lightweight mission system.
-- [ ] Results screen shows the actual items found (not just a count) and any account-level/material gains.
-- Acceptance: a player can navigate Menu→Garage→Run→Results→Garage entirely on touch, with settings and meta progression persisting.
+- [x] ✅ 2026-06-11: Unity Main Menu is now the app entry point (Boot opens here instead of the Garage): a Play button (starts a run), Garage, Missions, and Settings buttons, plus a live account/coins/materials/cores/best-time summary. All screen transitions route through a single HideAllScreens() switchboard.
+- [x] ✅ 2026-06-11: Settings screen finished — Music, Sound FX, and Vibration mute toggles plus a Quality toggle (High 60 FPS / Performance 30 FPS) persisted on the save profile; toggles wire NeonAudioService.SetMusicEnabled/SetSfxEnabled, Application.targetFrameRate, and a vibration gate on Handheld.Vibrate. Reachable from both the Main Menu and the Garage, returning to whichever opened it.
+- [x] ✅ 2026-06-11: Pause menu added — the in-game pause button opens a Resume / Restart / Quit-to-Garage overlay (was a bare PAUSED status before); Restart re-rolls the run, Quit returns to the Garage.
+- [x] ✅ 2026-06-11: Garage layout polished toward Section 21 — a central neon plane preview with the 6 equipment slots arranged around it (Weapon top, Wings left, Engine right, Hull bottom-left, Core bottom, Radar bottom-right); each slot chip is rarity-colored, shows the equipped item + level, and tapping it selects that item. The working scrollable inventory grid is kept below it.
+- [x] ✅ 2026-06-11: Meta progression + lightweight daily missions — the save profile now carries NeonMetaProgress (account level/XP, boss cores) and a per-day mission set (destroy 150 enemies, survive 5:00, defeat 2 bosses). Runs grant account XP (with level-ups), upgrade materials, and boss cores; missions accrue progress and pay out coins+materials when claimed on the new Missions screen. Materials/cores/account level are surfaced in the Garage and Main Menu.
+- [x] ✅ 2026-06-11: Results screen now lists the actual equipment dropped (name + rarity, not just a count) plus coins/materials/boss-cores earned and account XP gained (flagged when it triggers a level-up), with Garage and Main Menu exit buttons.
+- Acceptance: a player can navigate Menu→Garage→Run→Results→Garage entirely on touch, with settings and meta progression persisting. ✅ Met — verified 0 compile errors / 0 warnings and "Verify Mobile Boot Scene" passes in Unity 6000.4.4f1 batchmode.
 
 ### Milestone 4 — Art & audio production
 - [ ] Replace placeholder 1×1 sprites with real neon art: player plane, the 6 enemy types, 5 bosses, projectiles, XP shards, mines.

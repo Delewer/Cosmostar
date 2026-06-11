@@ -16,6 +16,7 @@ namespace NeonSkySurvivors.Runtime.App
         private const int MaxEnemyViews = 128;
         private const int MaxProjectileViews = 80;
         private const int MaxXpViews = 80;
+        private const int MaxChestViews = 4;
         private const int MaxTrailViews = 24;
         private const int MaxOrbitViews = 6;
         private const int GridVerticalLines = 9;
@@ -50,6 +51,7 @@ namespace NeonSkySurvivors.Runtime.App
         private readonly List<SpriteRenderer> _enemyViews = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> _projectileViews = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> _xpViews = new List<SpriteRenderer>();
+        private readonly List<SpriteRenderer> _chestViews = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> _orbitViews = new List<SpriteRenderer>();
         private readonly List<LineRenderer> _trailViews = new List<LineRenderer>();
         private readonly List<Button> _upgradeButtons = new List<Button>();
@@ -144,6 +146,7 @@ namespace NeonSkySurvivors.Runtime.App
         private float _prevHP;
         private float _prevXP;
         private string _prevWarning = string.Empty;
+        private int _prevEvolutionCount;
         private float _xpSoundCooldown;
         private float _damageSoundCooldown;
 
@@ -396,6 +399,7 @@ namespace NeonSkySurvivors.Runtime.App
             RenderEnemies();
             RenderProjectiles();
             RenderXp();
+            RenderEvolutionChests();
             RenderTrails();
             RenderOrbitBlades();
             RenderPlayer();
@@ -559,6 +563,25 @@ namespace NeonSkySurvivors.Runtime.App
             }
         }
 
+        private void RenderEvolutionChests()
+        {
+            HideAll(_chestViews);
+            var count = Mathf.Min(_run.EvolutionChests.Count, _chestViews.Count);
+            for (var index = 0; index < count; index++)
+            {
+                var chest = _run.EvolutionChests[index];
+                var view = _chestViews[index];
+                view.gameObject.SetActive(true);
+                view.transform.position = ToWorld(chest.Position);
+                // Gold pulsing star so the boss-drop chest reads as a special pickup;
+                // it fades in its final 3 seconds before despawning.
+                var pulse = 0.22f + 0.05f * Mathf.Sin(Time.time * 6f);
+                view.transform.localScale = Vector3.one * pulse;
+                var alpha = Mathf.Clamp01(chest.RemainingLife / 3f);
+                view.color = new Color(1f, 0.82f, 0.2f, Mathf.Lerp(0.35f, 1f, alpha));
+            }
+        }
+
         private void RenderTrails()
         {
             for (var index = 0; index < _trailViews.Count; index++)
@@ -677,11 +700,18 @@ namespace NeonSkySurvivors.Runtime.App
             _lastRewardItemList.Clear();
             var dropped = 0;
 
+            // Quantum Sensor (Radar): boss rewards improved — better drop odds and rarity bias.
+            var boosted = run.ActiveEquipmentEffects.Contains("boss_reward_boost");
+            var miniDropChance = boosted ? 0.75f : 0.6f;
+            var bossDropChance = boosted ? 0.85f : 0.7f;
+            var rarityUpChance = boosted ? 0.65f : 0.5f;
+            var epicChance = boosted ? 0.4f : 0.25f;
+
             for (var index = 0; index < run.MiniBossesKilled; index++)
             {
-                if (UnityEngine.Random.value < 0.6f)
+                if (UnityEngine.Random.value < miniDropChance)
                 {
-                    var rarity = UnityEngine.Random.value < 0.5f ? NeonEquipmentRarity.Common : NeonEquipmentRarity.Uncommon;
+                    var rarity = UnityEngine.Random.value < rarityUpChance ? NeonEquipmentRarity.Uncommon : NeonEquipmentRarity.Common;
                     var item = GrantRandomItemTracked(rarity);
                     if (item != null) { _lastRewardItemList.Add(item + " [" + rarity + "]"); dropped++; }
                 }
@@ -689,9 +719,9 @@ namespace NeonSkySurvivors.Runtime.App
 
             for (var index = 0; index < run.BossesKilled; index++)
             {
-                if (UnityEngine.Random.value < 0.7f)
+                if (UnityEngine.Random.value < bossDropChance)
                 {
-                    var rarity = UnityEngine.Random.value < 0.5f ? NeonEquipmentRarity.Uncommon : NeonEquipmentRarity.Rare;
+                    var rarity = UnityEngine.Random.value < rarityUpChance ? NeonEquipmentRarity.Rare : NeonEquipmentRarity.Uncommon;
                     var item = GrantRandomItemTracked(rarity);
                     if (item != null) { _lastRewardItemList.Add(item + " [" + rarity + "]"); dropped++; }
                 }
@@ -699,7 +729,7 @@ namespace NeonSkySurvivors.Runtime.App
 
             if (run.Status == NeonRunStatus.Victory)
             {
-                var rarity = UnityEngine.Random.value < 0.25f ? NeonEquipmentRarity.Epic : NeonEquipmentRarity.Rare;
+                var rarity = UnityEngine.Random.value < epicChance ? NeonEquipmentRarity.Epic : NeonEquipmentRarity.Rare;
                 var item = GrantRandomItemTracked(rarity);
                 if (item != null) { _lastRewardItemList.Add(item + " [" + rarity + "] *"); dropped++; }
             }
@@ -842,6 +872,7 @@ namespace NeonSkySurvivors.Runtime.App
             CreateSpritePool("Enemies",    MaxEnemyViews,      _enemyViews,      1, null);
             CreateSpritePool("Projectiles",MaxProjectileViews, _projectileViews, 2, null);
             CreateSpritePool("XP",         MaxXpViews,         _xpViews,         3, NeonSpriteFactory.XpShard);
+            CreateSpritePool("Chests",     MaxChestViews,      _chestViews,      3, NeonSpriteFactory.XpShard);
             CreateSpritePool("Orbit",      MaxOrbitViews,      _orbitViews,      4, NeonSpriteFactory.OrbitBlade);
 
             var trailRoot = new GameObject("Dash Trail Pool");
@@ -1426,6 +1457,7 @@ namespace NeonSkySurvivors.Runtime.App
             _prevHP = _run.Player.Stats.CurrentHP;
             _prevXP = _run.Player.XP;
             _prevWarning = string.Empty;
+            _prevEvolutionCount = 0;
             _xpSoundCooldown = 0f;
             _damageSoundCooldown = 0f;
         }
@@ -1525,6 +1557,15 @@ namespace NeonSkySurvivors.Runtime.App
             {
                 _audio.PlayWarning();
                 _prevWarning = _run.LastWarning;
+            }
+
+            // Evolution unlocked (draft pick or boss evolution chest): celebrate it.
+            if (_run.Build.EvolvedWeapons.Count > _prevEvolutionCount)
+            {
+                _audio.PlayLevelUp();
+                _messageText.text = "WEAPON EVOLVED!";
+                SpawnBurst(player.Position, new Color(1f, 0.82f, 0.2f, 0.95f), 18, 4f, 0.12f, 0.6f);
+                _prevEvolutionCount = _run.Build.EvolvedWeapons.Count;
             }
 
             // Use "final" music mode when the final boss (Eclipse Core — highest HP boss) is alive.
@@ -2504,11 +2545,13 @@ namespace NeonSkySurvivors.Runtime.App
         {
             var rewards = _catalog.Rewards;
             var survivalMinutes = Mathf.FloorToInt(run.ElapsedSeconds / 60f);
+            // Quantum Sensor (Radar): boss rewards improved — +25% boss/mini-boss coin bonuses.
+            var bossBonusScale = run.ActiveEquipmentEffects.Contains("boss_reward_boost") ? 1.25f : 1f;
             var coins = rewards.BaseCoins
                 + run.Player.CoinsCollected
                 + run.EnemiesKilled * rewards.CoinPerKill
-                + run.BossesKilled * rewards.BossCoinBonus
-                + run.MiniBossesKilled * rewards.MiniBossCoinBonus
+                + run.BossesKilled * rewards.BossCoinBonus * bossBonusScale
+                + run.MiniBossesKilled * rewards.MiniBossCoinBonus * bossBonusScale
                 + survivalMinutes * rewards.SurvivalMinuteCoins;
 
             return Mathf.Max(0, Mathf.RoundToInt(coins * run.Player.Stats.CoinBonus));

@@ -43,7 +43,12 @@ namespace NeonSkySurvivors.Core.Systems
                     });
                 }
 
-                EquipSlot(profile, slot, itemId);
+                // Only fill empty slots — re-equipping unconditionally would reset the
+                // player's chosen loadout on every app launch / run start.
+                if (string.IsNullOrWhiteSpace(GetEquippedItemId(profile, slot)))
+                {
+                    EquipSlot(profile, slot, itemId);
+                }
             }
 
             if (!profile.UnlockedWeapons.Contains("basic_blaster"))

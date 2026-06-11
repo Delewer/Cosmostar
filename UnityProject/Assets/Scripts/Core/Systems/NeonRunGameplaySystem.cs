@@ -48,6 +48,7 @@ namespace NeonSkySurvivors.Core.Systems
             AddEffectIfEquipped(run, profile, "solar_shield_hull", "solar_shield");
             AddEffectIfEquipped(run, profile, "neon_wings", "dash_firerate");
             AddEffectIfEquipped(run, profile, "overdrive_core", "levelup_damage");
+            AddEffectIfEquipped(run, profile, "quantum_sensor", "boss_reward_boost");
         }
 
         private static void AddEffectIfEquipped(NeonRunState run, NeonSaveProfile profile, string itemId, string effectKey)
@@ -119,6 +120,7 @@ namespace NeonSkySurvivors.Core.Systems
             TickEnemyMovementAndContact(run, deltaTime);
             TickDashTrails(run, deltaTime);
             TickXpCollection(run, catalog, deltaTime);
+            TickEvolutionChests(run, catalog, deltaTime);
             CleanupDefeatedEnemies(run, catalog);
             TrySpawnWaveEnemies(run, catalog, deltaTime);
         }
@@ -716,6 +718,57 @@ namespace NeonSkySurvivors.Core.Systems
             }
         }
 
+        private void TickEvolutionChests(NeonRunState run, NeonSkySurvivorsCatalog catalog, float deltaTime)
+        {
+            for (var chestIndex = run.EvolutionChests.Count - 1; chestIndex >= 0; chestIndex--)
+            {
+                var chest = run.EvolutionChests[chestIndex];
+                chest.RemainingLife -= deltaTime;
+                if (chest.RemainingLife <= 0f)
+                {
+                    run.EvolutionChests.RemoveAt(chestIndex);
+                    continue;
+                }
+
+                var pickupRange = Math.Max(0.12f, run.Player.Stats.MagnetRange / 20f);
+                if (NeonVector2.Distance(chest.Position, run.Player.Position) > pickupRange)
+                {
+                    continue;
+                }
+
+                run.EvolutionChests.RemoveAt(chestIndex);
+                OpenEvolutionChest(run, catalog);
+            }
+        }
+
+        /// <summary>
+        /// Boss-chest evolution path (Section 15): the chest evolves a max-level weapon even
+        /// if its required passive was never picked. If nothing is eligible the chest falls
+        /// back to a heal plus special charge so it is never a dead pickup.
+        /// </summary>
+        public bool OpenEvolutionChest(NeonRunState run, NeonSkySurvivorsCatalog catalog)
+        {
+            foreach (var upgrade in catalog.Upgrades)
+            {
+                if (string.IsNullOrWhiteSpace(upgrade.EvolutionId))
+                {
+                    continue;
+                }
+
+                if (run.Build.GetLevel(upgrade.Id) < upgrade.MaxLevel || run.Build.EvolvedWeapons.Contains(upgrade.EvolutionId))
+                {
+                    continue;
+                }
+
+                run.Build.EvolvedWeapons.Add(upgrade.EvolutionId);
+                return true;
+            }
+
+            run.Player.Stats.CurrentHP = Math.Min(run.Player.Stats.MaxHP, run.Player.Stats.CurrentHP + run.Player.Stats.MaxHP * 0.15f);
+            run.Player.SpecialCharge = Math.Min(run.Player.SpecialChargeMax, run.Player.SpecialCharge + 25f);
+            return false;
+        }
+
         private void CleanupDefeatedEnemies(NeonRunState run, NeonSkySurvivorsCatalog catalog)
         {
             for (var enemyIndex = run.Enemies.Count - 1; enemyIndex >= 0; enemyIndex--)
@@ -753,6 +806,9 @@ namespace NeonSkySurvivors.Core.Systems
                 {
                     run.BossesKilled += 1;
                 }
+
+                // Defeated bosses drop an evolution chest (Section 15: the chest/boss path).
+                run.EvolutionChests.Add(new NeonEvolutionChestState { Position = enemy.Position });
 
                 if (catalog.Bosses.OrderByDescending(boss => boss.SpawnSecond).First().BossID == enemy.EnemyID)
                 {

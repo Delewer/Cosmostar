@@ -107,6 +107,19 @@ namespace NeonSkySurvivors.Tests
             Assert.GreaterOrEqual(profile.OwnedEquipmentItems.Count, 6);
         }
 
+        [Test]
+        public void StartingProfile_DoesNotResetPlayerChosenLoadout()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            profile.EquippedRadarItemID = "quantum_sensor";
+
+            // Called again on every app launch and run start — must keep the player's pick.
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            Assert.AreEqual("quantum_sensor", profile.EquippedRadarItemID,
+                "EnsureStartingProfile must only fill empty slots, never overwrite a loadout.");
+        }
+
         // ── Stat calculation ─────────────────────────────────────────────
 
         [Test]
@@ -283,6 +296,103 @@ namespace NeonSkySurvivors.Tests
             run.BanishesRemaining = 1;
             var notShown = _catalog.Upgrades.First(u => !run.DraftChoices.Contains(u));
             Assert.IsFalse(_gameplay.BanishUpgrade(run, _catalog, notShown));
+        }
+
+        // ── Evolution chests (boss drop path) ────────────────────────────
+
+        [Test]
+        public void BossDeath_DropsEvolutionChest()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            var run = _gameplay.StartRun(profile, _catalog);
+
+            var firstBoss = _catalog.Bosses.OrderBy(b => b.SpawnSecond).First();
+            run.Enemies.Add(new NeonRunEnemyState
+            {
+                EnemyID = firstBoss.BossID,
+                Position = new NeonVector2(3f, 3f),
+                HP = 0f,
+                MaxHP = firstBoss.HP,
+                IsBoss = true
+            });
+
+            _gameplay.Tick(run, _catalog, 0.001f);
+
+            Assert.AreEqual(1, run.BossesKilled);
+            Assert.AreEqual(1, run.EvolutionChests.Count, "Boss death must drop an evolution chest.");
+        }
+
+        [Test]
+        public void EvolutionChest_EvolvesMaxedWeaponWithoutPassive()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            var run = _gameplay.StartRun(profile, _catalog);
+
+            var weapon = _catalog.Upgrades.First(u => u.Id == "plasma_blaster");
+            run.Build.UpgradeLevels[weapon.Id] = weapon.MaxLevel;
+
+            Assert.IsTrue(_gameplay.OpenEvolutionChest(run, _catalog),
+                "Chest must evolve a maxed weapon even without the required passive.");
+            Assert.IsTrue(run.Build.EvolvedWeapons.Contains("plasma_storm"));
+        }
+
+        [Test]
+        public void EvolutionChest_FallsBackToHealAndCharge()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            var run = _gameplay.StartRun(profile, _catalog);
+            run.Player.Stats.CurrentHP = run.Player.Stats.MaxHP * 0.5f;
+            var chargeBefore = run.Player.SpecialCharge;
+
+            Assert.IsFalse(_gameplay.OpenEvolutionChest(run, _catalog), "No maxed weapon → no evolution.");
+            Assert.Greater(run.Player.Stats.CurrentHP, run.Player.Stats.MaxHP * 0.5f, "Fallback heals.");
+            Assert.Greater(run.Player.SpecialCharge, chargeBefore, "Fallback grants special charge.");
+        }
+
+        [Test]
+        public void EvolutionChest_PickedUpAtPlayerPosition()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            var run = _gameplay.StartRun(profile, _catalog);
+            run.EvolutionChests.Add(new NeonEvolutionChestState { Position = run.Player.Position });
+
+            _gameplay.Tick(run, _catalog, 0.001f);
+
+            Assert.AreEqual(0, run.EvolutionChests.Count, "Chest under the player is collected.");
+        }
+
+        [Test]
+        public void EvolutionChest_ExpiresWhenIgnored()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            var run = _gameplay.StartRun(profile, _catalog);
+            run.EvolutionChests.Add(new NeonEvolutionChestState
+            {
+                Position = new NeonVector2(4f, 4f),
+                RemainingLife = 0.0005f
+            });
+
+            _gameplay.Tick(run, _catalog, 0.001f);
+
+            Assert.AreEqual(0, run.EvolutionChests.Count, "Expired chest despawns.");
+        }
+
+        // ── Equipment effects ────────────────────────────────────────────
+
+        [Test]
+        public void QuantumSensor_GrantsBossRewardBoostEffect()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            profile.EquippedRadarItemID = "quantum_sensor";
+
+            var run = _gameplay.StartRun(profile, _catalog);
+            Assert.IsTrue(run.ActiveEquipmentEffects.Contains("boss_reward_boost"));
         }
 
         // ── Helpers ──────────────────────────────────────────────────────

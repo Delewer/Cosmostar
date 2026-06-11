@@ -150,6 +150,13 @@ namespace NeonSkySurvivors.Core.Models
     }
 
     [Serializable]
+    public sealed class NeonEvolutionChestState
+    {
+        public NeonVector2 Position;
+        public float RemainingLife = 14f;
+    }
+
+    [Serializable]
     public sealed class NeonDashTrailState
     {
         public NeonVector2 Start;
@@ -169,6 +176,7 @@ namespace NeonSkySurvivors.Core.Models
         public List<NeonRunEnemyState> Enemies = new List<NeonRunEnemyState>();
         public List<NeonRunProjectileState> Projectiles = new List<NeonRunProjectileState>();
         public List<NeonXpShardState> XpShards = new List<NeonXpShardState>();
+        public List<NeonEvolutionChestState> EvolutionChests = new List<NeonEvolutionChestState>();
         public List<NeonDashTrailState> DashTrails = new List<NeonDashTrailState>();
         public List<NeonVector2> OrbitBlades = new List<NeonVector2>();
         public List<NeonUpgradeDef> DraftChoices = new List<NeonUpgradeDef>();

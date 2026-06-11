@@ -267,7 +267,7 @@ namespace NeonSkySurvivors.Runtime.App
         private void UpdateMainMenuPanel()
         {
             _menuCoinsChip.text = "◎ " + _profile.PlayerCoins;
-            _menuRankChip.text = "LV " + _profile.AccountLevel;
+            _menuRankChip.text = "LV " + _profile.Meta.AccountLevel;
             _mainMenuStatsText.text = "BEST " + FormatTime(_profile.BestSurvivalTime)
                 + "   ·   RUNS " + _profile.CompletedRuns
                 + "   ·   BOSSES " + _profile.BossesDefeated;
@@ -2269,7 +2269,7 @@ namespace NeonSkySurvivors.Runtime.App
             _garageStatsText.text = "Coins " + _profile.PlayerCoins
                 + "   Runs " + _profile.CompletedRuns
                 + "   Best " + FormatTime(_profile.BestSurvivalTime)
-                + "   Lv " + _profile.AccountLevel
+                + "   Lv " + _profile.Meta.AccountLevel
                 + "\nATK " + stats.AttackDamage.ToString("0")
                 + "  Fire " + stats.FireRate.ToString("0.0")
                 + "  Speed " + stats.MovementSpeed.ToString("0.0")
@@ -2598,80 +2598,78 @@ namespace NeonSkySurvivors.Runtime.App
             ShowGarage();
         }
 
-        private static readonly NeonActiveMission[] MissionTemplates =
+        private static readonly NeonMissionState[] MissionTemplates =
         {
-            new NeonActiveMission { MissionId = "kill30", Name = "Exterminator", Description = "Kill 30 enemies in one run", Type = NeonMissionType.KillEnemies, TargetCount = 30, RewardCoins = 40, RewardAccountXP = 20 },
-            new NeonActiveMission { MissionId = "kill100", Name = "Slaughter", Description = "Kill 100 enemies in one run", Type = NeonMissionType.KillEnemies, TargetCount = 100, RewardCoins = 80, RewardAccountXP = 40 },
-            new NeonActiveMission { MissionId = "survive3", Name = "Survivor", Description = "Survive 3 minutes", Type = NeonMissionType.SurviveMinutes, TargetCount = 3, RewardCoins = 30, RewardAccountXP = 15 },
-            new NeonActiveMission { MissionId = "survive6", Name = "Veteran", Description = "Survive 6 minutes", Type = NeonMissionType.SurviveMinutes, TargetCount = 6, RewardCoins = 60, RewardAccountXP = 30 },
-            new NeonActiveMission { MissionId = "boss1", Name = "Boss Hunter", Description = "Defeat a major boss", Type = NeonMissionType.DefeatBoss, TargetCount = 1, RewardCoins = 50, RewardAccountXP = 25 },
-            new NeonActiveMission { MissionId = "complete1", Name = "Full Run", Description = "Complete a full 10-minute run", Type = NeonMissionType.CompleteRun, TargetCount = 1, RewardCoins = 100, RewardAccountXP = 50 },
+            new NeonMissionState { Id = "kill30", Name = "Exterminator", Description = "Kill 30 enemies in one run", Metric = "kills", Target = 30, RewardCoins = 40, RewardAccountXP = 20 },
+            new NeonMissionState { Id = "kill100", Name = "Slaughter", Description = "Kill 100 enemies in one run", Metric = "kills", Target = 100, RewardCoins = 80, RewardAccountXP = 40 },
+            new NeonMissionState { Id = "survive3", Name = "Survivor", Description = "Survive 3 minutes", Metric = "survive", Target = 3, RewardCoins = 30, RewardAccountXP = 15 },
+            new NeonMissionState { Id = "survive6", Name = "Veteran", Description = "Survive 6 minutes", Metric = "survive", Target = 6, RewardCoins = 60, RewardAccountXP = 30 },
+            new NeonMissionState { Id = "boss1", Name = "Boss Hunter", Description = "Defeat a major boss", Metric = "bosses", Target = 1, RewardCoins = 50, RewardAccountXP = 25 },
+            new NeonMissionState { Id = "complete1", Name = "Full Run", Description = "Complete a full 10-minute run", Metric = "runs", Target = 1, RewardCoins = 100, RewardAccountXP = 50 },
         };
 
         private void RefreshDailyMissions()
         {
-            const long TicksPerDay = 864000000000L;
-            var now = System.DateTime.UtcNow.Ticks;
-            var daysSinceEpoch = now / TicksPerDay;
-            var lastReset = _profile.MissionLastResetTicks / TicksPerDay;
+            var today = System.DateTime.UtcNow.ToString("yyyy-MM-dd");
 
-            if (_profile.ActiveMissions.Count == 3 && daysSinceEpoch == lastReset)
+            if (_profile.Meta.DailyMissions.Count == 3 && _profile.Meta.DailyMissionDate == today)
             {
                 return; // still current day
             }
 
-            // New day — pick 3 missions using the day number as a deterministic seed
-            _profile.ActiveMissions.Clear();
-            var rng = new System.Random((int)daysSinceEpoch);
+            // New day — pick 3 missions using the day's numeric value as a deterministic seed
+            _profile.Meta.DailyMissions.Clear();
+            var seed = (int)(System.DateTime.UtcNow - new System.DateTime(2024, 1, 1)).TotalDays;
+            var rng = new System.Random(seed);
             var indices = new System.Collections.Generic.List<int> { 0, 1, 2, 3, 4, 5 };
             for (var pick = 0; pick < 3 && indices.Count > 0; pick++)
             {
                 var chosen = rng.Next(indices.Count);
                 var template = MissionTemplates[indices[chosen]];
                 indices.RemoveAt(chosen);
-                _profile.ActiveMissions.Add(new NeonActiveMission
+                _profile.Meta.DailyMissions.Add(new NeonMissionState
                 {
-                    MissionId = template.MissionId,
+                    Id = template.Id,
                     Name = template.Name,
                     Description = template.Description,
-                    Type = template.Type,
-                    TargetCount = template.TargetCount,
-                    CurrentCount = 0,
+                    Metric = template.Metric,
+                    Target = template.Target,
+                    Progress = 0,
                     Claimed = false,
                     RewardCoins = template.RewardCoins,
                     RewardAccountXP = template.RewardAccountXP
                 });
             }
 
-            _profile.MissionLastResetTicks = daysSinceEpoch * TicksPerDay;
+            _profile.Meta.DailyMissionDate = today;
             NeonSaveService.Save(_profile);
         }
 
         private void UpdateMissionProgressFromRun(NeonRunState run)
         {
             var changed = false;
-            foreach (var mission in _profile.ActiveMissions)
+            foreach (var mission in _profile.Meta.DailyMissions)
             {
                 if (mission.Claimed) continue;
-                var prev = mission.CurrentCount;
-                switch (mission.Type)
+                var prev = mission.Progress;
+                switch (mission.Metric)
                 {
-                    case NeonMissionType.KillEnemies:
-                        mission.CurrentCount = Mathf.Max(mission.CurrentCount, run.EnemiesKilled);
+                    case "kills":
+                        mission.Progress = Mathf.Max(mission.Progress, run.EnemiesKilled);
                         break;
-                    case NeonMissionType.SurviveMinutes:
-                        mission.CurrentCount = Mathf.Max(mission.CurrentCount, Mathf.FloorToInt(run.ElapsedSeconds / 60f));
+                    case "survive":
+                        mission.Progress = Mathf.Max(mission.Progress, Mathf.FloorToInt(run.ElapsedSeconds / 60f));
                         break;
-                    case NeonMissionType.DefeatBoss:
-                        mission.CurrentCount = Mathf.Max(mission.CurrentCount, run.BossesKilled);
+                    case "bosses":
+                        mission.Progress = Mathf.Max(mission.Progress, run.BossesKilled);
                         break;
-                    case NeonMissionType.CompleteRun:
+                    case "runs":
                         if (run.Status == NeonRunStatus.Victory)
-                            mission.CurrentCount = Mathf.Max(mission.CurrentCount, 1);
+                            mission.Progress = Mathf.Max(mission.Progress, 1);
                         break;
                 }
 
-                if (mission.CurrentCount != prev) changed = true;
+                if (mission.Progress != prev) changed = true;
             }
 
             if (changed) NeonSaveService.Save(_profile);
@@ -2679,20 +2677,20 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void ClaimMission(int index)
         {
-            if (index < 0 || index >= _profile.ActiveMissions.Count) return;
-            var mission = _profile.ActiveMissions[index];
-            if (mission.Claimed || mission.CurrentCount < mission.TargetCount) return;
+            if (index < 0 || index >= _profile.Meta.DailyMissions.Count) return;
+            var mission = _profile.Meta.DailyMissions[index];
+            if (mission.Claimed || mission.Progress < mission.Target) return;
 
             mission.Claimed = true;
             _profile.PlayerCoins += mission.RewardCoins;
-            _profile.AccountXP += mission.RewardAccountXP;
+            _profile.Meta.AccountXP += mission.RewardAccountXP;
 
             // Level up account if threshold reached: threshold = 100 * current level
-            while (_profile.AccountXP >= 100 * _profile.AccountLevel)
+            while (_profile.Meta.AccountXP >= 100 * _profile.Meta.AccountLevel)
             {
-                _profile.AccountXP -= 100 * _profile.AccountLevel;
-                _profile.AccountLevel += 1;
-                _profile.PlayerCoins += 30 * _profile.AccountLevel; // level-up coin bonus
+                _profile.Meta.AccountXP -= 100 * _profile.Meta.AccountLevel;
+                _profile.Meta.AccountLevel += 1;
+                _profile.PlayerCoins += 30 * _profile.Meta.AccountLevel;
             }
 
             NeonSaveService.Save(_profile);
@@ -2708,23 +2706,23 @@ namespace NeonSkySurvivors.Runtime.App
                 Destroy(_missionsContent.GetChild(i).gameObject);
             }
 
-            for (var index = 0; index < _profile.ActiveMissions.Count; index++)
+            for (var index = 0; index < _profile.Meta.DailyMissions.Count; index++)
             {
-                var mission = _profile.ActiveMissions[index];
+                var mission = _profile.Meta.DailyMissions[index];
                 CreateMissionCard(mission, index);
             }
         }
 
-        private void CreateMissionCard(NeonActiveMission mission, int index)
+        private void CreateMissionCard(NeonMissionState mission, int index)
         {
-            var card = new GameObject("Mission " + mission.MissionId, typeof(RectTransform), typeof(Image));
+            var card = new GameObject("Mission " + mission.Id, typeof(RectTransform), typeof(Image));
             card.transform.SetParent(_missionsContent, false);
 
             var layoutElem = card.AddComponent<LayoutElement>();
             layoutElem.preferredHeight = 200f;
             layoutElem.flexibleWidth = 1f;
 
-            var complete = mission.CurrentCount >= mission.TargetCount;
+            var complete = mission.Progress >= mission.Target;
             var claimed = mission.Claimed;
             var cardColor = claimed
                 ? new Color(0.06f, 0.2f, 0.08f, 0.8f)
@@ -2734,9 +2732,9 @@ namespace NeonSkySurvivors.Runtime.App
             card.GetComponent<Image>().color = cardColor;
             StylePanelCut(card, complete ? NeonUITheme.Uncommon : NeonUITheme.Line2);
 
-            var progressText = mission.TargetCount > 1
-                ? Mathf.Min(mission.CurrentCount, mission.TargetCount) + "/" + mission.TargetCount
-                : (complete ? "Done" : "0/" + mission.TargetCount);
+            var progressText = mission.Target > 1
+                ? Mathf.Min(mission.Progress, mission.Target) + "/" + mission.Target
+                : (complete ? "Done" : "0/" + mission.Target);
 
             var statusSuffix = claimed ? "  ✓ Claimed" : complete ? "  — COMPLETE!" : "  [" + progressText + "]";
             var infoText = CreateText(card.transform, "Mission Info", new Vector2(0f, 0f), new Vector2(0f, 0.5f), new Vector2(0.68f, 1f), TextAnchor.MiddleLeft, 26, complete && !claimed ? new Color(0.6f, 1f, 0.65f) : Color.white);

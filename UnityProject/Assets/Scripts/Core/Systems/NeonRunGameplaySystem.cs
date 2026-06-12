@@ -132,6 +132,8 @@ namespace NeonSkySurvivors.Core.Systems
             TickAutoFire(run, deltaTime);
             TickHomingMissiles(run);
             TickLaserWings(run);
+            TickTeslaArc(run, deltaTime);
+            TickNovaMortar(run);
             TickOrbitBlades(run, deltaTime);
             TickProjectiles(run, deltaTime);
             TickEnemyMovementAndContact(run, deltaTime);
@@ -209,6 +211,8 @@ namespace NeonSkySurvivors.Core.Systems
             run.Player.WeaponCooldownRemaining = Math.Max(0f, run.Player.WeaponCooldownRemaining - deltaTime);
             run.Player.MissileCooldownRemaining = Math.Max(0f, run.Player.MissileCooldownRemaining - deltaTime);
             run.Player.LaserCooldownRemaining = Math.Max(0f, run.Player.LaserCooldownRemaining - deltaTime);
+            run.Player.TeslaCooldownRemaining = Math.Max(0f, run.Player.TeslaCooldownRemaining - deltaTime);
+            run.Player.MortarCooldownRemaining = Math.Max(0f, run.Player.MortarCooldownRemaining - deltaTime);
             run.Player.GuardianBlockCooldown = Math.Max(0f, run.Player.GuardianBlockCooldown - deltaTime);
             run.Player.FireRateBuffRemaining = Math.Max(0f, run.Player.FireRateBuffRemaining - deltaTime);
             run.Player.DamageBoostRemaining = Math.Max(0f, run.Player.DamageBoostRemaining - deltaTime);
@@ -392,6 +396,120 @@ namespace NeonSkySurvivors.Core.Systems
             }
 
             run.Player.LaserCooldownRemaining = isSolarSplitter ? 0.6f : (level >= 4 ? 0.8f : 1.2f);
+        }
+
+        private void TickTeslaArc(NeonRunState run, float deltaTime)
+        {
+            // Fade out zap segments regardless of weapon state so visuals never linger.
+            for (var zapIndex = run.TeslaZaps.Count - 1; zapIndex >= 0; zapIndex--)
+            {
+                run.TeslaZaps[zapIndex].RemainingLife -= deltaTime;
+                if (run.TeslaZaps[zapIndex].RemainingLife <= 0f)
+                {
+                    run.TeslaZaps.RemoveAt(zapIndex);
+                }
+            }
+
+            var level = run.Build.GetLevel("tesla_arc");
+            if (level <= 0 || run.Player.TeslaCooldownRemaining > 0f || run.Enemies.Count == 0)
+            {
+                return;
+            }
+
+            var isStormCage = HasEvolution(run, "storm_cage");
+
+            // L1: zap + 1 chain; L3: +1 chain; L5: +2 chains. Storm Cage: +3 chains, harder, faster.
+            var chains = 2 + (level >= 3 ? 1 : 0) + (level >= 5 ? 2 : 0) + (isStormCage ? 3 : 0);
+            var damage = run.Player.Stats.AttackDamage * (0.7f + 0.1f * level) * DamageMultiplier(run) * (isStormCage ? 1.25f : 1f);
+            var chainRadius = isStormCage ? 0.6f : 0.45f;
+            var cooldown = (level >= 4 ? 1.6f : 2.4f) * (isStormCage ? 0.55f : 1f);
+
+            var source = run.Player.Position;
+            var firstHopRange = 0.9f;
+            var struck = new HashSet<NeonRunEnemyState>();
+
+            for (var hop = 0; hop < chains; hop++)
+            {
+                NeonRunEnemyState? target = null;
+                var bestDistance = float.MaxValue;
+                var maxRange = hop == 0 ? firstHopRange : chainRadius;
+                foreach (var enemy in run.Enemies)
+                {
+                    if (struck.Contains(enemy))
+                    {
+                        continue;
+                    }
+
+                    var distance = NeonVector2.Distance(enemy.Position, source);
+                    if (distance > maxRange || distance >= bestDistance)
+                    {
+                        continue;
+                    }
+
+                    target = enemy;
+                    bestDistance = distance;
+                }
+
+                if (target == null)
+                {
+                    break;
+                }
+
+                target.HP -= damage;
+                struck.Add(target);
+                run.TeslaZaps.Add(new NeonTeslaZapState { Start = source, End = target.Position });
+                source = target.Position;
+            }
+
+            if (struck.Count > 0)
+            {
+                run.Player.TeslaCooldownRemaining = cooldown;
+            }
+        }
+
+        private void TickNovaMortar(NeonRunState run)
+        {
+            var level = run.Build.GetLevel("nova_mortar");
+            if (level <= 0 || run.Player.MortarCooldownRemaining > 0f || run.Enemies.Count == 0)
+            {
+                return;
+            }
+
+            var isSupernova = HasEvolution(run, "supernova");
+            var shells = 1 + (level >= 5 ? 1 : 0) + (isSupernova ? 1 : 0);
+            var blastRadius = (level >= 2 ? 0.4f : 0.3f) * (isSupernova ? 1.4f : 1f);
+            var damage = run.Player.Stats.AttackDamage * (1.2f + 0.15f * level) * DamageMultiplier(run) * (isSupernova ? 1.3f : 1f);
+            var cooldown = (level >= 4 ? 2.2f : 3f) * (isSupernova ? 0.8f : 1f);
+
+            for (var shell = 0; shell < shells; shell++)
+            {
+                var target = FindNearestEnemy(run, run.Player.Position);
+                if (target == null)
+                {
+                    break;
+                }
+
+                var direction = (target.Position - run.Player.Position).Normalized;
+                if (direction.SqrMagnitude <= 0.0001f)
+                {
+                    direction = NeonVector2.Up;
+                }
+
+                // Extra shells fan out so a cluster gets carpeted rather than double-tapping one spot.
+                var spread = (shell - (shells - 1) * 0.5f) * 0.35f;
+                run.Projectiles.Add(new NeonRunProjectileState
+                {
+                    Position = run.Player.Position,
+                    Velocity = Rotate(direction, spread) * 0.9f,
+                    Damage = damage,
+                    Radius = 0.18f,
+                    RemainingLife = 2.8f,
+                    FromPlayer = true,
+                    ExplosionRadius = blastRadius
+                });
+            }
+
+            run.Player.MortarCooldownRemaining = cooldown;
         }
 
         private void TickOrbitBlades(NeonRunState run, float deltaTime)

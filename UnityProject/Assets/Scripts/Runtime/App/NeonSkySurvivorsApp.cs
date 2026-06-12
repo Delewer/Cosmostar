@@ -18,6 +18,7 @@ namespace NeonSkySurvivors.Runtime.App
         private const int MaxXpViews = 80;
         private const int MaxChestViews = 4;
         private const int MaxTrailViews = 24;
+        private const int MaxZapViews = 12;
         private const int MaxOrbitViews = 6;
         private const int GridVerticalLines = 9;
         private const int GridHorizontalLines = 13;
@@ -54,6 +55,7 @@ namespace NeonSkySurvivors.Runtime.App
         private readonly List<SpriteRenderer> _chestViews = new List<SpriteRenderer>();
         private readonly List<SpriteRenderer> _orbitViews = new List<SpriteRenderer>();
         private readonly List<LineRenderer> _trailViews = new List<LineRenderer>();
+        private readonly List<LineRenderer> _zapViews = new List<LineRenderer>();
         private readonly List<Button> _upgradeButtons = new List<Button>();
         private readonly List<LineRenderer> _gridLines = new List<LineRenderer>();
         private readonly List<float> _gridLineY = new List<float>();
@@ -434,6 +436,7 @@ namespace NeonSkySurvivors.Runtime.App
             RenderXp();
             RenderEvolutionChests();
             RenderTrails();
+            RenderTeslaZaps();
             RenderOrbitBlades();
             RenderPlayer();
             RenderBossTelegraphs();
@@ -639,6 +642,28 @@ namespace NeonSkySurvivors.Runtime.App
                 view.endWidth = width * 0.3f;
                 view.startColor = new Color(0.36f, 0.95f, 1f, alpha);
                 view.endColor = new Color(0.75f, 0.38f, 1f, alpha * 0.35f);
+            }
+        }
+
+        private void RenderTeslaZaps()
+        {
+            for (var index = 0; index < _zapViews.Count; index++)
+            {
+                var view = _zapViews[index];
+                if (index >= _run.TeslaZaps.Count)
+                {
+                    view.gameObject.SetActive(false);
+                    continue;
+                }
+
+                var zap = _run.TeslaZaps[index];
+                var alpha = Mathf.Clamp01(zap.RemainingLife / 0.22f);
+                view.gameObject.SetActive(true);
+                view.positionCount = 2;
+                view.SetPosition(0, ToWorld(zap.Start));
+                view.SetPosition(1, ToWorld(zap.End));
+                view.startColor = new Color(0.65f, 0.92f, 1f, 0.95f * alpha);
+                view.endColor = new Color(1f, 1f, 1f, 0.8f * alpha);
             }
         }
 
@@ -927,6 +952,23 @@ namespace NeonSkySurvivors.Runtime.App
                 line.positionCount = 2;
                 trailObject.SetActive(false);
                 _trailViews.Add(line);
+            }
+
+            var zapRoot = new GameObject("Tesla Zap Pool");
+            for (var index = 0; index < MaxZapViews; index++)
+            {
+                var zapObject = new GameObject("Zap " + index);
+                zapObject.transform.SetParent(zapRoot.transform, false);
+                var line = zapObject.AddComponent<LineRenderer>();
+                line.material = new Material(Shader.Find("Sprites/Default"));
+                line.startColor = new Color(0.65f, 0.92f, 1f, 0.95f);
+                line.endColor = new Color(1f, 1f, 1f, 0.8f);
+                line.startWidth = 0.05f;
+                line.endWidth = 0.03f;
+                line.positionCount = 2;
+                line.sortingOrder = 5;
+                zapObject.SetActive(false);
+                _zapViews.Add(line);
             }
         }
 
@@ -2919,9 +2961,15 @@ namespace NeonSkySurvivors.Runtime.App
             HideAll(_projectileViews);
             HideAll(_xpViews);
             HideAll(_orbitViews);
+            HideAll(_chestViews);
             for (var index = 0; index < _trailViews.Count; index++)
             {
                 _trailViews[index].gameObject.SetActive(false);
+            }
+
+            for (var index = 0; index < _zapViews.Count; index++)
+            {
+                _zapViews[index].gameObject.SetActive(false);
             }
 
             if (_playerRoot != null)

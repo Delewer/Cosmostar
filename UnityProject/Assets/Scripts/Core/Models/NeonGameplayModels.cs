@@ -83,6 +83,8 @@ namespace NeonSkySurvivors.Core.Models
         public float WeaponCooldownRemaining;
         public float MissileCooldownRemaining;
         public float LaserCooldownRemaining;
+        public float TeslaCooldownRemaining;
+        public float MortarCooldownRemaining;
         public int Level = 1;
         public float XP;
         public float XPToNextLevel = 5f;
@@ -157,6 +159,14 @@ namespace NeonSkySurvivors.Core.Models
     }
 
     [Serializable]
+    public sealed class NeonTeslaZapState
+    {
+        public NeonVector2 Start;
+        public NeonVector2 End;
+        public float RemainingLife = 0.22f;
+    }
+
+    [Serializable]
     public sealed class NeonDashTrailState
     {
         public NeonVector2 Start;
@@ -177,6 +187,7 @@ namespace NeonSkySurvivors.Core.Models
         public List<NeonRunProjectileState> Projectiles = new List<NeonRunProjectileState>();
         public List<NeonXpShardState> XpShards = new List<NeonXpShardState>();
         public List<NeonEvolutionChestState> EvolutionChests = new List<NeonEvolutionChestState>();
+        public List<NeonTeslaZapState> TeslaZaps = new List<NeonTeslaZapState>();
         public List<NeonDashTrailState> DashTrails = new List<NeonDashTrailState>();
         public List<NeonVector2> OrbitBlades = new List<NeonVector2>();
         public List<NeonUpgradeDef> DraftChoices = new List<NeonUpgradeDef>();

@@ -117,6 +117,8 @@ namespace NeonSkySurvivors.Core.Design
             catalog.Upgrades.Add(Upgrade("homing_missiles", "Homing Missiles", NeonUpgradeCategory.Weapon,  "Missiles target nearby enemies.",                          "cooldown_reduction",   "rocket_swarm"));
             catalog.Upgrades.Add(Upgrade("laser_wings",    "Laser Wings",     NeonUpgradeCategory.Weapon,  "Side laser beam attacks.",                                 "critical_chance_boost","solar_splitter"));
             catalog.Upgrades.Add(Upgrade("orbit_blades",   "Orbit Blades",    NeonUpgradeCategory.Weapon,  "Energy blades rotate around the plane.",                   "armor_boost",          "neon_barrier"));
+            catalog.Upgrades.Add(Upgrade("tesla_arc",      "Tesla Arc",       NeonUpgradeCategory.Weapon,  "Chain lightning zaps the nearest enemy and arcs onward.",  "fire_rate_boost",      "storm_cage"));
+            catalog.Upgrades.Add(Upgrade("nova_mortar",    "Nova Mortar",     NeonUpgradeCategory.Weapon,  "Lobbed shells that detonate in a wide blast.",             "max_hp_boost",         "supernova"));
 
             // Passives
             catalog.Upgrades.Add(Upgrade("attack_boost",          "Attack Boost",          NeonUpgradeCategory.Passive, "+10% damage per level.",               perLevel: Stat(NeonStatType.AttackDamage, 1.1f, true)));

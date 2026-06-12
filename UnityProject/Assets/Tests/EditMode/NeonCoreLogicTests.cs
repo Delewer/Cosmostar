@@ -382,6 +382,90 @@ namespace NeonSkySurvivors.Tests
             Assert.AreEqual(0, run.EvolutionChests.Count, "Expired chest despawns.");
         }
 
+        // ── Tesla Arc / Nova Mortar weapons ──────────────────────────────
+
+        [Test]
+        public void Catalog_HasSixWeaponsAllWithEvolutions()
+        {
+            var weapons = _catalog.Upgrades.Where(u => u.Category == NeonUpgradeCategory.Weapon).ToList();
+            Assert.GreaterOrEqual(weapons.Count, 6, "4 MVP weapons + Tesla Arc + Nova Mortar.");
+            foreach (var weapon in weapons)
+            {
+                Assert.IsFalse(string.IsNullOrWhiteSpace(weapon.EvolutionId), weapon.Id + " missing evolution.");
+                Assert.IsFalse(string.IsNullOrWhiteSpace(weapon.RequiredPassiveId), weapon.Id + " missing required passive.");
+            }
+
+            Assert.IsTrue(weapons.Any(w => w.Id == "tesla_arc" && w.EvolutionId == "storm_cage"));
+            Assert.IsTrue(weapons.Any(w => w.Id == "nova_mortar" && w.EvolutionId == "supernova"));
+        }
+
+        [Test]
+        public void TeslaArc_ChainsAcrossNearbyEnemiesAndSetsCooldown()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            var run = _gameplay.StartRun(profile, _catalog);
+            run.Build.UpgradeLevels["tesla_arc"] = 3; // zap + 2 chains
+
+            var def = _catalog.Enemies.First();
+            var positions = new[] { new NeonVector2(0.3f, 0f), new NeonVector2(0.5f, 0.1f), new NeonVector2(0.6f, -0.1f) };
+            foreach (var position in positions)
+            {
+                run.Enemies.Add(new NeonRunEnemyState
+                {
+                    EnemyID = def.EnemyID,
+                    Position = position,
+                    HP = 1000f,
+                    MaxHP = 1000f,
+                    Behavior = def.BehaviorType
+                });
+            }
+
+            _gameplay.Tick(run, _catalog, 0.02f);
+
+            Assert.GreaterOrEqual(run.TeslaZaps.Count, 2, "Tesla Arc must chain to at least 2 enemies here.");
+            Assert.Greater(run.Player.TeslaCooldownRemaining, 0f, "Tesla Arc goes on cooldown after firing.");
+            Assert.Less(run.Enemies[0].HP, 1000f, "Nearest enemy takes chain-lightning damage.");
+        }
+
+        [Test]
+        public void NovaMortar_FiresExplosiveShellOnCooldown()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            var run = _gameplay.StartRun(profile, _catalog);
+            run.Build.UpgradeLevels["nova_mortar"] = 1;
+
+            var def = _catalog.Enemies.First();
+            run.Enemies.Add(new NeonRunEnemyState
+            {
+                EnemyID = def.EnemyID,
+                Position = new NeonVector2(0.6f, 0.6f),
+                HP = 1000f,
+                MaxHP = 1000f,
+                Behavior = def.BehaviorType
+            });
+
+            _gameplay.Tick(run, _catalog, 0.02f);
+
+            Assert.IsTrue(run.Projectiles.Any(p => p.FromPlayer && p.ExplosionRadius > 0f && !p.IsHoming),
+                "Nova Mortar must launch a non-homing explosive shell.");
+            Assert.Greater(run.Player.MortarCooldownRemaining, 0f);
+        }
+
+        [Test]
+        public void EvolutionChest_EvolvesTeslaArcIntoStormCage()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            var run = _gameplay.StartRun(profile, _catalog);
+            var tesla = _catalog.Upgrades.First(u => u.Id == "tesla_arc");
+            run.Build.UpgradeLevels[tesla.Id] = tesla.MaxLevel;
+
+            Assert.IsTrue(_gameplay.OpenEvolutionChest(run, _catalog));
+            Assert.IsTrue(run.Build.EvolvedWeapons.Contains("storm_cage"));
+        }
+
         // ── Sector difficulty tiers ──────────────────────────────────────
 
         [Test]

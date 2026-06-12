@@ -382,6 +382,73 @@ namespace NeonSkySurvivors.Tests
             Assert.AreEqual(0, run.EvolutionChests.Count, "Expired chest despawns.");
         }
 
+        // ── Sector difficulty tiers ──────────────────────────────────────
+
+        [Test]
+        public void Sector_ScalesAreOneAtBaseAndGrowPerTier()
+        {
+            Assert.AreEqual(1f, NeonRunGameplaySystem.SectorEnemyHpScale(1), 0.0001f);
+            Assert.AreEqual(1f, NeonRunGameplaySystem.SectorEnemyDamageScale(1), 0.0001f);
+            Assert.AreEqual(1f, NeonRunGameplaySystem.SectorSpawnRateScale(1), 0.0001f);
+            Assert.AreEqual(1f, NeonRunGameplaySystem.SectorRewardScale(1), 0.0001f);
+
+            Assert.AreEqual(1.7f, NeonRunGameplaySystem.SectorEnemyHpScale(3), 0.0001f);
+            Assert.AreEqual(1.5f, NeonRunGameplaySystem.SectorEnemyDamageScale(3), 0.0001f);
+            Assert.AreEqual(1.6f, NeonRunGameplaySystem.SectorRewardScale(3), 0.0001f);
+        }
+
+        [Test]
+        public void Sector_StartRunClampsToValidRange()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+
+            Assert.AreEqual(1, _gameplay.StartRun(profile, _catalog).Sector, "Default is sector 1.");
+            Assert.AreEqual(1, _gameplay.StartRun(profile, _catalog, 0).Sector, "Below range clamps up.");
+            Assert.AreEqual(NeonRunGameplaySystem.MaxSector, _gameplay.StartRun(profile, _catalog, 99).Sector, "Above range clamps down.");
+            Assert.AreEqual(4, _gameplay.StartRun(profile, _catalog, 4).Sector);
+        }
+
+        [Test]
+        public void Sector_ScalesSpawnedEnemiesAndBosses()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            var run = _gameplay.StartRun(profile, _catalog, 3);
+
+            // Keep the plane effectively unkillable so the sim reaches the first boss.
+            run.Player.Stats.MaxHP = 1_000_000f;
+            run.Player.Stats.CurrentHP = 1_000_000f;
+
+            var firstBossSecond = _catalog.Bosses.Min(b => b.SpawnSecond);
+            var safety = 0;
+            while (run.ElapsedSeconds <= firstBossSecond + 1f && safety++ < 5000)
+            {
+                if (run.Status == NeonRunStatus.LevelUpDraft)
+                {
+                    _gameplay.ApplyUpgradeChoice(run, _catalog, run.DraftChoices[0]);
+                    continue;
+                }
+
+                _gameplay.Tick(run, _catalog, 0.5f);
+            }
+
+            var hpScale = NeonRunGameplaySystem.SectorEnemyHpScale(3);
+            var enemyDefs = _catalog.Enemies.ToDictionary(e => e.EnemyID);
+
+            // At least one wave enemy must carry exactly def.HP × sector scale
+            // (split children deliberately use derived HP and are skipped).
+            var scaledEnemy = run.Enemies.Any(e => !e.IsBoss
+                && enemyDefs.TryGetValue(e.EnemyID, out var def)
+                && System.Math.Abs(e.MaxHP - def.HP * hpScale) < 0.01f);
+            Assert.IsTrue(scaledEnemy, "Wave enemies must spawn with sector-scaled HP.");
+
+            var boss = run.Enemies.FirstOrDefault(e => e.IsBoss && !e.IsMiniBoss);
+            Assert.IsNotNull(boss, "First boss should have spawned by " + firstBossSecond + "s.");
+            var bossDef = _catalog.Bosses.First(b => b.BossID == boss!.EnemyID);
+            Assert.AreEqual(bossDef.HP * hpScale, boss!.MaxHP, 0.01f, "Boss HP must be sector-scaled.");
+        }
+
         // ── Equipment effects ────────────────────────────────────────────
 
         [Test]

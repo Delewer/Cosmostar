@@ -93,6 +93,7 @@ namespace NeonSkySurvivors.Runtime.App
         private GameObject _garagePanel = null!;
         private Text _garageTitleText = null!;
         private Text _garageStatsText = null!;
+        private Text _sectorLabel = null!;
         private Text _garageDetailText = null!;
         private RectTransform _inventoryContent = null!;
         private Button _equipButton = null!;
@@ -211,7 +212,8 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void StartRun()
         {
-            _run = _gameplay.StartRun(_profile, _catalog);
+            var sector = ClampSelectedSector();
+            _run = _gameplay.StartRun(_profile, _catalog, sector);
             _paused = false;
             _pauseLabel.text = "II";
             _resultApplied = false;
@@ -225,10 +227,41 @@ namespace NeonSkySurvivors.Runtime.App
             _missionsPanel.SetActive(false);
             SetRunHudVisible(true);
             _statusText.text = string.Empty;
-            _messageText.text = "Survive 10 minutes. Bosses at 3:00, 6:00, 7:30, 8:45, 10:00.";
+            _messageText.text = (sector > 1 ? "SECTOR " + sector + " — " : string.Empty)
+                + "Survive 10 minutes. Bosses at 3:00, 6:00, 7:30, 8:45, 10:00.";
             UpdateUpgradeChoices(false);
             ResetAudioTrackers();
             _audio.SetMusic("normal");
+        }
+
+        private int MaxUnlockedSector => Mathf.Min(NeonRunGameplaySystem.MaxSector, _profile.HighestSectorCleared + 1);
+
+        private int ClampSelectedSector()
+        {
+            _profile.SelectedSector = Mathf.Clamp(_profile.SelectedSector, 1, MaxUnlockedSector);
+            return _profile.SelectedSector;
+        }
+
+        private void CycleSector(int delta)
+        {
+            _profile.SelectedSector = Mathf.Clamp(_profile.SelectedSector + delta, 1, MaxUnlockedSector);
+            NeonSaveService.Save(_profile);
+            UpdateSectorLabel();
+        }
+
+        private void UpdateSectorLabel()
+        {
+            var sector = ClampSelectedSector();
+            if (MaxUnlockedSector == 1)
+            {
+                _sectorLabel.text = "SECTOR 1 — win a run to unlock Sector 2";
+                return;
+            }
+
+            var rewardPercent = Mathf.RoundToInt((NeonRunGameplaySystem.SectorRewardScale(sector) - 1f) * 100f);
+            _sectorLabel.text = sector == 1
+                ? "SECTOR 1 / " + MaxUnlockedSector + " — base difficulty"
+                : "SECTOR " + sector + " / " + MaxUnlockedSector + " — tougher enemies, +" + rewardPercent + "% rewards";
         }
 
         private void ShowGarage()
@@ -619,7 +652,7 @@ namespace NeonSkySurvivors.Runtime.App
             _xpBarFill.fillAmount = xpPercent;
             _timerText.text = FormatTime(_run.ElapsedSeconds);
             var wave = Mathf.FloorToInt(_run.ElapsedSeconds / 60f) + 1;
-            _waveText.text = "WAVE " + wave + " · LV " + player.Level;
+            _waveText.text = (_run.Sector > 1 ? "S" + _run.Sector + " · " : string.Empty) + "WAVE " + wave + " · LV " + player.Level;
             _killsText.text = "☠ " + _run.EnemiesKilled + "\n◎ " + player.CoinsCollected;
             UpdateBuffChips();
 
@@ -675,6 +708,11 @@ namespace NeonSkySurvivors.Runtime.App
                 _profile.CompletedRuns += 1;
                 _profile.BestSurvivalTime = Mathf.Max(_profile.BestSurvivalTime, _run.ElapsedSeconds);
                 _profile.BossesDefeated += _run.BossesKilled + _run.MiniBossesKilled;
+                if (_run.Status == NeonRunStatus.Victory)
+                {
+                    // Beating a sector unlocks the next difficulty tier.
+                    _profile.HighestSectorCleared = Mathf.Max(_profile.HighestSectorCleared, _run.Sector);
+                }
                 _resultApplied = true;
                 UpdateMissionProgressFromRun(_run);
                 NeonSaveService.Save(_profile);
@@ -1632,6 +1670,18 @@ namespace NeonSkySurvivors.Runtime.App
             startRunButton.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 120f);
             PrimaryButton(startRunButton);
 
+            // Sector difficulty selector flanks the Start Run button.
+            var sectorDown = CreateButton(_garagePanel.transform, "◀", new Vector2(-360f, 120f), () => CycleSector(-1));
+            sectorDown.GetComponent<RectTransform>().sizeDelta = new Vector2(110f, 120f);
+            GhostButton(sectorDown);
+
+            var sectorUp = CreateButton(_garagePanel.transform, "▶", new Vector2(360f, 120f), () => CycleSector(1));
+            sectorUp.GetComponent<RectTransform>().sizeDelta = new Vector2(110f, 120f);
+            GhostButton(sectorUp);
+
+            _sectorLabel = CreateText(_garagePanel.transform, "Sector Label", new Vector2(0f, 38f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), TextAnchor.MiddleCenter, 24, NeonUITheme.TextCyan);
+            _sectorLabel.rectTransform.sizeDelta = new Vector2(900f, 44f);
+
             _garagePanel.SetActive(false);
         }
 
@@ -2321,6 +2371,7 @@ namespace NeonSkySurvivors.Runtime.App
             UpdateSlotButtons();
             RebuildInventoryCards();
             UpdateGarageActions();
+            UpdateSectorLabel();
         }
 
         private void RebuildInventoryCards()
@@ -2554,7 +2605,7 @@ namespace NeonSkySurvivors.Runtime.App
                 + run.MiniBossesKilled * rewards.MiniBossCoinBonus * bossBonusScale
                 + survivalMinutes * rewards.SurvivalMinuteCoins;
 
-            return Mathf.Max(0, Mathf.RoundToInt(coins * run.Player.Stats.CoinBonus));
+            return Mathf.Max(0, Mathf.RoundToInt(coins * run.Player.Stats.CoinBonus * NeonRunGameplaySystem.SectorRewardScale(run.Sector)));
         }
 
         private void CreateMissionsPanel(Transform parent)

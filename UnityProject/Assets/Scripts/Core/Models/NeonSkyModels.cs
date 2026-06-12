@@ -136,6 +136,9 @@ namespace NeonSkySurvivors.Core.Models
         public int CompletedRuns;
         public float BestSurvivalTime;
         public int BossesDefeated;
+        // Sector difficulty tiers: highest sector beaten (0 = none) unlocks the next one.
+        public int HighestSectorCleared;
+        public int SelectedSector = 1;
         public float MusicVolume = 0.8f;
         public float SfxVolume = 1.0f;
         public bool VibrationEnabled = true;

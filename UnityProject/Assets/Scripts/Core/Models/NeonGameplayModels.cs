@@ -185,6 +185,8 @@ namespace NeonSkySurvivors.Core.Models
         public HashSet<string> BannedUpgradeIds = new HashSet<string>();
         public int RerollsRemaining;
         public int BanishesRemaining;
+        // Difficulty tier (1 = base). Higher sectors scale enemies and rewards.
+        public int Sector = 1;
         public int EnemiesKilled;
         public int BossesKilled;
         public int MiniBossesKilled;

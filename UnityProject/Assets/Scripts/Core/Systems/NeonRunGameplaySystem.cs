@@ -23,12 +23,29 @@ namespace NeonSkySurvivors.Core.Systems
             _random = new Random(seed);
         }
 
-        public NeonRunState StartRun(NeonSaveProfile profile, NeonSkySurvivorsCatalog catalog)
+        // ── Sector difficulty tiers (post-victory replay) ───────────────
+        // Sector 1 is the base game; each higher sector scales enemy power,
+        // spawn pressure, and (app-side) run rewards.
+
+        public const int MaxSector = 8;
+
+        public static float SectorEnemyHpScale(int sector) => 1f + 0.35f * (ClampSector(sector) - 1);
+
+        public static float SectorEnemyDamageScale(int sector) => 1f + 0.25f * (ClampSector(sector) - 1);
+
+        public static float SectorSpawnRateScale(int sector) => 1f + 0.15f * (ClampSector(sector) - 1);
+
+        public static float SectorRewardScale(int sector) => 1f + 0.30f * (ClampSector(sector) - 1);
+
+        public static int ClampSector(int sector) => Math.Max(1, Math.Min(MaxSector, sector));
+
+        public NeonRunState StartRun(NeonSaveProfile profile, NeonSkySurvivorsCatalog catalog, int sector = 1)
         {
             var equipmentSystem = new NeonEquipmentSystem();
             equipmentSystem.EnsureStartingProfile(profile, catalog);
 
             var run = new NeonRunState();
+            run.Sector = ClampSector(sector);
             run.RerollsRemaining = 2;
             run.BanishesRemaining = 1;
             run.Player.Stats = equipmentSystem.CalculateStats(profile, catalog);
@@ -825,7 +842,7 @@ namespace NeonSkySurvivors.Core.Systems
                 return;
             }
 
-            _spawnAccumulator += wave.SpawnRatePerSecond * deltaTime;
+            _spawnAccumulator += wave.SpawnRatePerSecond * SectorSpawnRateScale(run.Sector) * deltaTime;
             while (_spawnAccumulator >= 1f)
             {
                 _spawnAccumulator -= 1f;
@@ -860,13 +877,14 @@ namespace NeonSkySurvivors.Core.Systems
             var angle = _random.NextDouble() * Math.PI * 2d;
             var spawnRadius = 1.05f;
             var position = new NeonVector2((float)Math.Cos(angle) * spawnRadius, (float)Math.Sin(angle) * spawnRadius);
+            var hp = definition.HP * SectorEnemyHpScale(run.Sector);
             run.Enemies.Add(new NeonRunEnemyState
             {
                 EnemyID = definition.EnemyID,
                 Position = position,
-                HP = definition.HP,
-                MaxHP = definition.HP,
-                ContactDamage = definition.Damage,
+                HP = hp,
+                MaxHP = hp,
+                ContactDamage = definition.Damage * SectorEnemyDamageScale(run.Sector),
                 Speed = definition.Speed,
                 XPDrop = definition.XPDrop,
                 IsBoss = false,
@@ -902,13 +920,14 @@ namespace NeonSkySurvivors.Core.Systems
 
         private void SpawnBoss(NeonRunState run, NeonBossDef boss)
         {
+            var hp = boss.HP * SectorEnemyHpScale(run.Sector);
             run.Enemies.Add(new NeonRunEnemyState
             {
                 EnemyID = boss.BossID,
                 Position = new NeonVector2(0f, 0.82f),
-                HP = boss.HP,
-                MaxHP = boss.HP,
-                ContactDamage = boss.ContactDamage,
+                HP = hp,
+                MaxHP = hp,
+                ContactDamage = boss.ContactDamage * SectorEnemyDamageScale(run.Sector),
                 Speed = 0.5f,
                 XPDrop = 20,
                 IsBoss = true,

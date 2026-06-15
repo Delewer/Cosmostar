@@ -148,7 +148,7 @@ Ordered by leverage. §0 unblocks everything else — until the project provably
 ### §5 — Audio/VFX production pass
 - [ ] Replace procedural SFX/music with authored synthwave tracks + mixed SFX (normal/boss/final-boss stems).
 - [ ] Per-weapon and per-evolution VFX polish; richer death/level-up/special feedback.
-- [ ] Settings: master/music/SFX sliders with finer steps, plus a reduced-motion / reduced-bloom accessibility toggle.
+- [x] ✅ 2026-06-15: Settings: volume steps changed from 25% to 10% for finer control; Reduced Motion toggle added (disables screen shake entirely, suppresses hit-stop, skips regular enemy death particles — only boss/mini-boss deaths show a reduced count); ReducedMotionEnabled persisted in NeonSaveProfile.
 
 ### §6 — Tech health & live-ops readiness
 - [x] ✅ 2026-06-04: Added EditMode unit tests (Assets/Tests/EditMode) for the engine-independent Core — catalog integrity (≥24 items, unique IDs, all 6 slots, rarity→upgrade-cost map, Mythic tier), starting loadout, stat calc (full HP), upgrade-cost formula, merge rules (3 Common→Uncommon, Legendary→Mythic, Mythic blocked, <3 fails), and deterministic run start. Wired an `edit-mode-tests` CI job. (Tests can't run locally — no .NET/Unity in the sandbox — they run in CI once UNITY_LICENSE is set.)

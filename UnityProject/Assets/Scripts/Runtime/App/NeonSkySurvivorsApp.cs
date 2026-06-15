@@ -139,6 +139,7 @@ namespace NeonSkySurvivors.Runtime.App
         private Text _settingsSfxText = null!;
         private Text _settingsVibrationText = null!;
         private Text _settingsDashModeText = null!;
+        private Text _settingsReducedMotionText = null!;
         private bool _settingsFromMainMenu;
         private GameObject _pauseMenuPanel = null!;
         private readonly List<string> _lastRewardItemList = new List<string>();
@@ -398,6 +399,7 @@ namespace NeonSkySurvivors.Runtime.App
             _settingsSfxText.text = "SFX  " + Mathf.RoundToInt(_profile.SfxVolume * 100f) + "%";
             _settingsVibrationText.text = "Vibration  " + (_profile.VibrationEnabled ? "ON" : "OFF");
             _settingsDashModeText.text = "Dash  " + (_profile.DoubleTapDashEnabled ? "DOUBLE-TAP" : "BUTTON");
+            _settingsReducedMotionText.text = "Reduced Motion  " + (_profile.ReducedMotionEnabled ? "ON" : "OFF");
         }
 
         private void ApplyAudioSettings()
@@ -1144,6 +1146,7 @@ namespace NeonSkySurvivors.Runtime.App
                 _enemyAfterTick.Add(_run.Enemies[index]);
             }
 
+            var reduced = _profile.ReducedMotionEnabled;
             foreach (var pair in _enemySnapshots)
             {
                 if (_enemyAfterTick.Contains(pair.Key))
@@ -1154,13 +1157,14 @@ namespace NeonSkySurvivors.Runtime.App
                 var snapshot = pair.Value;
                 if (snapshot.IsBoss && !snapshot.IsMiniBoss)
                 {
-                    SpawnBurst(snapshot.Position, new Color(1f, 0.3f, 0.85f, 0.95f), 22, 4.2f, 0.16f, 0.6f);
+                    // Always show boss death even in reduced-motion mode (just fewer particles).
+                    SpawnBurst(snapshot.Position, new Color(1f, 0.3f, 0.85f, 0.95f), reduced ? 8 : 22, 4.2f, 0.16f, 0.6f);
                 }
                 else if (snapshot.IsMiniBoss)
                 {
-                    SpawnBurst(snapshot.Position, new Color(1f, 0.65f, 0.2f, 0.95f), 16, 3.6f, 0.13f, 0.5f);
+                    SpawnBurst(snapshot.Position, new Color(1f, 0.65f, 0.2f, 0.95f), reduced ? 5 : 16, 3.6f, 0.13f, 0.5f);
                 }
-                else
+                else if (!reduced)
                 {
                     SpawnBurst(snapshot.Position, new Color(1f, 0.4f, 0.45f, 0.9f), 7, 3f, 0.08f, 0.4f);
                 }
@@ -3723,19 +3727,19 @@ namespace NeonSkySurvivors.Runtime.App
             AddTextGlow(titleText, NeonUITheme.Cyan);
             titleText.text = "SETTINGS";
 
-            // Music volume row
+            // Music volume row — 10% steps for finer control
             _settingsMusicText = CreateText(_settingsPanel.transform, "Music Label", new Vector2(0f, 260f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), TextAnchor.MiddleCenter, 34, Color.white);
             _settingsMusicText.rectTransform.sizeDelta = new Vector2(500f, 70f);
 
-            CreateSmallButton(_settingsPanel.transform, "-", new Vector2(-260f, 260f), () => AdjustMusicVolume(-0.25f));
-            CreateSmallButton(_settingsPanel.transform, "+", new Vector2(260f, 260f), () => AdjustMusicVolume(0.25f));
+            CreateSmallButton(_settingsPanel.transform, "-", new Vector2(-260f, 260f), () => AdjustMusicVolume(-0.1f));
+            CreateSmallButton(_settingsPanel.transform, "+", new Vector2(260f, 260f), () => AdjustMusicVolume(0.1f));
 
-            // SFX volume row
+            // SFX volume row — 10% steps
             _settingsSfxText = CreateText(_settingsPanel.transform, "SFX Label", new Vector2(0f, 140f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), TextAnchor.MiddleCenter, 34, Color.white);
             _settingsSfxText.rectTransform.sizeDelta = new Vector2(500f, 70f);
 
-            CreateSmallButton(_settingsPanel.transform, "-", new Vector2(-260f, 140f), () => AdjustSfxVolume(-0.25f));
-            CreateSmallButton(_settingsPanel.transform, "+", new Vector2(260f, 140f), () => AdjustSfxVolume(0.25f));
+            CreateSmallButton(_settingsPanel.transform, "-", new Vector2(-260f, 140f), () => AdjustSfxVolume(-0.1f));
+            CreateSmallButton(_settingsPanel.transform, "+", new Vector2(260f, 140f), () => AdjustSfxVolume(0.1f));
 
             // Vibration row
             _settingsVibrationText = CreateText(_settingsPanel.transform, "Vibration Label", new Vector2(0f, 30f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), TextAnchor.MiddleCenter, 34, Color.white);
@@ -3753,7 +3757,15 @@ namespace NeonSkySurvivors.Runtime.App
             CreateSmallButton(_settingsPanel.transform, "Toggle", new Vector2(0f, -220f), ToggleDashMode)
                 .GetComponent<RectTransform>().sizeDelta = new Vector2(300f, 80f);
 
-            var backButton = CreateButton(_settingsPanel.transform, "Back", new Vector2(0f, -360f), HideSettings);
+            // Reduced Motion row — disables screen shake and particle bursts
+            _settingsReducedMotionText = CreateText(_settingsPanel.transform, "Reduced Motion Label", new Vector2(0f, -330f), new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), TextAnchor.MiddleCenter, 34, Color.white);
+            _settingsReducedMotionText.rectTransform.sizeDelta = new Vector2(580f, 70f);
+            _settingsReducedMotionText.rectTransform.anchoredPosition = new Vector2(0f, -330f);
+
+            CreateSmallButton(_settingsPanel.transform, "Toggle", new Vector2(0f, -400f), ToggleReducedMotion)
+                .GetComponent<RectTransform>().sizeDelta = new Vector2(300f, 80f);
+
+            var backButton = CreateButton(_settingsPanel.transform, "Back", new Vector2(0f, -510f), HideSettings);
             backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 110f);
             GhostButton(backButton);
 
@@ -3785,7 +3797,7 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void AdjustMusicVolume(float delta)
         {
-            _profile.MusicVolume = Mathf.Clamp01(Mathf.Round((_profile.MusicVolume + delta) * 4f) / 4f);
+            _profile.MusicVolume = Mathf.Clamp01(Mathf.Round((_profile.MusicVolume + delta) * 10f) / 10f);
             ApplyAudioSettings();
             NeonSaveService.Save(_profile);
             UpdateSettingsPanel();
@@ -3793,8 +3805,15 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void AdjustSfxVolume(float delta)
         {
-            _profile.SfxVolume = Mathf.Clamp01(Mathf.Round((_profile.SfxVolume + delta) * 4f) / 4f);
+            _profile.SfxVolume = Mathf.Clamp01(Mathf.Round((_profile.SfxVolume + delta) * 10f) / 10f);
             ApplyAudioSettings();
+            NeonSaveService.Save(_profile);
+            UpdateSettingsPanel();
+        }
+
+        private void ToggleReducedMotion()
+        {
+            _profile.ReducedMotionEnabled = !_profile.ReducedMotionEnabled;
             NeonSaveService.Save(_profile);
             UpdateSettingsPanel();
         }
@@ -3869,6 +3888,7 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void TriggerHitStop(float duration)
         {
+            if (_profile.ReducedMotionEnabled) return;
             if (duration > _hitStopRemaining)
             {
                 _hitStopRemaining = duration;
@@ -3878,10 +3898,11 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void UpdateScreenShake(float deltaTime)
         {
-            if (_shakeRemaining <= 0f)
+            if (_shakeRemaining <= 0f || _profile.ReducedMotionEnabled)
             {
                 _camera.transform.position = _cameraBasePosition;
                 _shakeAmplitude = 0f;
+                _shakeRemaining = 0f;
                 return;
             }
 

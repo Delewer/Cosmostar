@@ -143,6 +143,7 @@ namespace NeonSkySurvivors.Core.Models
         public float SfxVolume = 1.0f;
         public bool VibrationEnabled = true;
         public bool DoubleTapDashEnabled = false;
+        public bool ReducedMotionEnabled = false;
         public NeonMetaProgress Meta = new NeonMetaProgress();
         public Dictionary<string, string> Settings = new Dictionary<string, string>();
         // Lifetime cumulative stats for achievements and the codex.

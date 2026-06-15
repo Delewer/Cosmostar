@@ -144,6 +144,8 @@ namespace NeonSkySurvivors.Runtime.App
         private readonly List<string> _lastRewardItemList = new List<string>();
         private GameObject _missionsPanel = null!;
         private RectTransform _missionsContent = null!;
+        private GameObject _achievementsPanel = null!;
+        private RectTransform _achievementsContent = null!;
 
         private NeonRunStatus _prevStatus;
         private int _prevEnemiesKilled;
@@ -252,6 +254,7 @@ namespace NeonSkySurvivors.Runtime.App
             _mainMenuPanel.SetActive(false);
             _settingsPanel.SetActive(false);
             _missionsPanel.SetActive(false);
+            _achievementsPanel.SetActive(false);
             SetRunHudVisible(true);
             _statusText.text = string.Empty;
             _messageText.text = (sector > 1 ? "SECTOR " + sector + " — " : string.Empty)
@@ -305,6 +308,7 @@ namespace NeonSkySurvivors.Runtime.App
             _settingsPanel.SetActive(false);
             _pauseMenuPanel.SetActive(false);
             _missionsPanel.SetActive(false);
+            _achievementsPanel.SetActive(false);
             _garagePanel.SetActive(true);
             UpdateGaragePanel();
             _audio.StopMusic();
@@ -323,6 +327,7 @@ namespace NeonSkySurvivors.Runtime.App
             _pauseMenuPanel.SetActive(false);
             _resultsPanel.SetActive(false);
             _missionsPanel.SetActive(false);
+            _achievementsPanel.SetActive(false);
             _mainMenuPanel.SetActive(true);
             UpdateMainMenuPanel();
             _audio.StopMusic();
@@ -792,8 +797,13 @@ namespace NeonSkySurvivors.Runtime.App
                     // Beating a sector unlocks the next difficulty tier.
                     _profile.HighestSectorCleared = Mathf.Max(_profile.HighestSectorCleared, _run.Sector);
                 }
+                // Accumulate lifetime stats
+                _profile.LifetimeEnemiesKilled += _run.EnemiesKilled;
+                _profile.LifetimeBossesKilled  += _run.BossesKilled + _run.MiniBossesKilled;
+                _profile.LifetimeTimePlayed    += _run.ElapsedSeconds;
                 _resultApplied = true;
                 UpdateMissionProgressFromRun(_run);
+                CheckAchievements(_run);
                 NeonSaveService.Save(_profile);
             }
 
@@ -1323,6 +1333,7 @@ namespace NeonSkySurvivors.Runtime.App
             CreateSettingsPanel(canvasObject.transform);
             CreatePauseMenuPanel(canvasObject.transform);
             CreateMissionsPanel(canvasObject.transform);
+            CreateAchievementsPanel(canvasObject.transform);
         }
 
         private void CreateSpecialButton(Transform parent)
@@ -1762,6 +1773,11 @@ namespace NeonSkySurvivors.Runtime.App
             missionsBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 90f);
             AccentButton(missionsBtn, NeonUITheme.Uncommon);
             missionsBtn.GetComponentInChildren<Text>().fontSize = 26;
+
+            var achievementsBtn = CreateButton(_garagePanel.transform, "Achievements", new Vector2(290f, 360f), ShowAchievements);
+            achievementsBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(280f, 90f);
+            AccentButton(achievementsBtn, NeonUITheme.Legendary);
+            achievementsBtn.GetComponentInChildren<Text>().fontSize = 22;
 
             var backToMenuBtn = CreateButton(_garagePanel.transform, "< Menu", new Vector2(-290f, 240f), ShowMainMenu);
             backToMenuBtn.GetComponent<RectTransform>().sizeDelta = new Vector2(260f, 90f);
@@ -2778,6 +2794,7 @@ namespace NeonSkySurvivors.Runtime.App
             GhostButton(backButton);
 
             _missionsPanel.SetActive(false);
+            _achievementsPanel.SetActive(false);
         }
 
         private void ShowMissions()
@@ -2792,7 +2809,147 @@ namespace NeonSkySurvivors.Runtime.App
         private void HideMissions()
         {
             _missionsPanel.SetActive(false);
+            _achievementsPanel.SetActive(false);
             ShowGarage();
+        }
+
+        private void ShowAchievements()
+        {
+            _garagePanel.SetActive(false);
+            _achievementsPanel.SetActive(true);
+            RebuildAchievementCards();
+        }
+
+        private void HideAchievements()
+        {
+            _achievementsPanel.SetActive(false);
+            ShowGarage();
+        }
+
+        private void RebuildAchievementCards()
+        {
+            for (var i = _achievementsContent.childCount - 1; i >= 0; i--)
+            {
+                Destroy(_achievementsContent.GetChild(i).gameObject);
+            }
+            // Stats summary card
+            CreateStatsCard();
+            foreach (var def in Achievements)
+            {
+                var unlocked = _profile.UnlockedAchievements.Contains(def.Id);
+                CreateAchievementCard(def, unlocked);
+            }
+        }
+
+        private void CreateStatsCard()
+        {
+            var card = new GameObject("Stats Card", typeof(RectTransform), typeof(Image));
+            card.transform.SetParent(_achievementsContent, false);
+            var layoutElem = card.AddComponent<LayoutElement>();
+            layoutElem.preferredHeight = 180f;
+            layoutElem.flexibleWidth = 1f;
+            card.GetComponent<Image>().color = new Color(0.02f, 0.05f, 0.10f, 0.92f);
+            StylePanelCut(card, NeonUITheme.Mix(NeonUITheme.Cyan, 0.4f, NeonUITheme.Line2));
+
+            var unlocked = _profile.UnlockedAchievements.Count;
+            var total    = Achievements.Length;
+            CreateDisplayText(card.transform, "Stats Title", new Vector2(0f, -28f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 28, NeonUITheme.TextCyan)
+                .text = "PILOT CODEX";
+            CreateText(card.transform, "Stats Body", new Vector2(0f, -75f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 22, NeonUITheme.Text)
+                .text = "Enemies: " + _profile.LifetimeEnemiesKilled
+                    + "   Bosses: " + _profile.LifetimeBossesKilled
+                    + "   Runs: " + _profile.CompletedRuns;
+            CreateText(card.transform, "Stats Body2", new Vector2(0f, -112f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 22, NeonUITheme.Text)
+                .text = "Time Played: " + FormatTime(_profile.LifetimeTimePlayed)
+                    + "   Best: " + FormatTime(_profile.BestSurvivalTime);
+            CreateText(card.transform, "Stats Achiev", new Vector2(0f, -148f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 20, NeonUITheme.TextMute)
+                .text = "Achievements: " + unlocked + " / " + total;
+        }
+
+        private void CreateAchievementCard(AchievementDef def, bool unlocked)
+        {
+            var card = new GameObject("Achiev " + def.Id, typeof(RectTransform), typeof(Image));
+            card.transform.SetParent(_achievementsContent, false);
+            var layoutElem = card.AddComponent<LayoutElement>();
+            layoutElem.preferredHeight = 140f;
+            layoutElem.flexibleWidth = 1f;
+            card.GetComponent<Image>().color = unlocked
+                ? new Color(0.10f, 0.08f, 0.02f, 0.92f)
+                : new Color(0.04f, 0.04f, 0.08f, 0.88f);
+            StylePanelCut(card, unlocked ? NeonUITheme.Legendary : NeonUITheme.Line2);
+
+            var nameText = unlocked ? "★  " + def.Name : "?  " + def.Name;
+            var statusText = unlocked ? "UNLOCKED" : "Locked";
+            var textColor = unlocked ? NeonUITheme.Legendary : NeonUITheme.TextDim;
+            var infoText = CreateText(card.transform, "Achiev Info", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleLeft, 26, textColor);
+            infoText.rectTransform.offsetMin = new Vector2(18f, 8f);
+            infoText.rectTransform.offsetMax = new Vector2(-12f, -8f);
+            infoText.text = nameText + "\n<size=20>" + def.Desc + "</size>\n<size=18><color=#888>" + statusText + "</color></size>";
+        }
+
+        private void CreateAchievementsPanel(Transform parent)
+        {
+            _achievementsPanel = new GameObject("Achievements Panel", typeof(RectTransform), typeof(Image));
+            _achievementsPanel.transform.SetParent(parent, false);
+            var panelRect = _achievementsPanel.GetComponent<RectTransform>();
+            panelRect.anchorMin = Vector2.zero;
+            panelRect.anchorMax = Vector2.one;
+            panelRect.offsetMin = Vector2.zero;
+            panelRect.offsetMax = Vector2.zero;
+            _achievementsPanel.GetComponent<Image>().color = new Color(0.01f, 0.025f, 0.055f, 0.98f);
+
+            CreateDisplayText(_achievementsPanel.transform, "Achievements Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 38, NeonUITheme.Legendary)
+                .text = "ACHIEVEMENTS";
+
+            // Scrollable content area
+            var scrollObject = new GameObject("Achievements Scroll", typeof(RectTransform), typeof(ScrollRect), typeof(Image));
+            scrollObject.transform.SetParent(_achievementsPanel.transform, false);
+            scrollObject.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0f);
+            var scrollRect = scrollObject.GetComponent<RectTransform>();
+            scrollRect.anchorMin = new Vector2(0f, 0.12f);
+            scrollRect.anchorMax = new Vector2(1f, 0.90f);
+            scrollRect.offsetMin = new Vector2(20f, 0f);
+            scrollRect.offsetMax = new Vector2(-20f, -90f);
+
+            var viewport = new GameObject("Viewport", typeof(RectTransform), typeof(Image), typeof(Mask));
+            viewport.transform.SetParent(scrollObject.transform, false);
+            var vpRect = viewport.GetComponent<RectTransform>();
+            vpRect.anchorMin = Vector2.zero;
+            vpRect.anchorMax = Vector2.one;
+            vpRect.offsetMin = Vector2.zero;
+            vpRect.offsetMax = Vector2.zero;
+            viewport.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.01f);
+            viewport.GetComponent<Mask>().showMaskGraphic = false;
+
+            var content = new GameObject("Content", typeof(RectTransform), typeof(VerticalLayoutGroup), typeof(ContentSizeFitter));
+            content.transform.SetParent(viewport.transform, false);
+            var contentRect = content.GetComponent<RectTransform>();
+            contentRect.anchorMin = new Vector2(0f, 1f);
+            contentRect.anchorMax = new Vector2(1f, 1f);
+            contentRect.pivot = new Vector2(0.5f, 1f);
+            contentRect.offsetMin = Vector2.zero;
+            contentRect.offsetMax = Vector2.zero;
+            var vLayout = content.GetComponent<VerticalLayoutGroup>();
+            vLayout.spacing = 18f;
+            vLayout.padding = new RectOffset(0, 0, 8, 8);
+            vLayout.childForceExpandWidth = true;
+            vLayout.childForceExpandHeight = false;
+            content.GetComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
+            _achievementsContent = contentRect;
+
+            var scroll = scrollObject.GetComponent<ScrollRect>();
+            scroll.content = contentRect;
+            scroll.viewport = vpRect;
+            scroll.horizontal = false;
+            scroll.vertical = true;
+            scroll.movementType = ScrollRect.MovementType.Clamped;
+            scroll.scrollSensitivity = 30f;
+
+            var backButton = CreateButton(_achievementsPanel.transform, "Back", new Vector2(0f, 120f), HideAchievements);
+            backButton.GetComponent<RectTransform>().sizeDelta = new Vector2(440f, 110f);
+            GhostButton(backButton);
+
+            _achievementsPanel.SetActive(false);
         }
 
         // ── Pilot milestone reward track ─────────────────────────────────────────
@@ -2851,6 +3008,59 @@ namespace NeonSkySurvivors.Runtime.App
                     profile.PlayerCoins += m.CoinBonus;
                 }
             }
+        }
+
+        // ── Achievement definitions ───────────────────────────────────────────────
+        private sealed class AchievementDef
+        {
+            public string Id   = string.Empty;
+            public string Name = string.Empty;
+            public string Desc = string.Empty;
+        }
+
+        private static readonly AchievementDef[] Achievements =
+        {
+            new AchievementDef { Id = "first_run",      Name = "First Flight",       Desc = "Complete your first run." },
+            new AchievementDef { Id = "run_10",          Name = "Seasoned",            Desc = "Complete 10 runs." },
+            new AchievementDef { Id = "kill_1000",       Name = "Thousand Kills",      Desc = "Destroy 1,000 enemies total." },
+            new AchievementDef { Id = "boss_5",          Name = "Boss Slayer",         Desc = "Defeat 5 bosses total." },
+            new AchievementDef { Id = "survive_10min",   Name = "Ironclad",            Desc = "Survive 10 minutes in a single run." },
+            new AchievementDef { Id = "reach_lv5",       Name = "Veteran Pilot",       Desc = "Reach Account Level 5." },
+            new AchievementDef { Id = "sector_3",        Name = "Sector 3 Cleared",    Desc = "Win a run on Sector 3 or higher." },
+            new AchievementDef { Id = "sector_8",        Name = "Apex Pilot",          Desc = "Win a run on Sector 8." },
+            new AchievementDef { Id = "evolution_3",     Name = "Triple Evolution",    Desc = "Evolve 3 weapons in a single run." },
+            new AchievementDef { Id = "all_weapons",     Name = "Full Arsenal",        Desc = "Max out 3 different weapon upgrades in one run." },
+        };
+
+        private bool TryUnlock(string id)
+        {
+            if (_profile.UnlockedAchievements.Contains(id)) return false;
+            _profile.UnlockedAchievements.Add(id);
+            return true;
+        }
+
+        private void CheckAchievements(NeonRunState run)
+        {
+            if (_profile.CompletedRuns >= 1)  TryUnlock("first_run");
+            if (_profile.CompletedRuns >= 10) TryUnlock("run_10");
+            if (_profile.LifetimeEnemiesKilled >= 1000) TryUnlock("kill_1000");
+            if (_profile.LifetimeBossesKilled >= 5)     TryUnlock("boss_5");
+            if (run.ElapsedSeconds >= 600f)              TryUnlock("survive_10min");
+            if (_profile.Meta.AccountLevel >= 5)        TryUnlock("reach_lv5");
+            if (_profile.HighestSectorCleared >= 3)     TryUnlock("sector_3");
+            if (_profile.HighestSectorCleared >= 8)     TryUnlock("sector_8");
+            if (run.Build.EvolvedWeapons.Count >= 3)    TryUnlock("evolution_3");
+
+            // "all_weapons": at least 3 weapon upgrades at max level (L5) in this run.
+            var maxedWeapons = 0;
+            foreach (var kv in run.Build.UpgradeLevels)
+            {
+                var upgradeId = kv.Key;
+                var def = _catalog.Upgrades.Find(u => u.Id == upgradeId);
+                if (def != null && def.Category == NeonUpgradeCategory.Weapon && kv.Value >= 5)
+                    maxedWeapons++;
+            }
+            if (maxedWeapons >= 3) TryUnlock("all_weapons");
         }
 
         private static readonly NeonMissionState[] MissionTemplates =

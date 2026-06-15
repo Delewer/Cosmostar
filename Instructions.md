@@ -142,7 +142,7 @@ Ordered by leverage. §0 unblocks everything else — until the project provably
 ### §4 — Meta progression & retention
 - [x] ✅ 2026-06-15: Pilot/account-level reward track with 5 milestones (LV 2/5/10/15/20 → Pilot/Ace/Veteran/Commander/Legend) each granting a coin bonus and a permanent run perk (bonus rerolls/banishes). Milestone perks applied to every run start via PilotExtraRerolls/PilotExtraBanishes. Missions panel now shows a "PILOT RANK" card (rank title, XP bar, active perks, next milestone hint). 4 new EditMode tests. ClaimedMilestoneLevels added to NeonMetaProgress.
 - [x] ✅ 2026-06-15: Weekly mission — 5 rotating weekly templates (kill 500 total, defeat 10 bosses, survive 30 min total, complete 5 runs, sector-3 win) selected by ISO week number; progress accumulates across runs (unlike single-run daily goals); WeeklyMission/WeeklyMissionDate persisted in NeonMetaProgress; Missions panel shows an amber "⚡ WEEKLY" card above dailies with its own Claim button; 3 new EditMode tests.
-- [ ] Achievements + a simple stats/codex screen (enemies seen, bosses beaten, best builds).
+- [x] ✅ 2026-06-15: Achievements + Pilot Codex screen — NeonSaveProfile gains LifetimeEnemiesKilled/LifetimeBossesKilled/LifetimeTimePlayed/UnlockedAchievements; 10 achievements checked in ShowResults after every run (first_run, run_10, kill_1000, boss_5, survive_10min, reach_lv5, sector_3, sector_8, evolution_3, all_weapons); Achievements panel accessible from Garage (Legendary gold button) with a scrollable card list (star=unlocked/question=locked) and a Pilot Codex stats header card; 4 new EditMode tests.
 - [ ] Second soft currency or upgrade-material economy ONLY if it earns its keep (MVP rule: avoid currency bloat).
 
 ### §5 — Audio/VFX production pass

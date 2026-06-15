@@ -643,5 +643,47 @@ namespace NeonSkySurvivors.Tests
             Assert.IsFalse(mission.Claimed);
             Assert.IsFalse(mission.Progress >= mission.Target);
         }
+
+        // ── Lifetime stats & achievements model ──────────────────────────────────
+
+        [Test]
+        public void SaveProfile_LifetimeStats_InitialiseToZero()
+        {
+            var profile = new NeonSaveProfile();
+            Assert.AreEqual(0, profile.LifetimeEnemiesKilled);
+            Assert.AreEqual(0, profile.LifetimeBossesKilled);
+            Assert.AreEqual(0f, profile.LifetimeTimePlayed, 0.001f);
+        }
+
+        [Test]
+        public void SaveProfile_UnlockedAchievements_InitialisesEmpty()
+        {
+            var profile = new NeonSaveProfile();
+            Assert.IsNotNull(profile.UnlockedAchievements);
+            Assert.AreEqual(0, profile.UnlockedAchievements.Count);
+        }
+
+        [Test]
+        public void SaveProfile_LifetimeStats_Accumulate()
+        {
+            var profile = new NeonSaveProfile();
+            profile.LifetimeEnemiesKilled += 120;
+            profile.LifetimeEnemiesKilled += 80;
+            Assert.AreEqual(200, profile.LifetimeEnemiesKilled);
+            profile.LifetimeBossesKilled += 3;
+            Assert.AreEqual(3, profile.LifetimeBossesKilled);
+        }
+
+        [Test]
+        public void SaveProfile_UnlockedAchievements_AddAndQuery()
+        {
+            var profile = new NeonSaveProfile();
+            profile.UnlockedAchievements.Add("first_run");
+            profile.UnlockedAchievements.Add("kill_1000");
+            Assert.IsTrue(profile.UnlockedAchievements.Contains("first_run"));
+            Assert.IsTrue(profile.UnlockedAchievements.Contains("kill_1000"));
+            Assert.IsFalse(profile.UnlockedAchievements.Contains("sector_8"));
+            Assert.AreEqual(2, profile.UnlockedAchievements.Count);
+        }
     }
 }

@@ -145,6 +145,11 @@ namespace NeonSkySurvivors.Core.Models
         public bool DoubleTapDashEnabled = false;
         public NeonMetaProgress Meta = new NeonMetaProgress();
         public Dictionary<string, string> Settings = new Dictionary<string, string>();
+        // Lifetime cumulative stats for achievements and the codex.
+        public int LifetimeEnemiesKilled;
+        public int LifetimeBossesKilled;
+        public float LifetimeTimePlayed;
+        public List<string> UnlockedAchievements = new List<string>();
     }
 
     /// <summary>

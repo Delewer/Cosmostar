@@ -160,6 +160,8 @@ namespace NeonSkySurvivors.Core.Models
         public string DailyMissionDate = string.Empty;
         public List<NeonMissionState> DailyMissions = new List<NeonMissionState>();
         public List<int> ClaimedMilestoneLevels = new List<int>();
+        public string WeeklyMissionDate = string.Empty;
+        public NeonMissionState WeeklyMission = new NeonMissionState();
     }
 
     [Serializable]

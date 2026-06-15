@@ -2783,6 +2783,7 @@ namespace NeonSkySurvivors.Runtime.App
         private void ShowMissions()
         {
             RefreshDailyMissions();
+            RefreshWeeklyMission();
             _garagePanel.SetActive(false);
             _missionsPanel.SetActive(true);
             RebuildMissionCards();
@@ -2862,6 +2863,16 @@ namespace NeonSkySurvivors.Runtime.App
             new NeonMissionState { Id = "complete1", Name = "Full Run", Description = "Complete a full 10-minute run", Metric = "runs", Target = 1, RewardCoins = 100, RewardAccountXP = 50 },
         };
 
+        // Weekly missions have longer targets and bigger rewards than dailies.
+        private static readonly NeonMissionState[] WeeklyTemplates =
+        {
+            new NeonMissionState { Id = "w_kill500", Name = "Annihilator", Description = "Kill 500 enemies across runs", Metric = "kills_total", Target = 500, RewardCoins = 300, RewardAccountXP = 120 },
+            new NeonMissionState { Id = "w_boss10",  Name = "Boss Slayer",  Description = "Defeat 10 bosses",             Metric = "bosses_total", Target = 10,  RewardCoins = 250, RewardAccountXP = 100 },
+            new NeonMissionState { Id = "w_survive30", Name = "Ironclad",   Description = "Survive 30 minutes total",     Metric = "survive_total", Target = 30,  RewardCoins = 280, RewardAccountXP = 110 },
+            new NeonMissionState { Id = "w_runs5",   Name = "Road Warrior", Description = "Complete 5 full runs",         Metric = "runs_total",   Target = 5,   RewardCoins = 350, RewardAccountXP = 140 },
+            new NeonMissionState { Id = "w_sector3", Name = "Sector Storm", Description = "Win a run on Sector 3 or higher", Metric = "sector_win", Target = 3,  RewardCoins = 400, RewardAccountXP = 160 },
+        };
+
         private void RefreshDailyMissions()
         {
             var today = System.DateTime.UtcNow.ToString("yyyy-MM-dd");
@@ -2899,34 +2910,96 @@ namespace NeonSkySurvivors.Runtime.App
             NeonSaveService.Save(_profile);
         }
 
+        private static string CurrentWeekKey()
+        {
+            // ISO week: year + week-of-year to give a unique key per calendar week.
+            var now = System.DateTime.UtcNow;
+            var week = System.Globalization.ISOWeek.GetWeekOfYear(now);
+            return now.Year + "-W" + week.ToString("00");
+        }
+
+        private void RefreshWeeklyMission()
+        {
+            var weekKey = CurrentWeekKey();
+            if (_profile.Meta.WeeklyMissionDate == weekKey
+                && !string.IsNullOrEmpty(_profile.Meta.WeeklyMission.Id))
+            {
+                return; // already have this week's mission
+            }
+
+            var weekNum = int.Parse(weekKey.Substring(weekKey.IndexOf('W') + 1));
+            var template = WeeklyTemplates[weekNum % WeeklyTemplates.Length];
+            _profile.Meta.WeeklyMission = new NeonMissionState
+            {
+                Id = template.Id,
+                Name = template.Name,
+                Description = template.Description,
+                Metric = template.Metric,
+                Target = template.Target,
+                Progress = 0,
+                Claimed = false,
+                RewardCoins = template.RewardCoins,
+                RewardAccountXP = template.RewardAccountXP
+            };
+            _profile.Meta.WeeklyMissionDate = weekKey;
+            NeonSaveService.Save(_profile);
+        }
+
         private void UpdateMissionProgressFromRun(NeonRunState run)
         {
             var changed = false;
+
+            // Daily mission progress
             foreach (var mission in _profile.Meta.DailyMissions)
             {
                 if (mission.Claimed) continue;
                 var prev = mission.Progress;
-                switch (mission.Metric)
-                {
-                    case "kills":
-                        mission.Progress = Mathf.Max(mission.Progress, run.EnemiesKilled);
-                        break;
-                    case "survive":
-                        mission.Progress = Mathf.Max(mission.Progress, Mathf.FloorToInt(run.ElapsedSeconds / 60f));
-                        break;
-                    case "bosses":
-                        mission.Progress = Mathf.Max(mission.Progress, run.BossesKilled);
-                        break;
-                    case "runs":
-                        if (run.Status == NeonRunStatus.Victory)
-                            mission.Progress = Mathf.Max(mission.Progress, 1);
-                        break;
-                }
-
+                ApplyRunMetric(mission, run);
                 if (mission.Progress != prev) changed = true;
             }
 
+            // Weekly mission progress (accumulates across runs for _total metrics)
+            var weekly = _profile.Meta.WeeklyMission;
+            if (weekly != null && !weekly.Claimed && !string.IsNullOrEmpty(weekly.Id))
+            {
+                var prev = weekly.Progress;
+                switch (weekly.Metric)
+                {
+                    case "kills_total":   weekly.Progress += run.EnemiesKilled; break;
+                    case "bosses_total":  weekly.Progress += run.BossesKilled + run.MiniBossesKilled; break;
+                    case "survive_total": weekly.Progress += Mathf.FloorToInt(run.ElapsedSeconds / 60f); break;
+                    case "runs_total":
+                        if (run.Status == NeonRunStatus.Victory) weekly.Progress += 1;
+                        break;
+                    case "sector_win":
+                        if (run.Status == NeonRunStatus.Victory && run.Sector >= weekly.Target)
+                            weekly.Progress = weekly.Target;
+                        break;
+                }
+                if (weekly.Progress != prev) changed = true;
+            }
+
             if (changed) NeonSaveService.Save(_profile);
+        }
+
+        private static void ApplyRunMetric(NeonMissionState mission, NeonRunState run)
+        {
+            switch (mission.Metric)
+            {
+                case "kills":
+                    mission.Progress = Mathf.Max(mission.Progress, run.EnemiesKilled);
+                    break;
+                case "survive":
+                    mission.Progress = Mathf.Max(mission.Progress, Mathf.FloorToInt(run.ElapsedSeconds / 60f));
+                    break;
+                case "bosses":
+                    mission.Progress = Mathf.Max(mission.Progress, run.BossesKilled);
+                    break;
+                case "runs":
+                    if (run.Status == NeonRunStatus.Victory)
+                        mission.Progress = Mathf.Max(mission.Progress, 1);
+                    break;
+            }
         }
 
         private void ClaimMission(int index)
@@ -2962,6 +3035,12 @@ namespace NeonSkySurvivors.Runtime.App
             }
 
             CreatePilotRankCard();
+
+            // Weekly mission (above dailies)
+            if (!string.IsNullOrEmpty(_profile.Meta.WeeklyMission?.Id))
+            {
+                CreateWeeklyMissionCard(_profile.Meta.WeeklyMission);
+            }
 
             for (var index = 0; index < _profile.Meta.DailyMissions.Count; index++)
             {
@@ -3057,6 +3136,70 @@ namespace NeonSkySurvivors.Runtime.App
                 AccentButton(claimBtn, NeonUITheme.Uncommon);
                 claimBtn.GetComponentInChildren<Text>().fontSize = 30;
             }
+        }
+
+        private void CreateWeeklyMissionCard(NeonMissionState mission)
+        {
+            var card = new GameObject("Weekly " + mission.Id, typeof(RectTransform), typeof(Image));
+            card.transform.SetParent(_missionsContent, false);
+            var layoutElem = card.AddComponent<LayoutElement>();
+            layoutElem.preferredHeight = 200f;
+            layoutElem.flexibleWidth = 1f;
+
+            var complete = mission.Progress >= mission.Target;
+            var claimed = mission.Claimed;
+            var cardColor = claimed
+                ? new Color(0.10f, 0.14f, 0.04f, 0.85f)
+                : complete
+                    ? new Color(0.14f, 0.10f, 0.04f, 0.95f)
+                    : new Color(0.06f, 0.06f, 0.14f, 0.92f);
+            card.GetComponent<Image>().color = cardColor;
+            StylePanelCut(card, complete ? NeonUITheme.Amber : NeonUITheme.Mix(NeonUITheme.Amber, 0.4f, NeonUITheme.Line2));
+
+            var progressText = mission.Target > 1
+                ? Mathf.Min(mission.Progress, mission.Target) + "/" + mission.Target
+                : (complete ? "Done" : "0/" + mission.Target);
+            var statusSuffix = claimed ? "  ✓ Claimed" : complete ? "  — COMPLETE!" : "  [" + progressText + "]";
+
+            var infoText = CreateText(card.transform, "Weekly Info", Vector2.zero, Vector2.zero, new Vector2(0.68f, 1f), TextAnchor.MiddleLeft, 26, complete && !claimed ? NeonUITheme.Amber : NeonUITheme.Text);
+            infoText.rectTransform.offsetMin = new Vector2(18f, 8f);
+            infoText.rectTransform.offsetMax = new Vector2(-8f, -8f);
+            infoText.text = "⚡ WEEKLY: " + mission.Name + statusSuffix + "\n" + mission.Description + "\nReward: " + mission.RewardCoins + " coins  +" + mission.RewardAccountXP + " XP";
+
+            if (complete && !claimed)
+            {
+                var claimBtn = CreateButton(card.transform, "Claim!", Vector2.zero, ClaimWeeklyMission);
+                var claimRect = claimBtn.GetComponent<RectTransform>();
+                claimRect.anchorMin = new Vector2(0.7f, 0.15f);
+                claimRect.anchorMax = new Vector2(0.97f, 0.85f);
+                claimRect.offsetMin = Vector2.zero;
+                claimRect.offsetMax = Vector2.zero;
+                claimRect.sizeDelta = Vector2.zero;
+                AccentButton(claimBtn, NeonUITheme.Amber);
+                claimBtn.GetComponentInChildren<Text>().fontSize = 30;
+            }
+        }
+
+        private void ClaimWeeklyMission()
+        {
+            var mission = _profile.Meta.WeeklyMission;
+            if (mission == null || mission.Claimed || mission.Progress < mission.Target) return;
+
+            mission.Claimed = true;
+            _profile.PlayerCoins += mission.RewardCoins;
+            _profile.Meta.AccountXP += mission.RewardAccountXP;
+
+            while (_profile.Meta.AccountXP >= AccountXpPerLevel(_profile.Meta.AccountLevel))
+            {
+                _profile.Meta.AccountXP -= AccountXpPerLevel(_profile.Meta.AccountLevel);
+                _profile.Meta.AccountLevel += 1;
+                _profile.PlayerCoins += 30 * _profile.Meta.AccountLevel;
+                GrantMilestoneIfDue(_profile);
+            }
+
+            NeonSaveService.Save(_profile);
+            RebuildMissionCards();
+            UpdateGaragePanel();
         }
 
         private string FormatEquippedSlot(NeonEquipmentSlot slot)

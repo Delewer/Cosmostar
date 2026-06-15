@@ -606,5 +606,42 @@ namespace NeonSkySurvivors.Tests
             Assert.AreEqual(500, 100 * 5, "Lv5→Lv6 threshold");
             Assert.AreEqual(1000, 100 * 10, "Lv10→Lv11 threshold");
         }
+
+        // ── Weekly mission model ──────────────────────────────────────────────────
+
+        [Test]
+        public void MetaProgress_WeeklyMissionInitialisesEmpty()
+        {
+            var meta = new NeonMetaProgress();
+            Assert.IsNotNull(meta.WeeklyMission);
+            Assert.IsTrue(string.IsNullOrEmpty(meta.WeeklyMission.Id), "WeeklyMission.Id should be empty on a new profile.");
+            Assert.AreEqual(string.Empty, meta.WeeklyMissionDate);
+        }
+
+        [Test]
+        public void MetaProgress_WeeklyMission_AssignAndRead()
+        {
+            var meta = new NeonMetaProgress();
+            meta.WeeklyMission = new NeonMissionState
+            {
+                Id = "w_boss10", Name = "Boss Slayer", Metric = "bosses_total", Target = 10,
+                RewardCoins = 250, RewardAccountXP = 100
+            };
+            meta.WeeklyMissionDate = "2026-W24";
+            Assert.AreEqual("w_boss10", meta.WeeklyMission.Id);
+            Assert.AreEqual(10, meta.WeeklyMission.Target);
+            Assert.AreEqual("2026-W24", meta.WeeklyMissionDate);
+        }
+
+        [Test]
+        public void MetaProgress_WeeklyMission_ProgressAccumulates()
+        {
+            var mission = new NeonMissionState { Id = "w_boss10", Target = 10, Metric = "bosses_total" };
+            mission.Progress += 3;
+            mission.Progress += 4;
+            Assert.AreEqual(7, mission.Progress, "Weekly mission progress should accumulate across runs.");
+            Assert.IsFalse(mission.Claimed);
+            Assert.IsFalse(mission.Progress >= mission.Target);
+        }
     }
 }

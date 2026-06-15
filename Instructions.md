@@ -154,7 +154,7 @@ Ordered by leverage. §0 unblocks everything else — until the project provably
 - [x] ✅ 2026-06-04: Added EditMode unit tests (Assets/Tests/EditMode) for the engine-independent Core — catalog integrity (≥24 items, unique IDs, all 6 slots, rarity→upgrade-cost map, Mythic tier), starting loadout, stat calc (full HP), upgrade-cost formula, merge rules (3 Common→Uncommon, Legendary→Mythic, Mythic blocked, <3 fails), and deterministic run start. Wired an `edit-mode-tests` CI job. (Tests can't run locally — no .NET/Unity in the sandbox — they run in CI once UNITY_LICENSE is set.)
 - [ ] Unit tests for the UI helpers' pure logic (NeonUITheme.Mix/Rarity, NeonShapeMesh geometry) once the Runtime assembly is test-referenceable.
 - [ ] Opt-in, privacy-preserving analytics (retention/FPS/crash) — currently the app is fully offline (privacy_policy.html); revisit only if a backend is added, and update the policy.
-- [ ] Localization scaffolding (string table) before adding more copy.
+- [x] ✅ 2026-06-15: Localization scaffolding — NeonStrings.cs added to Core/Design (no engine references); static string table with 70 default English keys covering all UI screens (HUD, menu, garage, settings, missions, pilot rank, achievements, results, pause, upgrade draft, run messages); NeonStrings.Get(key)/Load(table)/ResetToDefault() API; 4 EditMode tests (default keys, missing-key fallback, Load override, ResetToDefault).
 - [ ] Performance budget pass: object-pool audit, draw-call/overdraw check from the neon glow/bloom, texture atlas for procedural sprites.
 
 

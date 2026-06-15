@@ -685,5 +685,47 @@ namespace NeonSkySurvivors.Tests
             Assert.IsFalse(profile.UnlockedAchievements.Contains("sector_8"));
             Assert.AreEqual(2, profile.UnlockedAchievements.Count);
         }
+
+        // ── Localization string table ─────────────────────────────────────────────
+
+        [Test]
+        public void NeonStrings_DefaultTable_HasExpectedKeys()
+        {
+            NeonStrings.ResetToDefault();
+            Assert.AreEqual("NEON SKY SURVIVORS", NeonStrings.Get("menu.title"));
+            Assert.AreEqual("SETTINGS", NeonStrings.Get("settings.title"));
+            Assert.AreEqual("PAUSED", NeonStrings.Get("pause.title"));
+            Assert.AreEqual("ACHIEVEMENTS", NeonStrings.Get("achievements.title"));
+        }
+
+        [Test]
+        public void NeonStrings_MissingKey_ReturnsSelf()
+        {
+            NeonStrings.ResetToDefault();
+            const string key = "nonexistent.key";
+            Assert.AreEqual(key, NeonStrings.Get(key),
+                "Unknown key should fall through to the key string itself.");
+        }
+
+        [Test]
+        public void NeonStrings_Load_OverridesTable()
+        {
+            NeonStrings.Load(new System.Collections.Generic.Dictionary<string, string>
+            {
+                { "menu.title", "NEON SKY OVERRIDDEN" },
+            });
+            Assert.AreEqual("NEON SKY OVERRIDDEN", NeonStrings.Get("menu.title"));
+            Assert.AreEqual("settings.title", NeonStrings.Get("settings.title"),
+                "Keys not in override table should fall back to the key itself.");
+            NeonStrings.ResetToDefault(); // restore for other tests
+        }
+
+        [Test]
+        public void NeonStrings_ResetToDefault_RestoresEnglish()
+        {
+            NeonStrings.Load(new System.Collections.Generic.Dictionary<string, string>());
+            NeonStrings.ResetToDefault();
+            Assert.AreEqual("VICTORY", NeonStrings.Get("results.victory"));
+        }
     }
 }

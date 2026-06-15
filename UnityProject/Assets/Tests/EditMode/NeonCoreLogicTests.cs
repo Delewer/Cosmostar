@@ -546,6 +546,86 @@ namespace NeonSkySurvivors.Tests
             Assert.IsTrue(run.ActiveEquipmentEffects.Contains("boss_reward_boost"));
         }
 
+        [Test]
+        public void VoidEngine_DashKillReset_ClearsRemainingCooldown()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            profile.EquippedEngineItemID = "void_engine";
+
+            var run = _gameplay.StartRun(profile, _catalog);
+            Assert.IsTrue(run.ActiveEquipmentEffects.Contains("dash_kill_reset"));
+
+            run.Player.DashCooldownRemaining = 5f;
+            var def = _catalog.Enemies.First();
+            run.Enemies.Add(new NeonRunEnemyState
+            {
+                EnemyID = def.EnemyID,
+                Position = new NeonVector2(2f, 2f),
+                HP = 0f,
+                MaxHP = def.HP,
+                Behavior = def.BehaviorType
+            });
+
+            _gameplay.Tick(run, _catalog, 0.001f);
+
+            Assert.AreEqual(0f, run.Player.DashCooldownRemaining,
+                "Void Engine: killing an enemy must reset dash cooldown to zero.");
+        }
+
+        [Test]
+        public void StormReactor_DoubleNova_DealsTwiceBaseDamage()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+
+            var runBase = _gameplay.StartRun(profile, _catalog);
+
+            profile.EquippedCoreItemID = "storm_reactor";
+            var runDouble = _gameplay.StartRun(profile, _catalog);
+            Assert.IsTrue(runDouble.ActiveEquipmentEffects.Contains("double_nova"));
+
+            var def = _catalog.Enemies.First();
+            foreach (var run in new[] { runBase, runDouble })
+            {
+                run.Enemies.Add(new NeonRunEnemyState
+                {
+                    EnemyID = def.EnemyID,
+                    Position = new NeonVector2(0.3f, 0.3f),
+                    HP = 1_000_000f,
+                    MaxHP = 1_000_000f,
+                    Behavior = def.BehaviorType
+                });
+                run.Player.SpecialCharge = run.Player.SpecialChargeMax;
+            }
+
+            _gameplay.TryActivateSpecial(runBase);
+            _gameplay.TryActivateSpecial(runDouble);
+
+            var baseDamage   = 1_000_000f - runBase.Enemies[0].HP;
+            var doubleDamage = 1_000_000f - runDouble.Enemies[0].HP;
+            Assert.AreEqual(baseDamage * 2f, doubleDamage, 0.01f,
+                "Storm Reactor double_nova must deal exactly twice the base Nova damage.");
+        }
+
+        [Test]
+        public void StormReactor_AutoChargeSpecial_FiresWhenFull()
+        {
+            var profile = new NeonSaveProfile();
+            _equipment.EnsureStartingProfile(profile, _catalog);
+            profile.EquippedCoreItemID = "storm_reactor";
+
+            var run = _gameplay.StartRun(profile, _catalog);
+            Assert.IsTrue(run.ActiveEquipmentEffects.Contains("auto_charge_special"));
+
+            run.Player.SpecialCharge = run.Player.SpecialChargeMax;
+
+            _gameplay.Tick(run, _catalog, 0.001f);
+
+            Assert.Less(run.Player.SpecialCharge, run.Player.SpecialChargeMax,
+                "Storm Reactor: full special must auto-fire during Tick, resetting the charge meter.");
+        }
+
         // ── Helpers ──────────────────────────────────────────────────────
 
         private NeonRunState DraftRun(int choices = 3)

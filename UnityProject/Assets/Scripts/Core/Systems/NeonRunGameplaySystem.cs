@@ -66,6 +66,11 @@ namespace NeonSkySurvivors.Core.Systems
             AddEffectIfEquipped(run, profile, "neon_wings", "dash_firerate");
             AddEffectIfEquipped(run, profile, "overdrive_core", "levelup_damage");
             AddEffectIfEquipped(run, profile, "quantum_sensor", "boss_reward_boost");
+            // Mythic: Void Engine — dash cooldown resets to zero on every kill.
+            AddEffectIfEquipped(run, profile, "void_engine", "dash_kill_reset");
+            // Mythic: Storm Reactor — special auto-fires when full; Nova hits twice.
+            AddEffectIfEquipped(run, profile, "storm_reactor", "auto_charge_special");
+            AddEffectIfEquipped(run, profile, "storm_reactor", "double_nova");
         }
 
         private static void AddEffectIfEquipped(NeonRunState run, NeonSaveProfile profile, string itemId, string effectKey)
@@ -127,6 +132,7 @@ namespace NeonSkySurvivors.Core.Systems
             run.ElapsedSeconds += Math.Max(0f, deltaTime);
             TickTimers(run, deltaTime);
             TickSpecialCharge(run, deltaTime);
+            TickAutoSpecial(run);
             TickMovement(run, deltaTime);
             TickTimeline(run, catalog, previousElapsedSeconds);
             TickAutoFire(run, deltaTime);
@@ -175,7 +181,9 @@ namespace NeonSkySurvivors.Core.Systems
             run.Player.SpecialCharge = 0f;
 
             // Neon Nova: arena-wide burst, clears enemy fire, and briefly shields the player.
-            var novaDamage = run.Player.Stats.AttackDamage * 6f;
+            // Storm Reactor (double_nova): the detonation hits twice, dealing 2× total damage.
+            var novaHits = run.ActiveEquipmentEffects.Contains("double_nova") ? 2 : 1;
+            var novaDamage = run.Player.Stats.AttackDamage * 6f * novaHits;
             foreach (var enemy in run.Enemies)
             {
                 enemy.HP -= novaDamage;
@@ -202,6 +210,14 @@ namespace NeonSkySurvivors.Core.Systems
 
             var perSecond = 7f * Math.Max(0.1f, run.Player.Stats.SpecialChargeSpeed);
             run.Player.SpecialCharge = Math.Min(run.Player.SpecialChargeMax, run.Player.SpecialCharge + perSecond * deltaTime);
+        }
+
+        private void TickAutoSpecial(NeonRunState run)
+        {
+            // Storm Reactor: when the special bar is full it fires automatically.
+            if (!run.ActiveEquipmentEffects.Contains("auto_charge_special")) return;
+            if (run.Player.SpecialCharge < run.Player.SpecialChargeMax) return;
+            TryActivateSpecial(run);
         }
 
         private void TickTimers(NeonRunState run, float deltaTime)
@@ -916,6 +932,11 @@ namespace NeonSkySurvivors.Core.Systems
 
                 run.Enemies.RemoveAt(enemyIndex);
                 run.EnemiesKilled += 1;
+                // Void Engine: every kill instantly resets the dash cooldown.
+                if (run.ActiveEquipmentEffects.Contains("dash_kill_reset"))
+                {
+                    run.Player.DashCooldownRemaining = 0f;
+                }
                 run.XpShards.Add(new NeonXpShardState { Position = enemy.Position, XPValue = enemy.XPDrop });
                 run.Player.SpecialCharge = Math.Min(run.Player.SpecialChargeMax, run.Player.SpecialCharge + (enemy.IsBoss ? 20f : 1.5f));
                 if (_random.NextDouble() <= 0.2f * run.Player.Stats.CoinBonus)

@@ -118,10 +118,12 @@ Ordered by leverage. §0 unblocks everything else — until the project provably
 ### §1 — Finish the UI redesign polish (M8 remaining)
 - [x] ✅ 2026-06-04: HUD top bar — centered Orbitron timer, WAVE/LV line beneath, kills+coins top-right, smaller round pause button top-left, HP/XP bars moved below the row.
 - [x] ✅ 2026-06-04: Level-up cards — hex icon-medallion (NeonPolyGraphic) tinted by category, with the text block offset to clear it.
-- [x] ✅ 2026-06-04: Results / Level-Up / Pause modal panels given cut-corner fill + cyan neon border. (Stat readouts are still single text blocks; a true per-stat grid of cut cards is still TODO.)
+- [x] ✅ 2026-06-04: Results / Level-Up / Pause modal panels given cut-corner fill + cyan neon border.
 - [x] ✅ 2026-06-04: Reusable cut-corner chip helper (CreateChip); main menu now shows coins + account-rank chips.
-- [x] ✅ 2026-06-04: Results screen rebuilt as a hero TIME-SURVIVED card + 2×3 cut-corner stat-cell grid (kills/bosses/coins/total/best/runs) + salvage line. (Pause snapshot still a text block.)
-- [ ] Menu/Garage: daily-drop strip and a live (dimmed) combat scene behind the menus like the design's ambient backdrop (needs a lightweight non-run combat sim or a looping capture).
+- [x] ✅ 2026-06-04: Results screen rebuilt as a hero TIME-SURVIVED card + 2×3 cut-corner stat-cell grid (kills/bosses/coins/total/best/runs) + salvage line.
+- [x] ✅ 2026-06-15: Pause menu now shows a 2×3 cut-corner stat-cell grid (TIME/KILLS/LEVEL/COINS/BOSSES/HULL) populated live from run state when the pause menu opens.
+- [x] ✅ 2026-06-15: Main menu daily-ops strip — "— DAILY OPS —" kicker + 3 mission cells (cut-corner, 330×92) above the PLAY button; UpdateMainMenuPanel() refreshes missions each time the menu is shown and sets cell text (name + progress/status) and border color (Line2=in-progress, Cyan=complete, Uncommon=claimed).
+- [ ] Menu/Garage: live (dimmed) combat scene behind the menus like the design's ambient backdrop (needs a lightweight non-run combat sim or a looping capture).
 - [x] ✅ 2026-06-04: Buff chips — top-left HUD stack of hex chips showing active in-run upgrades (category icon + color), rebuilt only when the owned-upgrade set changes.
 
 ### §2 — On-device hardening (M1 finish, needs a physical Android phone)

@@ -113,6 +113,9 @@ namespace NeonSkySurvivors.Runtime.App
         private Text _resultsStatsText = null!;   // repurposed: items-found list
         private Text _resultsTimeText = null!;    // hero TIME SURVIVED value
         private readonly Text[] _resultsStatValues = new Text[6];
+        private readonly Text[] _pauseStatValues = new Text[6];
+        private readonly Text[] _menuMissionTexts = new Text[3];
+        private readonly NeonCutRect[] _menuMissionBorders = new NeonCutRect[3];
         private GameObject _upgradePanel = null!;
         private readonly List<Image> _upgradeButtonIcons = new List<Image>();
         private readonly List<NeonPolyGraphic> _upgradeMedallions = new List<NeonPolyGraphic>();
@@ -309,6 +312,33 @@ namespace NeonSkySurvivors.Runtime.App
             _mainMenuStatsText.text = "BEST " + FormatTime(_profile.BestSurvivalTime)
                 + "   ·   RUNS " + _profile.CompletedRuns
                 + "   ·   BOSSES " + _profile.BossesDefeated;
+
+            RefreshDailyMissions();
+            for (var i = 0; i < 3; i++)
+            {
+                if (i >= _profile.Meta.DailyMissions.Count) break;
+                var mission = _profile.Meta.DailyMissions[i];
+                Color borderColor;
+                string statusLine;
+                if (mission.Claimed)
+                {
+                    borderColor = NeonUITheme.Uncommon;
+                    statusLine = "✓ CLAIMED";
+                }
+                else if (mission.Progress >= mission.Target)
+                {
+                    borderColor = NeonUITheme.Cyan;
+                    statusLine = "COMPLETE";
+                }
+                else
+                {
+                    borderColor = NeonUITheme.Line2;
+                    statusLine = mission.Progress + " / " + mission.Target;
+                }
+                _menuMissionTexts[i].text = mission.Name + "\n" + statusLine;
+                _menuMissionBorders[i].BorderColor = borderColor;
+                _menuMissionBorders[i].Refresh();
+            }
         }
 
         private void ShowSettings(bool fromMainMenu)
@@ -1470,6 +1500,12 @@ namespace NeonSkySurvivors.Runtime.App
 
             _paused = true;
             _pauseLabel.text = "II";
+            _pauseStatValues[0].text = FormatTime(_run.ElapsedSeconds);
+            _pauseStatValues[1].text = _run.EnemiesKilled.ToString();
+            _pauseStatValues[2].text = _run.Player.Level.ToString();
+            _pauseStatValues[3].text = _run.Player.CoinsCollected.ToString();
+            _pauseStatValues[4].text = (_run.BossesKilled + _run.MiniBossesKilled).ToString();
+            _pauseStatValues[5].text = Mathf.CeilToInt(_run.Player.Stats.CurrentHP) + "/" + Mathf.CeilToInt(_run.Player.Stats.MaxHP);
             _pauseMenuPanel.SetActive(true);
         }
 
@@ -3055,6 +3091,29 @@ namespace NeonSkySurvivors.Runtime.App
 
             _mainMenuStatsText = CreateText(_mainMenuPanel.transform, "Menu Stats", new Vector2(0f, 150f), new Vector2(0f, 0f), new Vector2(1f, 0f), TextAnchor.LowerCenter, 26, NeonUITheme.TextMute);
 
+            // Daily-ops strip: today's three missions as small status cards above PLAY.
+            var dailyKicker = CreateText(_mainMenuPanel.transform, "Daily Kicker", new Vector2(0f, 642f), new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), TextAnchor.MiddleCenter, 20, NeonUITheme.TextMute);
+            dailyKicker.rectTransform.sizeDelta = new Vector2(400f, 32f);
+            dailyKicker.text = "— DAILY OPS —";
+
+            for (var missionIndex = 0; missionIndex < 3; missionIndex++)
+            {
+                var cell = new GameObject("Daily Mission " + missionIndex, typeof(RectTransform), typeof(Image));
+                cell.transform.SetParent(_mainMenuPanel.transform, false);
+                var cellRect = cell.GetComponent<RectTransform>();
+                cellRect.anchorMin = cellRect.anchorMax = new Vector2(0.5f, 0f);
+                cellRect.anchoredPosition = new Vector2((missionIndex - 1) * 345f, 565f);
+                cellRect.sizeDelta = new Vector2(330f, 92f);
+                cell.GetComponent<Image>().color = NeonUITheme.Alpha(NeonUITheme.Bg1, 0.85f);
+                StylePanelCut(cell, NeonUITheme.Line2);
+                _menuMissionBorders[missionIndex] = cell.transform.Find("Border").GetComponent<NeonCutRect>();
+
+                var label = CreateText(cell.transform, "Mission Label", Vector2.zero, Vector2.zero, Vector2.one, TextAnchor.MiddleCenter, 21, NeonUITheme.Text);
+                label.rectTransform.offsetMin = new Vector2(8f, 6f);
+                label.rectTransform.offsetMax = new Vector2(-8f, -6f);
+                _menuMissionTexts[missionIndex] = label;
+            }
+
             var playButton = CreateButton(_mainMenuPanel.transform, "PLAY", new Vector2(0f, 400f), ShowGarage);
             playButton.GetComponent<RectTransform>().sizeDelta = new Vector2(560f, 130f);
             PrimaryButton(playButton);
@@ -3188,6 +3247,17 @@ namespace NeonSkySurvivors.Runtime.App
             var title = CreateDisplayText(_pauseMenuPanel.transform, "Pause Title", new Vector2(0f, -60f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 44, NeonUITheme.TextCyan);
             title.text = "PAUSED";
             AddTextGlow(title, NeonUITheme.Cyan, 3f);
+
+            // 2×3 run-snapshot stat grid in the empty middle band of the card.
+            var pauseLabels = new[] { "TIME", "KILLS", "LEVEL", "COINS", "BOSSES", "HULL" };
+            var pauseAccents = new[] { NeonUITheme.Cyan, NeonUITheme.Magenta, NeonUITheme.Amber, NeonUITheme.Legendary, NeonUITheme.Purple, NeonUITheme.Uncommon };
+            for (var statIndex = 0; statIndex < 6; statIndex++)
+            {
+                var col = statIndex % 3;
+                var row = statIndex / 3;
+                var center = new Vector2((col - 1) * 285f, row == 0 ? 90f : -45f);
+                _pauseStatValues[statIndex] = CreateStatCell(_pauseMenuPanel.transform, center, new Vector2(260f, 120f), pauseLabels[statIndex], pauseAccents[statIndex]);
+            }
 
             var resumeButton = CreateButton(_pauseMenuPanel.transform, "RESUME", new Vector2(0f, 150f), ResumePausedRun);
             resumeButton.GetComponent<RectTransform>().sizeDelta = new Vector2(660f, 120f);

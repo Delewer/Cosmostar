@@ -156,6 +156,16 @@ namespace NeonSkySurvivors.Runtime.App
         private float _xpSoundCooldown;
         private float _damageSoundCooldown;
 
+        // Ambient combat backdrop (shown behind main-menu / garage)
+        private bool _ambientActive;
+        private float _ambientPhase;
+        private const int AmbientShipCount = 6;
+        private readonly Vector2[] _ambientPositions = new Vector2[AmbientShipCount];
+        private readonly Vector2[] _ambientVelocities = new Vector2[AmbientShipCount];
+        private readonly float[] _ambientSpinRates = new float[AmbientShipCount];
+        private readonly float[] _ambientAngles = new float[AmbientShipCount];
+        private readonly List<SpriteRenderer> _ambientViews = new List<SpriteRenderer>();
+
         private void Awake()
         {
             Application.targetFrameRate = 60;
@@ -173,6 +183,7 @@ namespace NeonSkySurvivors.Runtime.App
             EnsureEventSystem();
             CreateNeonBackground();
             CreatePlayerView();
+            CreateAmbientLayer();
             CreatePools();
             CreateTelegraphCirclePool();
             CreateParticlePool();
@@ -184,6 +195,16 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void Update()
         {
+            var dt = Mathf.Min(Time.deltaTime, 0.05f);
+
+            // Grid and starfield always scroll — gives menu screens a living background.
+            UpdateNeonBackground(dt);
+
+            if (_ambientActive)
+            {
+                TickAmbient(dt);
+            }
+
             if (_run == null)
             {
                 return;
@@ -198,8 +219,6 @@ namespace NeonSkySurvivors.Runtime.App
                 if (_hitStopRemaining <= 0f) Time.timeScale = 1f;
             }
 
-            var dt = Mathf.Min(Time.deltaTime, 0.05f);
-
             if (!_paused && _run.Status == NeonRunStatus.Running)
             {
                 CapturePreTickEnemies();
@@ -208,7 +227,6 @@ namespace NeonSkySurvivors.Runtime.App
             }
 
             RenderRun();
-            UpdateNeonBackground(dt);
             UpdateParticles(dt);
             UpdateScreenShake(dt);
             UpdateAudio(dt);
@@ -217,6 +235,7 @@ namespace NeonSkySurvivors.Runtime.App
 
         private void StartRun()
         {
+            HideAmbient();
             var sector = ClampSelectedSector();
             _run = _gameplay.StartRun(_profile, _catalog, sector);
             _paused = false;
@@ -286,6 +305,7 @@ namespace NeonSkySurvivors.Runtime.App
             _garagePanel.SetActive(true);
             UpdateGaragePanel();
             _audio.StopMusic();
+            ShowAmbient();
         }
 
         private void ShowMainMenu()
@@ -303,6 +323,7 @@ namespace NeonSkySurvivors.Runtime.App
             _mainMenuPanel.SetActive(true);
             UpdateMainMenuPanel();
             _audio.StopMusic();
+            ShowAmbient();
         }
 
         private void UpdateMainMenuPanel()
@@ -3025,6 +3046,105 @@ namespace NeonSkySurvivors.Runtime.App
             for (var index = 0; index < views.Count; index++)
             {
                 views[index].gameObject.SetActive(false);
+            }
+        }
+
+        private void CreateAmbientLayer()
+        {
+            var types = new[]
+            {
+                NeonEnemyBehaviorType.Chaser,
+                NeonEnemyBehaviorType.Shooter,
+                NeonEnemyBehaviorType.FastChaser,
+                NeonEnemyBehaviorType.MineCarrier,
+                NeonEnemyBehaviorType.Chaser,
+                NeonEnemyBehaviorType.Splitter,
+            };
+            var alphas  = new[] { 0.28f, 0.22f, 0.25f, 0.20f, 0.18f, 0.22f };
+            var scales  = new[] { 0.55f, 0.60f, 0.48f, 0.65f, 0.42f, 0.52f };
+            var rng = new System.Random(7337);
+            for (var i = 0; i < AmbientShipCount; i++)
+            {
+                var go = new GameObject("Ambient Ship " + i);
+                var sr = go.AddComponent<SpriteRenderer>();
+                sr.sprite = NeonSpriteFactory.GetEnemy(types[i]);
+                var c = ResolveEnemyColor(types[i]);
+                sr.color = new Color(c.r, c.g, c.b, alphas[i]);
+                sr.sortingOrder = 1;
+                go.transform.localScale = Vector3.one * scales[i];
+                _ambientViews.Add(sr);
+
+                _ambientPositions[i] = new Vector2(
+                    (float)(rng.NextDouble() * 2.0 - 1.0) * ArenaHalfWidth  * 0.85f,
+                    (float)(rng.NextDouble() * 2.0 - 1.0) * ArenaHalfHeight * 0.85f
+                );
+                var angle = (float)(rng.NextDouble() * System.Math.PI * 2.0);
+                var speed = 0.32f + (float)(rng.NextDouble() * 0.28f);
+                _ambientVelocities[i] = new Vector2(Mathf.Cos(angle) * speed, Mathf.Sin(angle) * speed);
+                _ambientSpinRates[i]  = (i % 2 == 0 ? 1f : -1f) * (18f + (float)(rng.NextDouble() * 22f));
+                _ambientAngles[i]     = (float)(rng.NextDouble() * 360.0);
+                go.SetActive(false);
+            }
+        }
+
+        private void ShowAmbient()
+        {
+            if (_ambientActive) return;
+            _ambientActive = true;
+            _playerRoot.gameObject.SetActive(true);
+            var dimCyan = new Color(0.25f, 0.85f, 1f, 0.36f);
+            _playerBody.color      = dimCyan;
+            _playerNose.color      = new Color(0.7f, 1f, 1f, 0.36f);
+            _playerWingLeft.color  = new Color(0.45f, 0.6f, 1f, 0.36f);
+            _playerWingRight.color = _playerWingLeft.color;
+            for (var i = 0; i < _ambientViews.Count; i++)
+            {
+                _ambientViews[i].gameObject.SetActive(true);
+            }
+        }
+
+        private void HideAmbient()
+        {
+            if (!_ambientActive) return;
+            _ambientActive = false;
+            _playerRoot.gameObject.SetActive(false);
+            for (var i = 0; i < _ambientViews.Count; i++)
+            {
+                _ambientViews[i].gameObject.SetActive(false);
+            }
+        }
+
+        private void TickAmbient(float dt)
+        {
+            // Player traces a slow figure-8 (Lissajous: x=sin(t), y=sin(2t)*0.5)
+            _ambientPhase += dt * 0.28f;
+            var px = Mathf.Sin(_ambientPhase) * ArenaHalfWidth * 0.55f;
+            var py = Mathf.Sin(_ambientPhase * 2f) * ArenaHalfHeight * 0.28f;
+            _playerRoot.position = new Vector3(px, py, 0f);
+            var vx = Mathf.Cos(_ambientPhase)         * ArenaHalfWidth  * 0.55f;
+            var vy = Mathf.Cos(_ambientPhase * 2f) * 2f * ArenaHalfHeight * 0.28f;
+            if (vx * vx + vy * vy > 0.001f)
+            {
+                _playerRoot.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(vx, vy) * Mathf.Rad2Deg);
+            }
+
+            for (var i = 0; i < _ambientViews.Count; i++)
+            {
+                var pos = _ambientPositions[i];
+                pos.x += _ambientVelocities[i].x * dt;
+                pos.y += _ambientVelocities[i].y * dt;
+
+                const float mx = ArenaHalfWidth  + 0.8f;
+                const float my = ArenaHalfHeight + 0.8f;
+                if (pos.x >  mx) pos.x = -mx;
+                if (pos.x < -mx) pos.x =  mx;
+                if (pos.y >  my) pos.y = -my;
+                if (pos.y < -my) pos.y =  my;
+
+                _ambientPositions[i] = pos;
+                _ambientAngles[i] += _ambientSpinRates[i] * dt;
+                _ambientViews[i].transform.position = new Vector3(pos.x, pos.y, 0f);
+                _ambientViews[i].transform.rotation = Quaternion.Euler(0f, 0f, _ambientAngles[i]);
             }
         }
 

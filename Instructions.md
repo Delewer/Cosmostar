@@ -123,7 +123,7 @@ Ordered by leverage. §0 unblocks everything else — until the project provably
 - [x] ✅ 2026-06-04: Results screen rebuilt as a hero TIME-SURVIVED card + 2×3 cut-corner stat-cell grid (kills/bosses/coins/total/best/runs) + salvage line.
 - [x] ✅ 2026-06-15: Pause menu now shows a 2×3 cut-corner stat-cell grid (TIME/KILLS/LEVEL/COINS/BOSSES/HULL) populated live from run state when the pause menu opens.
 - [x] ✅ 2026-06-15: Main menu daily-ops strip — "— DAILY OPS —" kicker + 3 mission cells (cut-corner, 330×92) above the PLAY button; UpdateMainMenuPanel() refreshes missions each time the menu is shown and sets cell text (name + progress/status) and border color (Line2=in-progress, Cyan=complete, Uncommon=claimed).
-- [ ] Menu/Garage: live (dimmed) combat scene behind the menus like the design's ambient backdrop (needs a lightweight non-run combat sim or a looping capture).
+- [x] ✅ 2026-06-15: Menu/Garage ambient combat backdrop — 6 dimmed enemy sprites (Chaser/Shooter/FastChaser/MineCarrier/Splitter) drift across the arena behind the UI panels; the player plane traces a slow figure-8 (Lissajous path) at 36% alpha. The neon grid+starfield now scrolls continuously (not just during runs). ShowAmbient()/HideAmbient() called from ShowMainMenu()/ShowGarage()/StartRun(); TickAmbient() in Update() before the run-null guard.
 - [x] ✅ 2026-06-04: Buff chips — top-left HUD stack of hex chips showing active in-run upgrades (category icon + color), rebuilt only when the owned-upgrade set changes.
 
 ### §2 — On-device hardening (M1 finish, needs a physical Android phone)

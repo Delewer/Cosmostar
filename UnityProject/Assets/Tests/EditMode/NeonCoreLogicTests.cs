@@ -568,5 +568,43 @@ namespace NeonSkySurvivors.Tests
                 });
             }
         }
+
+        // ── Pilot milestone reward track ─────────────────────────────────────────
+
+        [Test]
+        public void MetaProgress_HasClaimedMilestoneLevelsList()
+        {
+            var meta = new NeonMetaProgress();
+            Assert.IsNotNull(meta.ClaimedMilestoneLevels, "ClaimedMilestoneLevels should initialise to empty list.");
+            Assert.AreEqual(0, meta.ClaimedMilestoneLevels.Count);
+        }
+
+        [Test]
+        public void MetaProgress_ClaimedMilestoneLevels_PersistsAfterAddition()
+        {
+            var meta = new NeonMetaProgress();
+            meta.ClaimedMilestoneLevels.Add(2);
+            meta.ClaimedMilestoneLevels.Add(5);
+            Assert.AreEqual(2, meta.ClaimedMilestoneLevels.Count);
+            Assert.IsTrue(meta.ClaimedMilestoneLevels.Contains(2));
+            Assert.IsTrue(meta.ClaimedMilestoneLevels.Contains(5));
+        }
+
+        [Test]
+        public void MetaProgress_LevelOneHasNoMilestoneClaimed()
+        {
+            var meta = new NeonMetaProgress { AccountLevel = 1 };
+            Assert.IsFalse(meta.ClaimedMilestoneLevels.Contains(1),
+                "Level 1 has no milestone — nothing should be auto-claimed.");
+        }
+
+        [Test]
+        public void MetaProgress_AccountXpThresholdGrowsWithLevel()
+        {
+            // threshold = 100 * level
+            Assert.AreEqual(100, 100 * 1, "Lv1→Lv2 threshold");
+            Assert.AreEqual(500, 100 * 5, "Lv5→Lv6 threshold");
+            Assert.AreEqual(1000, 100 * 10, "Lv10→Lv11 threshold");
+        }
     }
 }

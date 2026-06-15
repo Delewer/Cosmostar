@@ -159,6 +159,7 @@ namespace NeonSkySurvivors.Core.Models
         public int BossCores;
         public string DailyMissionDate = string.Empty;
         public List<NeonMissionState> DailyMissions = new List<NeonMissionState>();
+        public List<int> ClaimedMilestoneLevels = new List<int>();
     }
 
     [Serializable]

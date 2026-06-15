@@ -140,7 +140,7 @@ Ordered by leverage. §0 unblocks everything else — until the project provably
 - [x] ✅ 2026-06-04: Reroll/Banish on the level-up draft — Core RerollDraft (redraw, respects banned) + BanishUpgrade (remove forever, refill slot), seeded 2 rerolls / 1 banish per run; UI reroll button (REROLL·N) + per-card ✕ banish buttons; covered by 6 new EditMode tests.
 
 ### §4 — Meta progression & retention
-- [ ] Pilot/account-level reward track with unlock milestones.
+- [x] ✅ 2026-06-15: Pilot/account-level reward track with 5 milestones (LV 2/5/10/15/20 → Pilot/Ace/Veteran/Commander/Legend) each granting a coin bonus and a permanent run perk (bonus rerolls/banishes). Milestone perks applied to every run start via PilotExtraRerolls/PilotExtraBanishes. Missions panel now shows a "PILOT RANK" card (rank title, XP bar, active perks, next milestone hint). 4 new EditMode tests. ClaimedMilestoneLevels added to NeonMetaProgress.
 - [ ] Weekly/event missions (templates beyond the 3 dailies).
 - [ ] Achievements + a simple stats/codex screen (enemies seen, bosses beaten, best builds).
 - [ ] Second soft currency or upgrade-material economy ONLY if it earns its keep (MVP rule: avoid currency bloat).

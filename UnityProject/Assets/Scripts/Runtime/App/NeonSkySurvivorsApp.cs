@@ -238,6 +238,9 @@ namespace NeonSkySurvivors.Runtime.App
             HideAmbient();
             var sector = ClampSelectedSector();
             _run = _gameplay.StartRun(_profile, _catalog, sector);
+            // Pilot-rank bonuses: extra rerolls and banishes from milestone perks.
+            _run.RerollsRemaining  += PilotExtraRerolls(_profile.Meta.AccountLevel);
+            _run.BanishesRemaining += PilotExtraBanishes(_profile.Meta.AccountLevel);
             _paused = false;
             _pauseLabel.text = "II";
             _resultApplied = false;
@@ -2791,6 +2794,64 @@ namespace NeonSkySurvivors.Runtime.App
             ShowGarage();
         }
 
+        // ── Pilot milestone reward track ─────────────────────────────────────────
+        // level → (coinBonus, rankTitle, runPerkKey)
+        // rankTitle shown in the Missions panel pilot card.
+        // runPerkKey applied to the next run via _run.RerollsRemaining/BanishesRemaining.
+        private static readonly (int Level, int CoinBonus, string Title, string PerkKey)[] AccountMilestones =
+        {
+            (2,  50,  "Pilot",       "bonus_reroll"),
+            (5,  100, "Ace",         "bonus_banish"),
+            (10, 200, "Veteran",     "bonus_reroll"),
+            (15, 350, "Commander",   "bonus_banish"),
+            (20, 600, "Legend",      "bonus_reroll"),
+        };
+
+        private static int AccountXpPerLevel(int level) => 100 * level;
+
+        private static string PilotTitle(int level)
+        {
+            for (var i = AccountMilestones.Length - 1; i >= 0; i--)
+            {
+                if (level >= AccountMilestones[i].Level)
+                    return AccountMilestones[i].Title;
+            }
+            return "Cadet";
+        }
+
+        private static int PilotExtraRerolls(int level)
+        {
+            var count = 0;
+            foreach (var m in AccountMilestones)
+            {
+                if (level >= m.Level && m.PerkKey == "bonus_reroll") count++;
+            }
+            return count;
+        }
+
+        private static int PilotExtraBanishes(int level)
+        {
+            var count = 0;
+            foreach (var m in AccountMilestones)
+            {
+                if (level >= m.Level && m.PerkKey == "bonus_banish") count++;
+            }
+            return count;
+        }
+
+        private static void GrantMilestoneIfDue(NeonSaveProfile profile)
+        {
+            foreach (var m in AccountMilestones)
+            {
+                if (profile.Meta.AccountLevel == m.Level
+                    && !profile.Meta.ClaimedMilestoneLevels.Contains(m.Level))
+                {
+                    profile.Meta.ClaimedMilestoneLevels.Add(m.Level);
+                    profile.PlayerCoins += m.CoinBonus;
+                }
+            }
+        }
+
         private static readonly NeonMissionState[] MissionTemplates =
         {
             new NeonMissionState { Id = "kill30", Name = "Exterminator", Description = "Kill 30 enemies in one run", Metric = "kills", Target = 30, RewardCoins = 40, RewardAccountXP = 20 },
@@ -2878,12 +2939,13 @@ namespace NeonSkySurvivors.Runtime.App
             _profile.PlayerCoins += mission.RewardCoins;
             _profile.Meta.AccountXP += mission.RewardAccountXP;
 
-            // Level up account if threshold reached: threshold = 100 * current level
-            while (_profile.Meta.AccountXP >= 100 * _profile.Meta.AccountLevel)
+            // Level up account if threshold reached; check for milestone rewards.
+            while (_profile.Meta.AccountXP >= AccountXpPerLevel(_profile.Meta.AccountLevel))
             {
-                _profile.Meta.AccountXP -= 100 * _profile.Meta.AccountLevel;
+                _profile.Meta.AccountXP -= AccountXpPerLevel(_profile.Meta.AccountLevel);
                 _profile.Meta.AccountLevel += 1;
                 _profile.PlayerCoins += 30 * _profile.Meta.AccountLevel;
+                GrantMilestoneIfDue(_profile);
             }
 
             NeonSaveService.Save(_profile);
@@ -2899,11 +2961,58 @@ namespace NeonSkySurvivors.Runtime.App
                 Destroy(_missionsContent.GetChild(i).gameObject);
             }
 
+            CreatePilotRankCard();
+
             for (var index = 0; index < _profile.Meta.DailyMissions.Count; index++)
             {
                 var mission = _profile.Meta.DailyMissions[index];
                 CreateMissionCard(mission, index);
             }
+        }
+
+        private void CreatePilotRankCard()
+        {
+            var card = new GameObject("Pilot Rank", typeof(RectTransform), typeof(Image));
+            card.transform.SetParent(_missionsContent, false);
+            var layoutElem = card.AddComponent<LayoutElement>();
+            layoutElem.preferredHeight = 180f;
+            layoutElem.flexibleWidth = 1f;
+            card.GetComponent<Image>().color = new Color(0.02f, 0.06f, 0.12f, 0.92f);
+            StylePanelCut(card, NeonUITheme.Mix(NeonUITheme.Amber, 0.5f, NeonUITheme.Line2));
+
+            var level = _profile.Meta.AccountLevel;
+            var xp = _profile.Meta.AccountXP;
+            var xpNeeded = AccountXpPerLevel(level);
+            var title = PilotTitle(level);
+            var extraRerolls = PilotExtraRerolls(level);
+            var extraBanishes = PilotExtraBanishes(level);
+
+            CreateDisplayText(card.transform, "Rank Title", new Vector2(0f, -28f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 32, NeonUITheme.Amber)
+                .text = "PILOT RANK — " + title.ToUpperInvariant();
+
+            CreateText(card.transform, "Rank Sub", new Vector2(0f, -72f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 22, NeonUITheme.TextMute)
+                .text = "LV " + level + "   XP " + xp + " / " + xpNeeded;
+
+            // Perks line
+            var perksText = "PERKS: ";
+            perksText += extraRerolls > 0 ? "+" + extraRerolls + " Reroll" + (extraRerolls > 1 ? "s" : "") + "/run   " : "";
+            perksText += extraBanishes > 0 ? "+" + extraBanishes + " Banish" + (extraBanishes > 1 ? "es" : "") + "/run   " : "";
+            if (perksText == "PERKS: ") perksText += "none yet";
+            CreateText(card.transform, "Perks", new Vector2(0f, -105f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 20, NeonUITheme.TextDim)
+                .text = perksText;
+
+            // Next milestone hint
+            string nextHint = "MAX LEVEL";
+            foreach (var m in AccountMilestones)
+            {
+                if (level < m.Level)
+                {
+                    nextHint = "LV " + m.Level + " → " + m.Title + " · +" + m.CoinBonus + " ◎";
+                    break;
+                }
+            }
+            CreateText(card.transform, "Next", new Vector2(0f, -138f), new Vector2(0f, 1f), new Vector2(1f, 1f), TextAnchor.UpperCenter, 18, NeonUITheme.Amber)
+                .text = "NEXT: " + nextHint;
         }
 
         private void CreateMissionCard(NeonMissionState mission, int index)
